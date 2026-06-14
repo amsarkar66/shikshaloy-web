@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   // Trust Hostinger's reverse proxy to forward the real protocol/host
   experimental: {
     trustHostHeader: true,
-  },
+  } as Record<string, unknown>,
 };
 
 export default nextConfig;

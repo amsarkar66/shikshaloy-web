@@ -1,4 +1,4 @@
-import { FadeIn, StaggerChildren, StaggerItem } from "@/components/ui/fade-in";
+import { StaggerChildren, StaggerItem } from "@/components/ui/fade-in";
 
 const stats = [
   { value: "10,000+", label: "Students Enrolled" },
