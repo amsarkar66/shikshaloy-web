@@ -2,11 +2,12 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 const ROLE_HOME: Record<string, string> = {
-  super_admin: "/super-admin",
-  admin: "/admin",
-  teacher: "/teacher",
-  parent: "/parent",
-  student: "/student",
+  kernal: "/dashboard",
+  super_admin: "/dashboard",
+  admin: "/dashboard",
+  teacher: "/dashboard",
+  parent: "/dashboard",
+  student: "/dashboard",
 };
 
 export async function middleware(request: NextRequest) {
@@ -33,16 +34,15 @@ export async function middleware(request: NextRequest) {
     }
   );
 
+  // getSession() decodes the JWT locally — no network call, no latency.
+  // Actual server components use getUser() where security matters.
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
+  const user = session?.user;
 
   const { pathname } = request.nextUrl;
-  const isDashboardRoute = pathname.startsWith("/super-admin") ||
-    pathname.startsWith("/admin") ||
-    pathname.startsWith("/teacher") ||
-    pathname.startsWith("/parent") ||
-    pathname.startsWith("/student");
+  const isDashboardRoute = pathname.startsWith("/dashboard");
 
   if (isDashboardRoute && !user) {
     return NextResponse.redirect(new URL("/login", request.url));
