@@ -8,14 +8,6 @@ import { GraduationCap, Eye, EyeOff, Mail, Lock, AlertCircle } from "lucide-reac
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 
-const ROLE_HOME: Record<string, string> = {
-  super_admin: "/super-admin",
-  admin: "/admin",
-  teacher: "/teacher",
-  parent: "/parent",
-  student: "/student",
-};
-
 export default function LoginPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
@@ -31,15 +23,14 @@ export default function LoginPage() {
 
     try {
       const supabase = createClient();
-      const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+      const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
 
       if (authError) {
         setError(authError.message);
         return;
       }
 
-      const role = data.user?.user_metadata?.role as string | undefined;
-      router.push(role ? (ROLE_HOME[role] ?? "/") : "/");
+      router.push("/dashboard");
       router.refresh();
     } finally {
       setLoading(false);

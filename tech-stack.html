@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shikshaloy — Tech Stack</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f5f5f5;
+      color: #1a1a1a;
+      padding: 40px;
+    }
+
+    .page {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 12px;
+      padding: 48px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    }
+
+    header {
+      border-bottom: 2px solid #1a1a1a;
+      padding-bottom: 20px;
+      margin-bottom: 36px;
+    }
+
+    header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    header p {
+      font-size: 13px;
+      color: #666;
+      margin-top: 4px;
+    }
+
+    .section {
+      margin-bottom: 32px;
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #888;
+      margin-bottom: 12px;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 10px;
+    }
+
+    .card {
+      border: 1px solid #e5e5e5;
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+
+    .card-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+
+    .card-version {
+      font-size: 11px;
+      color: #999;
+      margin-top: 2px;
+    }
+
+    .card-note {
+      font-size: 11px;
+      color: #666;
+      margin-top: 4px;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 99px;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .badge-blue   { background: #dbeafe; color: #1d4ed8; }
+    .badge-green  { background: #dcfce7; color: #15803d; }
+    .badge-purple { background: #ede9fe; color: #6d28d9; }
+    .badge-orange { background: #ffedd5; color: #c2410c; }
+    .badge-gray   { background: #f3f4f6; color: #374151; }
+
+    footer {
+      margin-top: 40px;
+      padding-top: 16px;
+      border-top: 1px solid #e5e5e5;
+      font-size: 11px;
+      color: #aaa;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .page { box-shadow: none; border-radius: 0; padding: 32px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <h1>Shikshaloy — Tech Stack</h1>
+      <p>Web Application · Generated June 2026</p>
+    </header>
+
+    <div class="section">
+      <div class="section-title">Framework &amp; Runtime</div>
+      <div class="cards">
+        <div class="card">
+          <div class="badge badge-blue">Core</div>
+          <div class="card-name">Next.js 15</div>
+          <div class="card-version">v15.5.19</div>
+          <div class="card-note">App Router + Turbopack</div>
+        </div>
+        <div class="card">
+          <div class="badge badge-blue">Core</div>
+          <div class="card-name">React</div>
+          <div class="card-version">v19.1.0</div>
+          <div class="card-note">UI rendering library</div>
+        </div>
+        <div class="card">
+          <div class="badge badge-blue">Core</div>
+          <div class="card-name">TypeScript</div>
+          <div class="card-version">v5.x</div>
+          <div class="card-note">Static type safety</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Styling</div>
+      <div class="cards">
+        <div class="card">
+          <div class="badge badge-purple">Style</div>
+          <div class="card-name">Tailwind CSS</div>
+          <div class="card-version">v4.x</div>
+          <div class="card-note">Utility-first CSS</div>
+        </div>
+        <div class="card">
+          <div class="badge badge-purple">Style</div>
+          <div class="card-name">shadcn/ui</div>
+          <div class="card-version">v4.11.0</div>
+          <div class="card-note">Accessible component library</div>
+        </div>
+        <div class="card">
+          <div class="badge badge-purple">Style</div>
+          <div class="card-name">Base UI</div>
+          <div class="card-version">v1.5.0</div>
+          <div class="card-note">Headless UI primitives</div>
+        </div>
+        <div class="card">
+          <div class="badge badge-purple">Style</div>
+          <div class="card-name">CVA + clsx + tw-merge</div>
+          <div class="card-version">—</div>
+          <div class="card-note">Class variant management</div>
+        </div>
+        <div class="card">
+          <div class="badge badge-purple">Style</div>
+          <div class="card-name">tw-animate-css</div>
+          <div class="card-version">v1.4.0</div>
+          <div class="card-note">CSS animation utilities</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Backend &amp; Database</div>
+      <div class="cards">
+        <div class="card">
+          <div class="badge badge-green">Backend</div>
+          <div class="card-name">Supabase</div>
+          <div class="card-version">v2.108.1</div>
+          <div class="card-note">Auth + PostgreSQL database</div>
+        </div>
+        <div class="card">
+          <div class="badge badge-green">Backend</div>
+          <div class="card-name">@supabase/ssr</div>
+          <div class="card-version">v0.12.0</div>
+          <div class="card-note">Server-side rendering helpers</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">UI &amp; UX Libraries</div>
+      <div class="cards">
+        <div class="card">
+          <div class="badge badge-orange">UI</div>
+          <div class="card-name">Framer Motion</div>
+          <div class="card-version">v12.40.0</div>
+          <div class="card-note">Animations &amp; transitions</div>
+        </div>
+        <div class="card">
+          <div class="badge badge-orange">UI</div>
+          <div class="card-name">Lucide React</div>
+          <div class="card-version">v1.18.0</div>
+          <div class="card-note">Icon set</div>
+        </div>
+        <div class="card">
+          <div class="badge badge-orange">UI</div>
+          <div class="card-name">OverlayScrollbars</div>
+          <div class="card-version">v2.16.0</div>
+          <div class="card-note">Custom scrollbar styling</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Dev Tools</div>
+      <div class="cards">
+        <div class="card">
+          <div class="badge badge-gray">Dev</div>
+          <div class="card-name">ESLint</div>
+          <div class="card-version">v9.x</div>
+          <div class="card-note">Linting (Next.js config)</div>
+        </div>
+        <div class="card">
+          <div class="badge badge-gray">Dev</div>
+          <div class="card-name">Turbopack</div>
+          <div class="card-version">built-in</div>
+          <div class="card-note">Rust-based dev bundler</div>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <span>Shikshaloy Web · shikshaloy-web</span>
+      <span>Print: Ctrl+P / Cmd+P</span>
+    </footer>
+  </div>
+</body>
+</html>

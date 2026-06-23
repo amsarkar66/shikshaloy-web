@@ -1,6 +1,6 @@
 /**
- * Creates the kernal@shikshaloy.com demo account via Supabase Admin REST API.
- * Run: node scripts/seed-kernal.mjs
+ * Creates the admin@shikshaloy.com demo account via Supabase Admin REST API.
+ * Run: node scripts/seed-admin.mjs
  */
 
 import { config } from "dotenv";
@@ -28,21 +28,21 @@ const HEADERS = {
   "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
 };
 
-const KERNAL_EMAIL = "kernal@shikshaloy.com";
-const KERNAL_PASSWORD = "Kernal@123";
+const ADMIN_EMAIL = "admin@shikshaloy.com";
+const ADMIN_PASSWORD = "Admin@123";
 
 async function main() {
-  console.log("\n🌱  Seeding kernal account…");
+  console.log("\n🌱  Seeding admin account…");
 
   // Check if user already exists
-  const listRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users?email=${encodeURIComponent(KERNAL_EMAIL)}`, {
+  const listRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users?email=${encodeURIComponent(ADMIN_EMAIL)}`, {
     headers: HEADERS,
   });
   const listData = await listRes.json();
-  const existing = listData?.users?.find((u) => u.email === KERNAL_EMAIL);
+  const existing = listData?.users?.find((u) => u.email === ADMIN_EMAIL);
 
   if (existing) {
-    console.log(`ℹ️   ${KERNAL_EMAIL} already exists — skipping.\n`);
+    console.log(`ℹ️   ${ADMIN_EMAIL} already exists — skipping.\n`);
     console.log(`    User ID : ${existing.id}`);
     console.log(`    Role    : ${existing.user_metadata?.role}\n`);
     process.exit(0);
@@ -53,12 +53,12 @@ async function main() {
     method: "POST",
     headers: HEADERS,
     body: JSON.stringify({
-      email: KERNAL_EMAIL,
-      password: KERNAL_PASSWORD,
+      email: ADMIN_EMAIL,
+      password: ADMIN_PASSWORD,
       email_confirm: true,
       user_metadata: {
-        role: "kernal",
-        full_name: "Shikshaloy Kernal",
+        role: "admin",
+        full_name: "Shikshaloy Admin",
         status: "active",
       },
     }),
@@ -71,9 +71,9 @@ async function main() {
     process.exit(1);
   }
 
-  console.log("\n✅  Kernal account created!");
+  console.log("\n✅  Admin account created!");
   console.log(`    Email    : ${user.email}`);
-  console.log(`    Password : ${KERNAL_PASSWORD}`);
+  console.log(`    Password : ${ADMIN_PASSWORD}`);
   console.log(`    Role     : ${user.user_metadata?.role}`);
   console.log(`    User ID  : ${user.id}`);
   console.log("\n⚠️   Change this password in production.\n");
