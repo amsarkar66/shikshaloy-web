@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import { TRANSITIONS } from "@/lib/motion";
 
 type Step = 1 | 2;
 
@@ -262,7 +263,7 @@ export default function SignupPage() {
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, ease: "easeOut" }}
+        transition={TRANSITIONS.pageEntrance}
         className="w-full max-w-lg"
       >
         <div className="relative rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur-xl">
@@ -340,7 +341,7 @@ export default function SignupPage() {
                   initial="enter"
                   animate="center"
                   exit="exit"
-                  transition={{ duration: 0.25, ease: "easeInOut" }}
+                  transition={TRANSITIONS.formStep}
                   onSubmit={handleStep1}
                   className="space-y-4"
                 >
@@ -434,7 +435,7 @@ export default function SignupPage() {
                   initial="enter"
                   animate="center"
                   exit="exit"
-                  transition={{ duration: 0.25, ease: "easeInOut" }}
+                  transition={TRANSITIONS.formStep}
                   onSubmit={handleSubmit}
                   className="space-y-4"
                 >
@@ -584,7 +585,7 @@ function ConfirmationScreen({
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
+        transition={TRANSITIONS.successEntrance}
         className="w-full max-w-md"
       >
         <div className="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur-xl text-center">

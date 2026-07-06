@@ -1,96 +1,57 @@
-import {
-  ALL_STAFF, avatarColor, initials, deptColor, buildSalary,
-  type StaffMember, type StaffType,
-} from "../../staff/_data/staff";
-
 export type PayrollStatus = "processed" | "pending" | "on_hold";
 export type PayMode       = "bank_transfer" | "cheque";
+export type StaffType     = "teaching" | "non_teaching";
+
+export interface PayrollStaff {
+  id: string;
+  name: string;
+  employeeId: string;
+  designation: string;
+  department: string;
+  type: StaffType;
+  status: string;
+}
 
 export interface PayrollRecord {
-  staffId:    number;
-  monthStr:   string;
-  gross:      number;
-  net:        number;
-  deductions: number;
-  status:     PayrollStatus;
-  slipNo?:    string;
-  paidOn?:    string;
-  payMode?:   PayMode;
+  staffId: string;
+  monthStr: string;
+  basic: number;
+  hra: number;
+  da: number;
+  ta: number;
+  otherAllowances: number;
+  pfDeduction: number;
+  tdsDeduction: number;
+  profTax: number;
+  gross: number;
+  net: number;
+  status: PayrollStatus;
+  slipNo: string | null;
+  paidOn: string | null;
+  payMode: PayMode | null;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function lcg(seed: number): number {
-  return ((seed * 1664525 + 1013904223) >>> 0) / 0xffffffff;
+export function earningsOf(r: PayrollRecord) {
+  return [
+    { label: "Basic",             amount: r.basic },
+    { label: "HRA",               amount: r.hra },
+    { label: "DA",                amount: r.da },
+    { label: "TA",                amount: r.ta },
+    { label: "Other Allowances",  amount: r.otherAllowances },
+  ];
 }
 
-function monthHash(monthStr: string): number {
-  return monthStr.split("").reduce((a, c, i) => a + c.charCodeAt(0) * (i + 1), 0);
+export function deductionsOf(r: PayrollRecord) {
+  return [
+    { label: "Provident Fund",    amount: r.pfDeduction },
+    { label: "TDS",               amount: r.tdsDeduction },
+    { label: "Professional Tax",  amount: r.profTax },
+  ];
 }
 
-function slipNo(staff: StaffMember, monthStr: string): string {
-  return `SLP-${monthStr.replace("-", "")}-${staff.employeeId}`;
+export function totalDeductions(r: PayrollRecord): number {
+  return r.pfDeduction + r.tdsDeduction + r.profTax;
 }
-
-const PAY_MODES: PayMode[] = ["bank_transfer", "bank_transfer", "bank_transfer", "cheque"];
-
-// ── Record generation ─────────────────────────────────────────────────────────
-
-export const CURRENT_MONTH  = "2026-06";
-export const PAYROLL_START  = "2026-04";
-export const TERM_MONTHS    = ["2026-04", "2026-05", "2026-06"];
-
-function payrollStatus(staff: StaffMember, monthStr: string): PayrollStatus {
-  if (staff.status === "inactive" || staff.status === "on_leave") return "on_hold";
-  const rng = lcg(staff.id * 61 + monthHash(monthStr) * 17);
-  if (monthStr === CURRENT_MONTH) return rng < 0.60 ? "processed" : "pending";
-  return rng < 0.93 ? "processed" : "pending";
-}
-
-export function getStaffMonthRecord(staff: StaffMember, monthStr: string): PayrollRecord {
-  const { gross, net, totalDeductions } = buildSalary(staff);
-  const status = payrollStatus(staff, monthStr);
-
-  const payDay = 26 + Math.floor(lcg(staff.id * 37 + monthHash(monthStr) * 11) * 3);
-
-  return {
-    staffId:    staff.id,
-    monthStr,
-    gross,
-    net,
-    deductions: totalDeductions,
-    status,
-    slipNo:  status === "processed" ? slipNo(staff, monthStr)  : undefined,
-    paidOn:  status === "processed" ? `${monthStr}-${payDay}`  : undefined,
-    payMode: status === "processed" ? PAY_MODES[staff.id % PAY_MODES.length] : undefined,
-  };
-}
-
-export function getSchoolPayrollStats(monthStr: string) {
-  const active = ALL_STAFF.filter((s) => s.status !== "inactive");
-  const records = active.map((s) => ({
-    staff: s,
-    record: getStaffMonthRecord(s, monthStr),
-    salary: buildSalary(s),
-  }));
-
-  const totalPayroll  = records.reduce((a, r) => a + r.salary.gross, 0);
-  const processed     = records.filter((r) => r.record.status === "processed");
-  const pending       = records.filter((r) => r.record.status === "pending");
-  const onHold        = records.filter((r) => r.record.status === "on_hold");
-  const totalPaid     = processed.reduce((a, r) => a + r.salary.net, 0);
-
-  return {
-    totalPayroll,
-    totalPaid,
-    processedN: processed.length,
-    pendingN:   pending.length,
-    onHoldN:    onHold.length,
-    totalStaff: active.length,
-  };
-}
-
-// ── Display helpers ───────────────────────────────────────────────────────────
 
 export const STATUS_LABEL: Record<PayrollStatus, string> = {
   processed: "Processed",
@@ -119,11 +80,31 @@ export function formatDate(dateStr: string): string {
   });
 }
 
-export function addMonths(monthStr: string, n: number): string {
-  const [y, m] = monthStr.split("-").map(Number);
-  const d = new Date(y, m - 1 + n, 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+const AVATAR_COLORS = [
+  "bg-blue-500", "bg-violet-500", "bg-emerald-500", "bg-rose-500",
+  "bg-amber-500", "bg-teal-500", "bg-indigo-500", "bg-pink-500",
+  "bg-cyan-500", "bg-orange-500",
+];
+
+export function avatarColor(id: string): string {
+  const n = id.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+  return AVATAR_COLORS[n % AVATAR_COLORS.length];
 }
 
-export { ALL_STAFF, avatarColor, initials, deptColor, buildSalary };
-export type { StaffMember, StaffType };
+export function initials(name: string): string {
+  return name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
+}
+
+const DEPT_BADGE_COLORS = [
+  "bg-blue-500/10 text-blue-700 dark:text-blue-300",
+  "bg-violet-500/10 text-violet-700 dark:text-violet-300",
+  "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  "bg-rose-500/10 text-rose-700 dark:text-rose-300",
+  "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
+];
+
+export function deptColor(dept: string): string {
+  const n = dept.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+  return DEPT_BADGE_COLORS[n % DEPT_BADGE_COLORS.length];
+}

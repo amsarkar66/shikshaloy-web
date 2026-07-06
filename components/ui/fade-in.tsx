@@ -2,6 +2,7 @@
 
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
+import { TRANSITIONS } from "@/lib/motion";
 
 interface FadeInProps {
   children: React.ReactNode;
@@ -32,7 +33,7 @@ export function FadeIn({
       className={className}
       initial={initial}
       animate={inView ? { opacity: 1, y: 0, x: 0 } : initial}
-      transition={{ duration: 0.6, delay, ease: [0.21, 0.47, 0.32, 0.98] }}
+      transition={{ ...TRANSITIONS.fadeIn, delay }}
     >
       {children}
     </motion.div>
@@ -79,7 +80,7 @@ export function StaggerItem({
       className={className}
       variants={{
         hidden: { opacity: 0, y: 24 },
-        visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.21, 0.47, 0.32, 0.98] } },
+        visible: { opacity: 1, y: 0, transition: TRANSITIONS.staggerItem },
       }}
     >
       {children}

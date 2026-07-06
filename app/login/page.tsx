@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { GraduationCap, Eye, EyeOff, Mail, Lock, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import { TRANSITIONS } from "@/lib/motion";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -49,7 +50,7 @@ export default function LoginPage() {
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, ease: "easeOut" }}
+        transition={TRANSITIONS.pageEntrance}
         className="w-full max-w-md"
       >
         {/* Card */}

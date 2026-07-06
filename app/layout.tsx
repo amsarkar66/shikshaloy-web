@@ -1,13 +1,7 @@
 import type { Metadata } from "next";
-import { Figtree } from "next/font/google";
 import "./globals.css";
 import { SmoothScroll } from "@/components/ui/smooth-scroll";
 import { ThemeProvider } from "@/components/theme-provider";
-
-const figtree = Figtree({
-  subsets: ["latin"],
-  variable: "--font-figtree",
-});
 
 export const metadata: Metadata = {
   title: "Shikshaloy — Modern School Management",
@@ -21,7 +15,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body suppressHydrationWarning className={`${figtree.variable} font-[family-name:var(--font-figtree)] antialiased`}>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet" />
+      </head>
+      <body suppressHydrationWarning className="font-[family-name:var(--font-figtree)] antialiased">
         <ThemeProvider>
           <SmoothScroll />
           {children}

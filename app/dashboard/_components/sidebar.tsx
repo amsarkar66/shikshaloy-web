@@ -35,6 +35,13 @@ import {
   BedDouble,
   Package,
   TrendingUp,
+  CalendarOff,
+  Award,
+  CalendarRange,
+  FileText,
+  IdCard,
+  FolderOpen,
+  History,
 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { LogoutButton } from "./logout-button";
@@ -71,18 +78,23 @@ const NAV: Record<string, NavGroup[]> = {
     {
       group: "People",
       items: [
-        { label: "Students", href: "/dashboard/students", icon: GraduationCap },
-        { label: "Staff",    href: "/dashboard/staff",    icon: Briefcase },
-        { label: "Parents",  href: "/dashboard/parents",  icon: Users2 },
+        { label: "Students",         href: "/dashboard/students", icon: GraduationCap },
+        { label: "Staff",            href: "/dashboard/staff",    icon: Briefcase },
+        { label: "Parents",          href: "/dashboard/parents",  icon: Users2 },
+        { label: "Leave Management", href: "/dashboard/leaves",   icon: CalendarOff },
       ],
     },
     {
       group: "Academics",
       items: [
-        { label: "Classes & Sections", href: "/dashboard/classes",   icon: Layers },
-        { label: "Subjects",           href: "/dashboard/subjects",  icon: BookMarked },
-        { label: "Timetable",          href: "/dashboard/timetable", icon: CalendarDays },
-        { label: "Exams & Results",    href: "/dashboard/exams",     icon: ClipboardCheck },
+        { label: "Classes & Sections", href: "/dashboard/classes",            icon: Layers },
+        { label: "Subjects",           href: "/dashboard/subjects",           icon: BookMarked },
+        { label: "Timetable",          href: "/dashboard/timetable",          icon: CalendarDays },
+        { label: "Exams & Results",    href: "/dashboard/exams",              icon: ClipboardCheck },
+        { label: "Academic Calendar",  href: "/dashboard/academic-calendar",  icon: CalendarRange },
+        { label: "Certificates",       href: "/dashboard/certificates",       icon: Award },
+        { label: "Homework",          href: "/dashboard/homework",           icon: FileText },
+        { label: "ID Cards",          href: "/dashboard/id-cards",           icon: IdCard },
       ],
     },
     {
@@ -111,6 +123,7 @@ const NAV: Record<string, NavGroup[]> = {
         { label: "Announcements",     href: "/dashboard/announcements", icon: Megaphone },
         { label: "Messages",          href: "/dashboard/messages",      icon: MessageSquare },
         { label: "Events & Calendar", href: "/dashboard/events",        icon: Calendar },
+        { label: "Documents & Circulars",   href: "/dashboard/documents", icon: FolderOpen },
       ],
     },
     {
@@ -132,7 +145,8 @@ const NAV: Record<string, NavGroup[]> = {
     {
       group: "Administration",
       items: [
-        { label: "Settings", href: "/dashboard/settings", icon: Settings },
+        { label: "Settings",   href: "/dashboard/settings",   icon: Settings },
+        { label: "Audit Log",  href: "/dashboard/audit-log",  icon: History },
       ],
     },
   ],
@@ -151,6 +165,7 @@ const NAV: Record<string, NavGroup[]> = {
         { label: "My Classes", href: "/dashboard/classes",    icon: BookOpen },
         { label: "Attendance", href: "/dashboard/attendance", icon: ClipboardList },
         { label: "Grades",     href: "/dashboard/grades",     icon: BarChart3 },
+        { label: "Homework",   href: "/dashboard/homework",   icon: FileText },
         { label: "Timetable",  href: "/dashboard/timetable",  icon: CalendarDays },
       ],
     },
@@ -172,6 +187,7 @@ const NAV: Record<string, NavGroup[]> = {
         { label: "My Classes", href: "/dashboard/classes",    icon: BookOpen },
         { label: "Attendance", href: "/dashboard/attendance", icon: ClipboardList },
         { label: "Grades",     href: "/dashboard/grades",     icon: BarChart3 },
+        { label: "Homework",   href: "/dashboard/homework",   icon: FileText },
         { label: "Timetable",  href: "/dashboard/timetable",  icon: CalendarDays },
       ],
     },
