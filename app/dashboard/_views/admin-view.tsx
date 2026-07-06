@@ -96,27 +96,25 @@ const QUICK_ACTIONS = [
 function StatCard({ stat }: { stat: Stat }) {
   return (
     <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-4 flex flex-col gap-3">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between">
         <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${stat.accent}`}>
           <stat.icon className="h-4 w-4" />
         </div>
-        {stat.trend === "up" && (
-          <span className="flex items-center gap-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-            <TrendingUp className="h-3 w-3" />
-          </span>
-        )}
-        {stat.trend === "down" && (
-          <span className="flex items-center gap-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
-            <TrendingDown className="h-3 w-3" />
-          </span>
-        )}
+        <span className="text-[11px] text-gray-400 dark:text-zinc-500 text-right">{stat.sub}</span>
       </div>
       <div>
         <p className="text-2xl font-bold tracking-tight text-gray-900 dark:text-zinc-50">
           {stat.value}
         </p>
-        <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-zinc-400">{stat.label}</p>
-        <p className="mt-1 text-[11px] text-gray-400 dark:text-zinc-500">{stat.sub}</p>
+        <p className="mt-0.5 flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-zinc-400">
+          {stat.label}
+          {stat.trend === "up" && (
+            <TrendingUp className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+          )}
+          {stat.trend === "down" && (
+            <TrendingDown className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+          )}
+        </p>
       </div>
     </div>
   );
@@ -476,17 +474,17 @@ export async function AdminView({ user }: { user: User }) {
     },
     {
       label: "Avg Attendance", value: `${avgAttendance}%`,
-      sub: "Across all students", trend: "up",
+      sub: "Across all students", trend: "neutral",
       icon: ClipboardCheck, accent: "text-sky-500 bg-sky-500/10 dark:bg-sky-500/15",
     },
     {
       label: "Fees Collected", value: formatCurrency(latest.paid),
-      sub: latestMonthLabel, trend: "up",
+      sub: latestMonthLabel, trend: "neutral",
       icon: IndianRupee, accent: "text-indigo-500 bg-indigo-500/10 dark:bg-indigo-500/15",
     },
     {
       label: "Pending Dues", value: formatCurrency(totalPending),
-      sub: `${studentsWithDues} student${studentsWithDues !== 1 ? "s" : ""}`, trend: "down",
+      sub: `${studentsWithDues} student${studentsWithDues !== 1 ? "s" : ""}`, trend: "neutral",
       icon: AlertTriangle, accent: "text-amber-500 bg-amber-500/10 dark:bg-amber-500/15",
     },
   ];

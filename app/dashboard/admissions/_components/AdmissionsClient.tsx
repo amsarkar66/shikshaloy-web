@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   UserPlus, Users, CheckCircle2, GraduationCap,
   Search, Plus, Download, X, ArrowLeft,
@@ -8,12 +10,14 @@ import {
   ChevronLeft, ChevronRight,
   Phone, Mail, CalendarDays, StickyNote,
   CheckCheck, Clock, Ban, BookmarkCheck, RotateCcw,
+  KeyRound, Copy, Loader2,
 } from "lucide-react";
 import {
   ACADEMIC_YEARS, APPLY_CLASSES,
   STATUS_LABEL, STATUS_BADGE, formatDate, calcAge,
   type AdmissionStatus,
 } from "../_data/admissions";
+import { updateApplicationStatus, enrollApplication, type EnrollResult } from "../actions";
 
 export interface Application {
   id:               string;
@@ -29,7 +33,29 @@ export interface Application {
   submittedDate:    string;
   status:           AdmissionStatus;
   academicYear:     string;
+  academicYearId:   string;
   notes?:           string;
+
+  address?:               string;
+  bloodGroup?:            string;
+  category?:              string;
+  nationality?:           string;
+  fatherName?:            string;
+  fatherOccupation?:      string;
+  fatherPhone?:           string;
+  fatherEmail?:           string;
+  motherName?:            string;
+  motherOccupation?:      string;
+  motherPhone?:           string;
+  motherEmail?:           string;
+  guardianName?:          string;
+  guardianRelation?:      string;
+  guardianPhone?:         string;
+  siblingStudying?:       boolean;
+  siblingName?:           string;
+  emergencyContactName?:  string;
+  emergencyContactPhone?: string;
+  photoUrl?:              string;
 }
 
 const PAGE_SIZE = 10;
@@ -127,8 +153,20 @@ function ApplicationList({ apps, onView }: { apps: Application[]; onView: (id: s
                 <tr key={app.id} className="hover:bg-gray-50 dark:hover:bg-zinc-700/20 transition-colors">
                   <td className="px-4 py-3 font-mono text-xs text-gray-500 dark:text-zinc-400 whitespace-nowrap">{app.applicationNo}</td>
                   <td className="px-4 py-3">
-                    <p className="font-medium text-gray-900 dark:text-zinc-100 whitespace-nowrap">{app.applicantName}</p>
-                    <p className="text-xs text-gray-400 dark:text-zinc-500">{app.gender} · Age {calcAge(app.dob, app.academicYear)}</p>
+                    <div className="flex items-center gap-2.5">
+                      {app.photoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={app.photoUrl} alt={app.applicantName} className="h-8 w-8 shrink-0 rounded-full object-cover border border-gray-200 dark:border-zinc-700" />
+                      ) : (
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 dark:bg-zinc-700 text-xs font-semibold text-gray-500 dark:text-zinc-400">
+                          {app.applicantName.split(" ").map((n)=>n[0]).slice(0,2).join("").toUpperCase()}
+                        </div>
+                      )}
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-zinc-100 whitespace-nowrap">{app.applicantName}</p>
+                        <p className="text-xs text-gray-400 dark:text-zinc-500">{app.gender} · Age {calcAge(app.dob, app.academicYear)}</p>
+                      </div>
+                    </div>
                   </td>
                   <td className="px-4 py-3"><span className="inline-flex items-center justify-center h-7 w-7 rounded-lg bg-indigo-500/10 text-xs font-bold text-indigo-600 dark:text-indigo-400">{app.applyingForClass}</span></td>
                   <td className="px-4 py-3"><p className="text-sm text-gray-700 dark:text-zinc-300 whitespace-nowrap">{app.parentName}</p><p className="text-xs text-gray-400 dark:text-zinc-500">{app.parentPhone}</p></td>
@@ -166,12 +204,109 @@ const TRANSITIONS: Partial<Record<AdmissionStatus, Transition[]>> = {
   rejected:     [{ label:"Reconsider",status:"pending",icon:RotateCcw,style:"border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20"}],
 };
 
+function CredentialsDialog({ result, studentName, onClose }: { result: EnrollResult; studentName: string; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+
+  function copyAll() {
+    let text = `Student login\nEmail: ${result.loginEmail}\nPassword: ${result.loginPassword}`;
+    if (result.parentLogin) {
+      text += `\n\nParent login\nEmail: ${result.parentLogin.email}\nPassword: ${result.parentLogin.password}`;
+    }
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-sm rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-xl">
+        <div className="flex items-center gap-2 mb-1">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="h-5 w-5"/></div>
+          <div>
+            <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Student enrolled</p>
+            <p className="text-xs text-gray-500 dark:text-zinc-400">{studentName} · Roll No {result.rollNo}</p>
+          </div>
+        </div>
+        <p className="mt-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Student login</p>
+        <div className="mt-1.5 space-y-2 rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/50 p-3">
+          <div className="flex items-center gap-2 text-xs">
+            <KeyRound className="h-3.5 w-3.5 text-gray-400 dark:text-zinc-500 shrink-0"/>
+            <span className="text-gray-500 dark:text-zinc-400 w-16 shrink-0">Email</span>
+            <span className="font-mono text-gray-800 dark:text-zinc-200 truncate">{result.loginEmail}</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <KeyRound className="h-3.5 w-3.5 text-gray-400 dark:text-zinc-500 shrink-0"/>
+            <span className="text-gray-500 dark:text-zinc-400 w-16 shrink-0">Password</span>
+            <span className="font-mono text-gray-800 dark:text-zinc-200">{result.loginPassword}</span>
+          </div>
+        </div>
+
+        {result.parentLogin && (
+          <>
+            <p className="mt-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Parent login</p>
+            <div className="mt-1.5 space-y-2 rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/50 p-3">
+              <div className="flex items-center gap-2 text-xs">
+                <KeyRound className="h-3.5 w-3.5 text-gray-400 dark:text-zinc-500 shrink-0"/>
+                <span className="text-gray-500 dark:text-zinc-400 w-16 shrink-0">Email</span>
+                <span className="font-mono text-gray-800 dark:text-zinc-200 truncate">{result.parentLogin.email}</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                <KeyRound className="h-3.5 w-3.5 text-gray-400 dark:text-zinc-500 shrink-0"/>
+                <span className="text-gray-500 dark:text-zinc-400 w-16 shrink-0">Password</span>
+                <span className="font-mono text-gray-800 dark:text-zinc-200">{result.parentLogin.password}</span>
+              </div>
+            </div>
+          </>
+        )}
+
+        <p className="mt-3 text-[11px] text-gray-400 dark:text-zinc-500">Share these with the student/parent — they won&apos;t be shown again.</p>
+        <div className="mt-4 flex gap-2">
+          <button onClick={copyAll} className="flex flex-1 h-9 items-center justify-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors">
+            <Copy className="h-3.5 w-3.5"/>{copied?"Copied!":"Copy credentials"}
+          </button>
+          <button onClick={onClose} className="flex-1 h-9 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-xs font-medium text-white transition-colors">Done</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DetailView({ app: initial, onBack }: { app: Application; onBack: () => void }) {
-  const [status, setStatus] = useState<AdmissionStatus>(initial.status);
+  const router = useRouter();
+  const [status, setStatus]   = useState<AdmissionStatus>(initial.status);
+  const [busy, setBusy]       = useState(false);
+  const [error, setError]     = useState<string | null>(null);
+  const [credentials, setCredentials] = useState<EnrollResult | null>(null);
   const transitions = TRANSITIONS[status] ?? [];
+
+  async function handleTransition(next: AdmissionStatus) {
+    setError(null);
+    setBusy(true);
+    try {
+      if (next === "enrolled") {
+        const result = await enrollApplication(initial.id);
+        setCredentials(result);
+      } else {
+        await updateApplicationStatus(initial.id, next);
+      }
+      setStatus(next);
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <div className="space-y-5">
+      {credentials && (
+        <CredentialsDialog
+          result={credentials}
+          studentName={initial.applicantName}
+          onClose={() => setCredentials(null)}
+        />
+      )}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-medium text-gray-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors self-start"><ArrowLeft className="h-4 w-4"/> All Applications</button>
         <div className="sm:ml-2 flex items-center gap-3 flex-wrap">
@@ -179,13 +314,36 @@ function DetailView({ app: initial, onBack }: { app: Application; onBack: () => 
           <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_BADGE[status]}`}>{STATUS_LABEL[status]}</span>
           <span className="text-xs text-gray-400 dark:text-zinc-500">{initial.academicYear} · Submitted {formatDate(initial.submittedDate)}</span>
         </div>
-        {transitions.length>0&&<div className="sm:ml-auto flex flex-wrap gap-2">{transitions.map((t)=><button key={t.status} onClick={()=>setStatus(t.status)} className={`flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors ${t.style}`}><t.icon className="h-3.5 w-3.5"/>{t.label}</button>)}</div>}
+        {transitions.length>0&&(
+          <div className="sm:ml-auto flex flex-wrap gap-2">
+            {transitions.map((t)=>(
+              <button
+                key={t.status}
+                onClick={()=>handleTransition(t.status)}
+                disabled={busy}
+                className={`flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors disabled:opacity-50 ${t.style}`}
+              >
+                {busy?<Loader2 className="h-3.5 w-3.5 animate-spin"/>:<t.icon className="h-3.5 w-3.5"/>}{t.label}
+              </button>
+            ))}
+          </div>
+        )}
         {status==="enrolled"&&<div className="sm:ml-auto flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 font-medium"><CheckCircle2 className="h-4 w-4"/>Enrolled successfully</div>}
       </div>
+
+      {error && (
+        <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-500/10 px-4 py-2.5 text-sm text-red-700 dark:text-red-400">
+          {error}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5 space-y-4">
           <div className="flex items-center gap-2"><GraduationCap className="h-4 w-4 text-indigo-500"/><h3 className="text-sm font-semibold text-gray-900 dark:text-zinc-100">Applicant Information</h3></div>
+          {initial.photoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={initial.photoUrl} alt={initial.applicantName} className="h-20 w-20 rounded-xl object-cover border border-gray-200 dark:border-zinc-700" />
+          )}
           <div className="space-y-3">
             {[
               { label:"Full Name",       value:initial.applicantName },
@@ -193,6 +351,10 @@ function DetailView({ app: initial, onBack }: { app: Application; onBack: () => 
               { label:"Gender",          value:initial.gender },
               { label:"Applying For",    value:`Class ${initial.applyingForClass}` },
               { label:"Previous School", value:initial.previousSchool??"—" },
+              { label:"Blood Group",     value:initial.bloodGroup??"—" },
+              { label:"Category",        value:initial.category??"—" },
+              { label:"Nationality",     value:initial.nationality??"—" },
+              { label:"Address",         value:initial.address??"—" },
             ].map((row)=>(
               <div key={row.label} className="flex items-start gap-3">
                 <span className="w-32 shrink-0 text-xs text-gray-400 dark:text-zinc-500 pt-0.5">{row.label}</span>
@@ -216,6 +378,56 @@ function DetailView({ app: initial, onBack }: { app: Application; onBack: () => 
           </div>
         </div>
       </div>
+
+      {(initial.fatherName||initial.motherName||initial.guardianName||initial.siblingStudying||initial.emergencyContactName)&&(
+        <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5 space-y-4">
+          <div className="flex items-center gap-2"><Users className="h-4 w-4 text-indigo-500"/><h3 className="text-sm font-semibold text-gray-900 dark:text-zinc-100">Family & Emergency Details</h3></div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {initial.fatherName&&(
+              <div>
+                <p className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5">Father</p>
+                <p className="text-sm font-medium text-gray-800 dark:text-zinc-200">{initial.fatherName}</p>
+                {initial.fatherOccupation&&<p className="text-xs text-gray-400 dark:text-zinc-500">{initial.fatherOccupation}</p>}
+                {initial.fatherPhone&&<p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">{initial.fatherPhone}</p>}
+                {initial.fatherEmail&&<p className="text-xs text-gray-500 dark:text-zinc-400 truncate">{initial.fatherEmail}</p>}
+              </div>
+            )}
+            {initial.motherName&&(
+              <div>
+                <p className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5">Mother</p>
+                <p className="text-sm font-medium text-gray-800 dark:text-zinc-200">{initial.motherName}</p>
+                {initial.motherOccupation&&<p className="text-xs text-gray-400 dark:text-zinc-500">{initial.motherOccupation}</p>}
+                {initial.motherPhone&&<p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">{initial.motherPhone}</p>}
+                {initial.motherEmail&&<p className="text-xs text-gray-500 dark:text-zinc-400 truncate">{initial.motherEmail}</p>}
+              </div>
+            )}
+            {initial.guardianName&&(
+              <div>
+                <p className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5">Guardian</p>
+                <p className="text-sm font-medium text-gray-800 dark:text-zinc-200">{initial.guardianName}</p>
+                {initial.guardianRelation&&<p className="text-xs text-gray-400 dark:text-zinc-500">{initial.guardianRelation}</p>}
+                {initial.guardianPhone&&<p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">{initial.guardianPhone}</p>}
+              </div>
+            )}
+          </div>
+          {(initial.siblingStudying||initial.emergencyContactName)&&(
+            <div className="pt-3 border-t border-gray-100 dark:border-zinc-700/50 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {initial.siblingStudying&&(
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5">Sibling at School</p>
+                  <p className="text-sm text-gray-700 dark:text-zinc-300">{initial.siblingName||"Yes"}</p>
+                </div>
+              )}
+              {initial.emergencyContactName&&(
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5">Emergency Contact</p>
+                  <p className="text-sm text-gray-700 dark:text-zinc-300">{initial.emergencyContactName} · {initial.emergencyContactPhone}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {initial.notes&&<div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5"><div className="flex items-center gap-2 mb-3"><StickyNote className="h-4 w-4 text-indigo-500"/><h3 className="text-sm font-semibold text-gray-900 dark:text-zinc-100">Notes</h3></div><p className="text-sm text-gray-700 dark:text-zinc-300 leading-relaxed">{initial.notes}</p></div>}
 
@@ -275,7 +487,7 @@ export default function AdmissionsClient({ initialApps }: { initialApps: Applica
             {ACADEMIC_YEARS.map((y)=><option key={y} value={y}>{y}</option>)}
           </select>
           <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5"/> Export</button>
-          <button className="flex h-9 items-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 px-4 text-sm font-medium text-white transition-colors shadow-sm shrink-0"><Plus className="h-4 w-4"/> New Application</button>
+          <Link href="/dashboard/admissions/new" className="flex h-9 items-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 px-4 text-sm font-medium text-white transition-colors shadow-sm shrink-0"><Plus className="h-4 w-4"/> New Application</Link>
         </div>
       </div>
 

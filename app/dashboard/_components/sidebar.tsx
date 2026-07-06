@@ -45,6 +45,7 @@ import {
 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { LogoutButton } from "./logout-button";
+import packageJson from "@/package.json";
 
 type NavItem = { label: string; href: string; icon: React.ElementType; badge?: "soon" };
 type NavGroup = { group?: string; items: NavItem[] };
@@ -227,15 +228,13 @@ export function Sidebar({ role, user }: { role: string; user: User }) {
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-indigo-100 dark:border-zinc-800 bg-white dark:bg-zinc-950">
       {/* Logo */}
-      <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-indigo-100 dark:border-zinc-800 px-5">
+      <div className="flex h-[60px] shrink-0 items-center gap-2.5 border-b border-indigo-100 dark:border-zinc-800 px-5">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500 shadow shadow-indigo-500/40">
           <GraduationCap className="h-4 w-4 text-white" />
         </div>
         <div className="leading-tight">
           <p className="text-sm font-bold tracking-tight text-gray-900 dark:text-zinc-50">Shikshaloy</p>
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-indigo-500 dark:text-zinc-400">
-            {roleLabel}
-          </p>
+          <p className="text-[11px] font-medium text-gray-400 dark:text-zinc-600">v{packageJson.version}</p>
         </div>
       </div>
 

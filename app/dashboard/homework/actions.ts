@@ -26,3 +26,12 @@ export async function assignHomework(input: {
   if (error) throw new Error(error.message);
   revalidatePath("/dashboard/homework");
 }
+
+export async function submitHomework(homeworkId: string, studentId: string) {
+  const { error } = await supabaseAdmin
+    .from("homework_submissions")
+    .insert({ homework_id: homeworkId, student_id: studentId });
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/dashboard/homework");
+}

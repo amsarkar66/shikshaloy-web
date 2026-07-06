@@ -14,7 +14,7 @@ interface BulkImportModalProps {
   onClose: () => void;
   title: string;
   columns: ImportColumn[];
-  onImport: (rows: Record<string, string>[]) => void;
+  onImport: (rows: Record<string, string>[]) => void | Promise<void>;
 }
 
 function parseCsv(text: string): string[][] {

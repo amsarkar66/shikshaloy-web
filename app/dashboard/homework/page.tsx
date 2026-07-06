@@ -1,8 +1,68 @@
+import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin, DEMO_SCHOOL_ID, DEMO_AY_ID } from "@/lib/supabase/service";
+import { getStudentContext } from "@/lib/students/context";
 import HomeworkClient from "./_components/HomeworkClient";
+import { StudentHomeworkList, type StudentHomeworkItem } from "./_components/StudentHomeworkList";
 import type { Homework } from "./_data/homework";
 
+async function StudentHomework({ userId }: { userId: string }) {
+  const student = await getStudentContext(userId);
+
+  if (!student || !student.sectionId) {
+    return (
+      <div className="w-full px-6 py-8">
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 py-24 text-center">
+          <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">No class assigned yet</p>
+        </div>
+      </div>
+    );
+  }
+
+  const [{ data: hwRows }, { data: subRows }] = await Promise.all([
+    supabaseAdmin
+      .from("homework")
+      .select("id, title, due_date, description, subjects ( name ), staff_members ( full_name )")
+      .eq("section_id", student.sectionId)
+      .eq("status", "active")
+      .order("due_date"),
+
+    supabaseAdmin.from("homework_submissions").select("homework_id").eq("student_id", student.id),
+  ]);
+
+  const submittedIds = new Set(((subRows ?? []) as any[]).map((s) => s.homework_id));
+
+  const items: StudentHomeworkItem[] = ((hwRows ?? []) as any[]).map((h) => ({
+    id: h.id,
+    title: h.title,
+    subject: h.subjects?.name ?? "Subject",
+    teacher: h.staff_members?.full_name ?? "—",
+    dueDate: h.due_date,
+    description: h.description ?? "",
+    submitted: submittedIds.has(h.id),
+  }));
+
+  return (
+    <div className="w-full px-6 py-6 space-y-6">
+      <div>
+        <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Homework</h1>
+        <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">
+          Class {student.gradeLevel}-{student.sectionName} · Roll No {student.rollNo}
+        </p>
+      </div>
+      <StudentHomeworkList items={items} studentId={student.id} />
+    </div>
+  );
+}
+
 export default async function HomeworkPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const role = user?.user_metadata?.role as string | undefined;
+
+  if (role === "student" && user) {
+    return <StudentHomework userId={user.id} />;
+  }
+
   const [{ data: hwRows }, { data: subjectRows }, { data: sectionRows }, { data: teacherRows }, { data: studentRows }] =
     await Promise.all([
       supabaseAdmin

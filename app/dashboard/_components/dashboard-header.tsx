@@ -10,6 +10,8 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   "/dashboard/institutions":  { title: "Institutions",  subtitle: "Manage institution accounts" },
   "/dashboard/schools":       { title: "Schools",       subtitle: "Schools under your institution" },
   "/dashboard/schools/new":   { title: "Add School",    subtitle: "Register a new school" },
+  "/dashboard/admissions":    { title: "Admissions",    subtitle: "Manage student applications and enrolments" },
+  "/dashboard/admissions/new": { title: "New Application", subtitle: "Submit a new admission application" },
   "/dashboard/students":      { title: "Students",      subtitle: "Manage student records" },
   "/dashboard/staff":         { title: "Staff",         subtitle: "Manage staff members" },
   "/dashboard/classes":       { title: "Classes",       subtitle: "Manage class sections" },
@@ -35,6 +37,17 @@ const ROLE_COLORS: Record<string, string> = {
   driver:      "bg-teal-500",
 };
 
+const ROLE_LABELS: Record<string, string> = {
+  kernel:      "Product Owner",
+  super_admin: "Institution Owner",
+  admin:       "Principal",
+  staff:       "Staff Manager",
+  teacher:     "Teacher",
+  parent:      "Parent",
+  student:     "Student",
+  driver:      "Driver",
+};
+
 function getInitials(name: string) {
   return name
     .split(" ")
@@ -44,15 +57,25 @@ function getInitials(name: string) {
     .toUpperCase();
 }
 
-export function DashboardHeader({ role, user }: { role: string; user: User }) {
+export function DashboardHeader({
+  role, user, orgName,
+}: {
+  role: string;
+  user: User;
+  orgName?: string | null;
+}) {
   const pathname = usePathname();
   const meta = PAGE_META[pathname] ?? { title: "Dashboard", subtitle: "" };
   const name = (user.user_metadata?.full_name as string) || user.email || "";
   const initials = getInitials(name);
   const avatarColor = ROLE_COLORS[role] ?? "bg-indigo-500";
+  const roleLabel =
+    role === "staff"
+      ? (user.user_metadata?.staff_type as string | undefined) ?? ROLE_LABELS[role] ?? role
+      : ROLE_LABELS[role] ?? role;
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-indigo-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-6">
+    <header className="flex h-[60px] shrink-0 items-center justify-between border-b border-indigo-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-6">
       {/* Left — page title */}
       <div className="flex items-baseline gap-3">
         <h1 className="text-base font-semibold text-gray-900 dark:text-zinc-50 leading-none">
@@ -81,13 +104,18 @@ export function DashboardHeader({ role, user }: { role: string; user: User }) {
           <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-indigo-500" />
         </button>
 
-        <div className="ml-2 flex items-center gap-2.5">
+        <div className="ml-3 h-4 w-px bg-gray-200 dark:bg-zinc-800" />
+
+        <div className="ml-3 flex items-center gap-2.5">
+          <div className="hidden text-right leading-tight md:block">
+            <p className="text-sm font-medium text-gray-700 dark:text-zinc-300">
+              {orgName || name.split(" ")[0]}
+            </p>
+            <p className="text-[11px] text-gray-400 dark:text-zinc-500">{roleLabel}</p>
+          </div>
           <div className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold text-white ${avatarColor}`}>
             {initials}
           </div>
-          <span className="hidden text-sm font-medium text-gray-700 dark:text-zinc-300 md:block">
-            {name.split(" ")[0]}
-          </span>
         </div>
       </div>
     </header>

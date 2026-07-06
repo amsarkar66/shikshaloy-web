@@ -1,14 +1,17 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Users, UserCheck, UserPlus, AlertCircle,
   Search, Plus, Download, ChevronLeft, ChevronRight,
   Eye, Pencil, ArrowUpDown, ArrowUp, ArrowDown,
-  X, GraduationCap, Upload,
+  X, GraduationCap, Upload, Loader2, CheckCircle2,
 } from "lucide-react";
 import { BulkImportModal, type ImportColumn } from "../../_components/bulk-import-modal";
+import { AddStudentModal, type SectionOption } from "./add-student-modal";
+import { bulkImportStudents, type BulkImportOutcome } from "../actions";
 
 export type FeeStatus = "paid" | "partial" | "overdue";
 
@@ -23,6 +26,8 @@ export interface Student {
   attendance: number;
   feeStatus: FeeStatus;
   active: boolean;
+  joinedDate: string | null;
+  photoUrl: string | null;
 }
 
 const AVATAR_COLORS = [
@@ -77,7 +82,8 @@ function StatsRow({ students }: { students: Student[] }) {
   const total    = students.length;
   const active   = students.filter((s) => s.active).length;
   const overdue  = students.filter((s) => s.feeStatus === "overdue").length;
-  const newCount = 3;
+  const nowMonth = new Date().toISOString().slice(0, 7);
+  const newCount = students.filter((s) => s.joinedDate?.startsWith(nowMonth)).length;
 
   const items = [
     { label: "Total Students",      value: total,    icon: Users,       accent: "text-blue-500    bg-blue-500/10"    },
@@ -108,7 +114,8 @@ function SortIcon({ field, active, dir }: { field: string; active: boolean; dir:
   return dir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
 }
 
-export default function StudentsClient({ students: initialStudents }: { students: Student[] }) {
+export default function StudentsClient({ students: initialStudents, sections }: { students: Student[]; sections: SectionOption[] }) {
+  const router = useRouter();
   const [students,    setStudents]  = useState(initialStudents);
   const [query,       setQuery]     = useState("");
   const [classFilter, setClass]     = useState("all");
@@ -117,21 +124,27 @@ export default function StudentsClient({ students: initialStudents }: { students
   const [sortDir,     setSortDir]   = useState<SortDir>("asc");
   const [page,        setPage]      = useState(1);
   const [importOpen,  setImportOpen] = useState(false);
+  const [addOpen,     setAddOpen]    = useState(false);
+  const [importBusy,  setImportBusy] = useState(false);
+  const [importResult, setImportResult] = useState<BulkImportOutcome | null>(null);
 
-  function handleImport(rows: Record<string, string>[]) {
-    const imported: Student[] = rows.map((r, i) => ({
-      id: `imported-${Date.now()}-${i}`,
-      name: r.name || "Unnamed",
-      rollNo: r.rollNo || "",
-      class: r.class || "",
-      section: r.section || "",
-      parent: r.parent || "—",
-      phone: r.phone || "—",
-      attendance: 0,
-      feeStatus: "overdue",
-      active: true,
-    }));
-    setStudents((prev) => [...imported, ...prev]);
+  useEffect(() => { setStudents(initialStudents); }, [initialStudents]);
+
+  async function handleImport(rows: Record<string, string>[]) {
+    setImportBusy(true);
+    setImportResult(null);
+    try {
+      const outcome = await bulkImportStudents(
+        rows.map((r) => ({
+          name: r.name, rollNo: r.rollNo, class: r.class,
+          section: r.section, parent: r.parent, phone: r.phone,
+        }))
+      );
+      setImportResult(outcome);
+      router.refresh();
+    } finally {
+      setImportBusy(false);
+    }
   }
 
   function toggleSort(field: SortField) {
@@ -206,15 +219,43 @@ export default function StudentsClient({ students: initialStudents }: { students
           </button>
           <button
             onClick={() => setImportOpen(true)}
-            className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"
+            disabled={importBusy}
+            className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors disabled:opacity-50"
           >
-            <Upload className="h-3.5 w-3.5" /> Import
+            {importBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} Import
           </button>
-          <button className="flex h-9 items-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 px-4 text-sm font-medium text-white transition-colors shadow-sm">
+          <button
+            onClick={() => setAddOpen(true)}
+            className="flex h-9 items-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 px-4 text-sm font-medium text-white transition-colors shadow-sm"
+          >
             <Plus className="h-4 w-4" /> Add Student
           </button>
         </div>
       </div>
+
+      {importResult && (
+        <div className="flex items-start gap-2 rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/50 px-4 py-2.5 text-sm">
+          <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-emerald-500" />
+          <div>
+            <p className="text-gray-700 dark:text-zinc-300">
+              Imported {importResult.succeeded} student{importResult.succeeded === 1 ? "" : "s"}
+              {importResult.failed.length > 0 && `, ${importResult.failed.length} failed`}.
+            </p>
+            {importResult.failed.length > 0 && (
+              <ul className="mt-1 text-xs text-red-600 dark:text-red-400 space-y-0.5">
+                {importResult.failed.map((f, i) => <li key={i}>{f.row}: {f.reason}</li>)}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+
+      <AddStudentModal
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        sections={sections}
+        onCreated={() => router.refresh()}
+      />
 
       <BulkImportModal
         open={importOpen}
@@ -277,9 +318,14 @@ export default function StudentsClient({ students: initialStudents }: { students
                   <tr key={s.id} className="hover:bg-gray-50 dark:hover:bg-zinc-700/30 transition-colors">
                     <td className="py-3 pl-4 pr-3">
                       <div className="flex items-center gap-3">
-                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ${avatarColor(s.id)}`}>
-                          {initials(s.name)}
-                        </div>
+                        {s.photoUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={s.photoUrl} alt={s.name} className="h-8 w-8 shrink-0 rounded-full object-cover" />
+                        ) : (
+                          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ${avatarColor(s.id)}`}>
+                            {initials(s.name)}
+                          </div>
+                        )}
                         <div className="min-w-0">
                           <p className="font-medium text-gray-900 dark:text-zinc-100 leading-tight truncate">{s.name}</p>
                           <p className="text-xs text-gray-400 dark:text-zinc-500">{s.rollNo}</p>

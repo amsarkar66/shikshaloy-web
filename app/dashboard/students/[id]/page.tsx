@@ -72,7 +72,7 @@ export default async function StudentDetailPage({
     supabaseAdmin
       .from("students")
       .select(`
-        id, full_name, roll_no, dob, gender, address, phone,
+        id, full_name, roll_no, dob, gender, address, phone, photo_url,
         attendance_pct, fee_status, status, joined_date,
         sections ( name, grades ( level ) ),
         student_parents ( relationship, parents ( full_name, phone, email, occupation ) )
@@ -123,6 +123,7 @@ export default async function StudentDetailPage({
     joinedDate: formatDate(s.joined_date),
     active: s.status === "active",
     feeStatus: (s.fee_status as string) ?? "overdue",
+    photoUrl: (s.photo_url as string | null) ?? null,
   };
 
   const guardians = ((s.student_parents ?? []) as any[])
@@ -200,9 +201,14 @@ export default async function StudentDetailPage({
       {/* Profile hero */}
       <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
-          <div className={`flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl text-2xl font-bold text-white ${avatarColor(student.id)}`}>
-            {initials(student.name)}
-          </div>
+          {student.photoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={student.photoUrl} alt={student.name} className="h-20 w-20 shrink-0 rounded-2xl object-cover" />
+          ) : (
+            <div className={`flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl text-2xl font-bold text-white ${avatarColor(student.id)}`}>
+              {initials(student.name)}
+            </div>
+          )}
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-1">
               <h2 className="text-xl font-bold text-gray-900 dark:text-zinc-50">{student.name}</h2>
