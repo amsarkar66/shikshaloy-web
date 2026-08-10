@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Landmark, MapPin, Phone, Globe, AlertCircle, Check, BadgeCheck, ArrowLeft, ArrowRight, LogOut,
-  GraduationCap, ClipboardCheck, Mail,
+  GraduationCap, ClipboardCheck, Mail, Loader, CircleCheck, ChevronRight,
 } from "lucide-react";
 import { OtpInput } from "@/components/auth/auth-ui";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -59,11 +59,11 @@ const GRADES_FROM = ["Pre-KG", "KG", "I", "II", "III", "IV", "V", "VI", "VII", "
 const GRADES_TO = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
 
 const STEPS = [
-  { label: "Identity", description: "Name and institution type", icon: Landmark },
-  { label: "Location", description: "Where you're located", icon: MapPin },
-  { label: "Structure", description: "Grades offered", icon: GraduationCap },
-  { label: "Contact", description: "How we reach you", icon: Phone },
-  { label: "Review", description: "Confirm and submit", icon: ClipboardCheck },
+  { label: "Identity", icon: Landmark },
+  { label: "Location", icon: MapPin },
+  { label: "Structure", icon: GraduationCap },
+  { label: "Contact", icon: Phone },
+  { label: "Review", icon: ClipboardCheck },
 ];
 const CONTACT_STEP = STEPS.findIndex((s) => s.label === "Contact");
 
@@ -540,44 +540,47 @@ export function InstitutionForm({
 
   const initials = getInitials(userName || userEmail);
 
+  const isReviewStep = (i: number) => i === STEPS.length - 1;
+
   const stepList = (
     <>
       {STEPS.map((s, i) => {
         const active = i === step;
         const done = i < step;
         const canGo = i <= maxStepReached;
-        const Icon = s.icon;
         return (
           <button
             key={s.label}
             type="button"
             onClick={() => goToStep(i)}
             disabled={!canGo}
-            className={`flex shrink-0 items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors ${
+            className={`flex shrink-0 items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors ${
               active
-                ? "bg-primary-50 dark:bg-primary-500/10 ring-1 ring-primary-200 dark:ring-primary-500/30"
+                ? "bg-primary-50 dark:bg-primary-500/10"
                 : canGo
                 ? "hover:bg-gray-100 dark:hover:bg-zinc-800"
                 : "opacity-50 cursor-not-allowed"
             }`}
           >
-            <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-colors ${
-              done
-                ? "bg-primary-500 text-white"
-                : active
-                ? "bg-white dark:bg-zinc-900 ring-1 ring-primary-500 text-primary-600 dark:text-primary-400"
-                : "bg-gray-100 dark:bg-zinc-800 text-gray-400 dark:text-zinc-500"
+            <span className="flex h-4 w-4 shrink-0 items-center justify-center">
+              {done ? (
+                <CircleCheck className="h-3.5 w-3.5 text-primary-500" />
+              ) : active ? (
+                <Loader className="h-3.5 w-3.5 text-primary-500" />
+              ) : !isReviewStep(i) ? (
+                <span className="text-xs font-medium text-gray-400 dark:text-zinc-500">{i + 1}.</span>
+              ) : null}
+            </span>
+            <span className={`flex-1 truncate text-sm font-medium ${
+              active
+                ? "text-gray-900 dark:text-zinc-50"
+                : done
+                ? "text-gray-700 dark:text-zinc-300"
+                : "text-gray-400 dark:text-zinc-500"
             }`}>
-              {done ? <Check className="h-3.5 w-3.5" /> : <Icon className="h-3.5 w-3.5" />}
+              {s.label}
             </span>
-            <span className="min-w-0">
-              <span className={`block whitespace-nowrap text-sm font-medium ${active ? "text-gray-900 dark:text-zinc-50" : "text-gray-600 dark:text-zinc-300"}`}>
-                {s.label}
-              </span>
-              <span className="hidden lg:block text-xs text-gray-400 dark:text-zinc-500">
-                {s.description}
-              </span>
-            </span>
+            {done && <ChevronRight className="h-3.5 w-3.5 shrink-0 text-gray-300 dark:text-zinc-600" />}
           </button>
         );
       })}
@@ -594,7 +597,7 @@ export function InstitutionForm({
             <span className="text-sm font-semibold tracking-tight text-gray-900 dark:text-white">Shikshaloy</span>
           </Link>
 
-          <div className="mt-10 flex flex-col gap-2">{stepList}</div>
+          <div className="mt-8 flex flex-col gap-0.5">{stepList}</div>
         </div>
 
         <div className="flex items-center gap-2.5 border-t border-gray-100 dark:border-zinc-800 pt-4">
@@ -636,14 +639,13 @@ export function InstitutionForm({
                 const active = i === step;
                 const done = i < step;
                 const canGo = i <= maxStepReached;
-                const Icon = s.icon;
                 return (
                   <button
                     key={s.label}
                     type="button"
                     onClick={() => goToStep(i)}
                     disabled={!canGo}
-                    className={`flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                    className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                       active
                         ? "bg-primary-50 dark:bg-primary-500/10 text-primary-700 dark:text-primary-300 ring-1 ring-primary-200 dark:ring-primary-500/30"
                         : canGo
@@ -651,7 +653,13 @@ export function InstitutionForm({
                         : "text-gray-300 dark:text-zinc-600 cursor-not-allowed"
                     }`}
                   >
-                    {done ? <Check className="h-3 w-3" /> : <Icon className="h-3 w-3" />}
+                    {done ? (
+                      <CircleCheck className="h-3 w-3" />
+                    ) : active ? (
+                      <Loader className="h-3 w-3" />
+                    ) : !isReviewStep(i) ? (
+                      <span>{i + 1}.</span>
+                    ) : null}
                     {s.label}
                   </button>
                 );
