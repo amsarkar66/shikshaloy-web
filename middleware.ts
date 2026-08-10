@@ -42,9 +42,12 @@ export async function middleware(request: NextRequest) {
   const user = session?.user;
 
   const { pathname } = request.nextUrl;
-  const isDashboardRoute = pathname.startsWith("/dashboard");
+  const requiresAuth =
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/onboarding") ||
+    pathname.startsWith("/verify-phone");
 
-  if (isDashboardRoute && !user) {
+  if (requiresAuth && !user) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 

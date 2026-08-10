@@ -1,243 +1,266 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  GraduationCap,
-  Building2,
-  User,
-  Mail,
-  Lock,
-  Phone,
-  Globe,
-  Eye,
-  EyeOff,
-  AlertCircle,
-  CheckCircle2,
-  ChevronRight,
-  ChevronLeft,
-  MapPin,
-  Users,
-} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { Eye, EyeOff, AlertCircle, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  AuthChrome,
+  FieldLabel,
+  GoogleIcon,
+  OtpInput,
+  buttonPrimaryClass,
+  buttonStrokeClass,
+  cardClass,
+  inputClass,
+} from "@/components/auth/auth-ui";
 import { createClient } from "@/lib/supabase/client";
-import { TRANSITIONS } from "@/lib/motion";
-
-type Step = 1 | 2;
-
-const INSTITUTION_TYPES = [
-  "School",
-  "College",
-  "University",
-  "Training Institute",
-  "Coaching Centre",
-  "Other",
-];
-
-const DESIGNATIONS = [
-  "Principal",
-  "Director",
-  "Administrator",
-  "Registrar",
-  "Head of Institution",
-  "Other",
-];
-
-const STUDENT_RANGES = [
-  "< 100",
-  "100 – 500",
-  "500 – 1,000",
-  "1,000 – 5,000",
-  "> 5,000",
-];
-
-interface InstitutionFields {
-  institutionName: string;
-  institutionType: string;
-  city: string;
-  state: string;
-  country: string;
-  phone: string;
-  website: string;
-  studentRange: string;
-}
 
 interface AccountFields {
-  fullName: string;
-  designation: string;
+  firstName: string;
+  lastName: string;
   email: string;
   password: string;
-  confirmPassword: string;
 }
 
-const stepVariants = {
-  enter: (dir: number) => ({ opacity: 0, x: dir * 32 }),
-  center: { opacity: 1, x: 0 },
-  exit: (dir: number) => ({ opacity: 0, x: dir * -32 }),
+const EMPTY: AccountFields = {
+  firstName: "",
+  lastName: "",
+  email: "",
+  password: "",
 };
 
-function FieldWrap({ label, children }: { label: string; children: React.ReactNode }) {
+function passwordChecks(password: string) {
+  return {
+    length: password.length >= 8,
+    uppercase: /[A-Z]/.test(password),
+    number: /[0-9]/.test(password),
+    special: /[^A-Za-z0-9]/.test(password),
+  };
+}
+
+const passwordHintMetClass = "text-primary-600 dark:text-primary-400";
+const passwordHintUnmetClass = "text-gray-400 dark:text-zinc-500";
+
+function PasswordHintPart({ met, children }: { met: boolean; children: React.ReactNode }) {
   return (
-    <div className="space-y-1.5">
-      <label className="text-sm font-medium text-indigo-200">{label}</label>
+    <span className={`font-medium transition-colors ${met ? passwordHintMetClass : passwordHintUnmetClass}`}>
       {children}
-    </div>
+    </span>
   );
 }
 
-function InputIcon({
-  icon: Icon,
-  type = "text",
-  placeholder,
-  value,
-  onChange,
-  autoComplete,
-  required,
-}: {
-  icon: React.ElementType;
-  type?: string;
-  placeholder: string;
-  value: string;
-  onChange: (v: string) => void;
-  autoComplete?: string;
-  required?: boolean;
-}) {
+function CheckMailIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
-    <div className="relative">
-      <Icon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-indigo-400" />
-      <input
-        type={type}
-        placeholder={placeholder}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        autoComplete={autoComplete}
-        required={required}
-        className="h-10 w-full rounded-lg border border-white/10 bg-white/5 pl-10 pr-4 text-sm text-white placeholder:text-indigo-400/50 outline-none transition-all focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/30"
+    <svg viewBox="0 0 512 512" {...props}>
+      <path
+        fill="#1b5041"
+        d="m502.7 224.1v235c0 29.2-23.7 52.9-52.9 52.9h-387.7c-29.2 0-52.9-23.7-52.9-52.9v-235l209.5-208.7c20.6-20.6 54-20.6 74.7 0z"
       />
-    </div>
+      <path
+        fill="#effaf7"
+        d="m103.5 58.9h305.5c29.2 0 52.9 23.7 52.9 52.9v305.5c0 29.2-23.7 52.9-52.9 52.9h-305.5c-29.2 0-52.9-23.7-52.9-52.9v-305.6c0-29.2 23.7-52.8 52.9-52.8z"
+      />
+      <path
+        fill="#317360"
+        d="m502.7 224.1v235c0 29.2-23.7 52.9-52.9 52.9h-387.7c-29.2 0-52.9-23.7-52.9-52.9v-234.3l246.4 246.4z"
+      />
+      <path
+        fill="#4db396"
+        d="m487.4 496.4c-8.3 8.4-19.5 14-31.9 15.4l-395.2.2c-13.9-.5-26.5-6.4-35.7-15.6l194-194c20.6-20.6 54.1-20.6 74.8 0z"
+      />
+      <circle cx={256} cy={172.9} fill="#246150" r={88.1} />
+      <path
+        fill="#fff"
+        d="m306.5 135.2c-3.4-3.4-9-3.4-12.5 0l-56.6 56.6-19.7-19.7c-3.3-3.3-8.8-3.3-12.1 0l-.2.2c-3.5 3.5-3.5 9.1 0 12.5l25.7 25.7c3.4 3.4 9 3.4 12.5 0l62.9-62.9c3.5-3.4 3.5-9 0-12.4z"
+      />
+    </svg>
   );
 }
 
-function SelectField({
-  icon: Icon,
-  placeholder,
-  value,
-  onChange,
-  options,
-  required,
-}: {
-  icon: React.ElementType;
-  placeholder: string;
-  value: string;
-  onChange: (v: string) => void;
-  options: string[];
-  required?: boolean;
-}) {
+function VerifyEmailScreen({ email, onBack }: { email: string; onBack: () => void }) {
+  const router = useRouter();
+  const [otp, setOtp] = useState("");
+  const [error, setError] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => setResendCooldown((s) => s - 1), 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setVerifying(true);
+    try {
+      const supabase = createClient();
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        email,
+        token: otp,
+        type: "signup",
+      });
+
+      if (verifyError) {
+        setError(verifyError.message);
+        return;
+      }
+
+      router.push("/dashboard");
+      router.refresh();
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setResending(true);
+    try {
+      const supabase = createClient();
+      await supabase.auth.resend({ type: "signup", email });
+      setResendCooldown(30);
+    } finally {
+      setResending(false);
+    }
+  };
+
   return (
-    <div className="relative">
-      <Icon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-indigo-400 pointer-events-none" />
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        required={required}
-        className="h-10 w-full appearance-none rounded-lg border border-white/10 bg-white/5 pl-10 pr-4 text-sm text-white outline-none transition-all focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/30 [&>option]:bg-indigo-950 [&>option]:text-white"
-      >
-        <option value="" disabled className="text-indigo-400/50">
-          {placeholder}
-        </option>
-        {options.map((o) => (
-          <option key={o} value={o}>
-            {o}
-          </option>
-        ))}
-      </select>
-    </div>
+    <AuthChrome>
+      <div className={cardClass}>
+        <div className="text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary-50 dark:bg-primary-500/10">
+            <CheckMailIcon className="h-7 w-7" />
+          </div>
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Verify your email</h1>
+          <p className="mt-1 text-sm font-medium text-gray-500 dark:text-zinc-400">
+            Enter the 6-digit code we sent to{" "}
+            <span className="text-gray-900 dark:text-white">{email}</span>{" "}
+            <button
+              type="button"
+              onClick={onBack}
+              className="font-semibold text-primary-600 underline decoration-transparent underline-offset-2 transition-colors hover:decoration-current dark:text-primary-400"
+            >
+              change
+            </button>
+          </p>
+        </div>
+
+        <form onSubmit={handleVerify} className="space-y-4">
+          <div className="flex flex-col gap-2">
+            <FieldLabel label="Verification code" />
+            <OtpInput value={otp} onChange={setOtp} />
+            <div className="flex items-center justify-between text-xs font-medium">
+              <span className="text-gray-500 dark:text-zinc-400">Didn&apos;t get a code?</span>
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={resending || resendCooldown > 0}
+                className="text-primary-600 transition-colors hover:text-primary-700 disabled:opacity-60 dark:text-primary-400 dark:hover:text-primary-300"
+              >
+                {resending
+                  ? "Resending…"
+                  : resendCooldown > 0
+                  ? `Resend code in ${resendCooldown}s`
+                  : "Resend code"}
+              </button>
+            </div>
+          </div>
+
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 px-3.5 py-3 text-sm font-medium text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"
+            >
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{error}</span>
+            </motion.div>
+          )}
+
+          <Button
+            type="submit"
+            disabled={verifying || otp.length < 6}
+            className={`mt-2 ${buttonPrimaryClass}`}
+          >
+            {verifying ? (
+              <>
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                Verifying…
+              </>
+            ) : (
+              "Verify email"
+            )}
+          </Button>
+        </form>
+      </div>
+    </AuthChrome>
   );
 }
 
 export default function SignupPage() {
-  const [step, setStep] = useState<Step>(1);
-  const [dir, setDir] = useState(1);
-  const [submitted, setSubmitted] = useState(false);
+  const [data, setData] = useState<AccountFields>(EMPTY);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
-  const [inst, setInst] = useState<InstitutionFields>({
-    institutionName: "",
-    institutionType: "",
-    city: "",
-    state: "",
-    country: "India",
-    phone: "",
-    website: "",
-    studentRange: "",
-  });
+  const set = (k: keyof AccountFields) => (v: string) =>
+    setData((d) => ({ ...d, [k]: v }));
 
-  const [acct, setAcct] = useState<AccountFields>({
-    fullName: "",
-    designation: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-  });
-
-  const setI = (k: keyof InstitutionFields) => (v: string) =>
-    setInst((p) => ({ ...p, [k]: v }));
-  const setA = (k: keyof AccountFields) => (v: string) =>
-    setAcct((p) => ({ ...p, [k]: v }));
-
-  const goTo = (next: Step) => {
-    setDir(next > step ? 1 : -1);
-    setStep(next);
-  };
-
-  const handleStep1 = (e: React.FormEvent) => {
-    e.preventDefault();
-    goTo(2);
+  const handleGoogleSignIn = async () => {
+    setError("");
+    setGoogleLoading(true);
+    const supabase = createClient();
+    const { error: authError } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+    if (authError) {
+      setError(authError.message);
+      setGoogleLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    if (acct.password !== acct.confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
-    if (acct.password.length < 8) {
-      setError("Password must be at least 8 characters.");
+    const checks = passwordChecks(data.password);
+    if (!checks.length || !checks.uppercase || !checks.number || !checks.special) {
+      setError("Password must be at least 8 characters and include 1 uppercase letter, 1 number, and 1 special character.");
       return;
     }
 
     setLoading(true);
     try {
       const supabase = createClient();
-      const { error: authError } = await supabase.auth.signUp({
-        email: acct.email,
-        password: acct.password,
+      const { data: signUpData, error: authError } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
         options: {
           data: {
             role: "super_admin",
             status: "pending",
-            full_name: acct.fullName,
-            designation: acct.designation,
-            institution_name: inst.institutionName,
-            institution_type: inst.institutionType,
-            city: inst.city,
-            state: inst.state,
-            country: inst.country,
-            phone: inst.phone,
-            website: inst.website,
-            student_range: inst.studentRange,
+            full_name: `${data.firstName} ${data.lastName}`.trim(),
           },
         },
       });
 
       if (authError) {
         setError(authError.message);
+        return;
+      }
+
+      // Supabase returns a "successful" signup with no identities for an
+      // email that's already registered, to avoid leaking which emails exist.
+      if (signUpData.user && signUpData.user.identities?.length === 0) {
+        setError("This email is already registered. Please log in instead.");
         return;
       }
 
@@ -248,387 +271,174 @@ export default function SignupPage() {
   };
 
   if (submitted) {
-    return <ConfirmationScreen email={acct.email} institutionName={inst.institutionName} />;
+    return <VerifyEmailScreen email={data.email} onBack={() => setSubmitted(false)} />;
   }
 
-  return (
-    <div className="min-h-screen bg-indigo-950 flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Ambient orbs */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-32 h-80 w-80 rounded-full bg-indigo-600/20 blur-3xl" />
-        <div className="absolute -bottom-40 -left-32 h-80 w-80 rounded-full bg-violet-600/20 blur-3xl" />
-        <div className="absolute left-1/2 top-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-indigo-500/10 blur-3xl" />
-      </div>
+  const passwordCheck = passwordChecks(data.password);
 
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={TRANSITIONS.pageEntrance}
-        className="w-full max-w-lg"
-      >
-        <div className="relative rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur-xl">
-          {/* Branding */}
-          <div className="mb-6 flex flex-col items-center">
-            <Link href="/" className="mb-4 flex items-center gap-2.5">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500 shadow-lg shadow-indigo-500/30">
-                <GraduationCap className="h-6 w-6 text-white" />
-              </div>
-              <span className="text-2xl font-bold tracking-tight text-white">Shikshaloy</span>
-            </Link>
-            <h1 className="text-xl font-semibold text-white">Register your institution</h1>
-            <p className="mt-1 text-center text-sm text-indigo-300">
-              Submit your details for review. We&apos;ll activate your account once approved.
+  return (
+    <AuthChrome>
+      <div className={cardClass}>
+        {/* Heading */}
+        <div className="text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary-50 dark:bg-primary-500/10">
+            <img src="/logo.svg" alt="" className="h-8 w-8" />
+          </div>
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Create an account</h1>
+          <p className="mt-1 text-sm font-medium text-gray-500 dark:text-zinc-400">
+            Please enter your details to create an account.
+          </p>
+        </div>
+
+        {/* Google OAuth */}
+        <div>
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={googleLoading}
+            className={`mb-5 font-semibold ${buttonStrokeClass}`}
+          >
+            {googleLoading ? (
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600 dark:border-zinc-600 dark:border-t-zinc-300" />
+            ) : (
+              <GoogleIcon className="h-4 w-4" />
+            )}
+            Continue with Google
+          </button>
+
+          <div className="flex items-center gap-3">
+            <span className="h-px flex-1 bg-gray-200 dark:bg-zinc-800" />
+            <span className="text-xs font-medium text-gray-400 dark:text-zinc-500">OR</span>
+            <span className="h-px flex-1 bg-gray-200 dark:bg-zinc-800" />
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1">
+              <FieldLabel label="First Name" />
+              <input
+                value={data.firstName}
+                onChange={(e) => set("firstName")(e.target.value)}
+                placeholder="James"
+                autoComplete="given-name"
+                required
+                className={inputClass}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <FieldLabel label="Last Name" />
+              <input
+                value={data.lastName}
+                onChange={(e) => set("lastName")(e.target.value)}
+                placeholder="Brown"
+                autoComplete="family-name"
+                required
+                className={inputClass}
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <FieldLabel label="Email Address" />
+            <input
+              type="email"
+              value={data.email}
+              onChange={(e) => set("email")(e.target.value)}
+              placeholder="hello@shikshaloy.com"
+              autoComplete="email"
+              required
+              className={inputClass}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <FieldLabel
+              label="Password"
+              action={
+                data.password ? (
+                  <button
+                    type="button"
+                    onClick={() => set("password")("")}
+                    className="text-xs font-medium text-gray-400 transition-colors hover:text-gray-600 dark:text-zinc-500 dark:hover:text-zinc-300"
+                  >
+                    Clear
+                  </button>
+                ) : undefined
+              }
+            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={data.password}
+                onChange={(e) => set("password")(e.target.value)}
+                placeholder="••••••••"
+                autoComplete="new-password"
+                required
+                minLength={8}
+                className={`${inputClass} pr-10`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600 dark:text-zinc-500 dark:hover:text-zinc-300"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+
+            <p className="flex items-start gap-1.5 text-xs text-gray-400 dark:text-zinc-500">
+              <Info className="mt-0.5 h-3 w-3 shrink-0" />
+              <span>
+                {"Must include "}
+                <PasswordHintPart met={passwordCheck.uppercase}>uppercase</PasswordHintPart>
+                {", "}
+                <PasswordHintPart met={passwordCheck.number}>number</PasswordHintPart>
+                {" and "}
+                <PasswordHintPart met={passwordCheck.special}>symbol</PasswordHintPart>
+                {" ("}
+                <PasswordHintPart met={passwordCheck.length}>min 8 chars</PasswordHintPart>
+                {")"}
+              </span>
             </p>
           </div>
 
-          {/* Progress stepper */}
-          <div className="mb-8 flex items-center gap-3">
-            {[
-              { n: 1, label: "Institution" },
-              { n: 2, label: "Admin account" },
-            ].map(({ n, label }, i) => (
-              <div key={n} className="flex items-center gap-3 flex-1">
-                <div className="flex items-center gap-2 shrink-0">
-                  <div
-                    className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold transition-all ${
-                      step >= n
-                        ? "bg-indigo-500 text-white shadow shadow-indigo-500/30"
-                        : "border border-white/20 text-indigo-400"
-                    }`}
-                  >
-                    {n}
-                  </div>
-                  <span
-                    className={`text-xs font-medium ${
-                      step >= n ? "text-indigo-200" : "text-indigo-500"
-                    }`}
-                  >
-                    {label}
-                  </span>
-                </div>
-                {i < 1 && (
-                  <div className="flex-1 h-px bg-white/10">
-                    <div
-                      className="h-full bg-indigo-500 transition-all duration-500"
-                      style={{ width: step > n ? "100%" : "0%" }}
-                    />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* Error */}
           {error && (
             <motion.div
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-4 flex items-start gap-2.5 rounded-lg border border-red-500/20 bg-red-500/10 px-3.5 py-3 text-sm text-red-300"
+              className="flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 px-3.5 py-3 text-sm font-medium text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"
             >
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{error}</span>
             </motion.div>
           )}
 
-          {/* Steps */}
-          <div className="overflow-hidden">
-            <AnimatePresence mode="wait" custom={dir}>
-              {step === 1 ? (
-                <motion.form
-                  key="step1"
-                  custom={dir}
-                  variants={stepVariants}
-                  initial="enter"
-                  animate="center"
-                  exit="exit"
-                  transition={TRANSITIONS.formStep}
-                  onSubmit={handleStep1}
-                  className="space-y-4"
-                >
-                  <FieldWrap label="Institution name">
-                    <InputIcon
-                      icon={Building2}
-                      placeholder="e.g. Delhi Public School, Sector 14"
-                      value={inst.institutionName}
-                      onChange={setI("institutionName")}
-                      required
-                    />
-                  </FieldWrap>
+          <Button
+            type="submit"
+            disabled={loading}
+            className={`mt-2 ${buttonPrimaryClass}`}
+          >
+            {loading ? (
+              <>
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                Creating account…
+              </>
+            ) : (
+              "Continue"
+            )}
+          </Button>
+        </form>
 
-                  <FieldWrap label="Institution type">
-                    <SelectField
-                      icon={Building2}
-                      placeholder="Select type"
-                      value={inst.institutionType}
-                      onChange={setI("institutionType")}
-                      options={INSTITUTION_TYPES}
-                      required
-                    />
-                  </FieldWrap>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <FieldWrap label="City">
-                      <InputIcon
-                        icon={MapPin}
-                        placeholder="City"
-                        value={inst.city}
-                        onChange={setI("city")}
-                        required
-                      />
-                    </FieldWrap>
-                    <FieldWrap label="State">
-                      <InputIcon
-                        icon={MapPin}
-                        placeholder="State"
-                        value={inst.state}
-                        onChange={setI("state")}
-                        required
-                      />
-                    </FieldWrap>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <FieldWrap label="Phone number">
-                      <InputIcon
-                        icon={Phone}
-                        type="tel"
-                        placeholder="+91 98765 43210"
-                        value={inst.phone}
-                        onChange={setI("phone")}
-                        required
-                      />
-                    </FieldWrap>
-                    <FieldWrap label="Approx. students">
-                      <SelectField
-                        icon={Users}
-                        placeholder="Select range"
-                        value={inst.studentRange}
-                        onChange={setI("studentRange")}
-                        options={STUDENT_RANGES}
-                      />
-                    </FieldWrap>
-                  </div>
-
-                  <FieldWrap label="Website (optional)">
-                    <InputIcon
-                      icon={Globe}
-                      type="url"
-                      placeholder="https://yourschool.edu.in"
-                      value={inst.website}
-                      onChange={setI("website")}
-                    />
-                  </FieldWrap>
-
-                  <Button
-                    type="submit"
-                    className="mt-2 flex h-10 w-full items-center justify-center gap-1.5 rounded-lg bg-indigo-500 font-medium text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-400"
-                  >
-                    Continue
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </motion.form>
-              ) : (
-                <motion.form
-                  key="step2"
-                  custom={dir}
-                  variants={stepVariants}
-                  initial="enter"
-                  animate="center"
-                  exit="exit"
-                  transition={TRANSITIONS.formStep}
-                  onSubmit={handleSubmit}
-                  className="space-y-4"
-                >
-                  <FieldWrap label="Your full name">
-                    <InputIcon
-                      icon={User}
-                      placeholder="Dr. Ramesh Kumar"
-                      value={acct.fullName}
-                      onChange={setA("fullName")}
-                      autoComplete="name"
-                      required
-                    />
-                  </FieldWrap>
-
-                  <FieldWrap label="Your designation">
-                    <SelectField
-                      icon={User}
-                      placeholder="Select designation"
-                      value={acct.designation}
-                      onChange={setA("designation")}
-                      options={DESIGNATIONS}
-                      required
-                    />
-                  </FieldWrap>
-
-                  <FieldWrap label="Work email">
-                    <InputIcon
-                      icon={Mail}
-                      type="email"
-                      placeholder="you@yourschool.edu.in"
-                      value={acct.email}
-                      onChange={setA("email")}
-                      autoComplete="email"
-                      required
-                    />
-                  </FieldWrap>
-
-                  <FieldWrap label="Password">
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-indigo-400" />
-                      <input
-                        type={showPassword ? "text" : "password"}
-                        placeholder="Min. 8 characters"
-                        value={acct.password}
-                        onChange={(e) => setA("password")(e.target.value)}
-                        autoComplete="new-password"
-                        required
-                        minLength={8}
-                        className="h-10 w-full rounded-lg border border-white/10 bg-white/5 pl-10 pr-10 text-sm text-white placeholder:text-indigo-400/50 outline-none transition-all focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/30"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-indigo-400 hover:text-indigo-300 transition-colors"
-                        aria-label={showPassword ? "Hide password" : "Show password"}
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </FieldWrap>
-
-                  <FieldWrap label="Confirm password">
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-indigo-400" />
-                      <input
-                        type={showConfirm ? "text" : "password"}
-                        placeholder="Repeat password"
-                        value={acct.confirmPassword}
-                        onChange={(e) => setA("confirmPassword")(e.target.value)}
-                        autoComplete="new-password"
-                        required
-                        className="h-10 w-full rounded-lg border border-white/10 bg-white/5 pl-10 pr-10 text-sm text-white placeholder:text-indigo-400/50 outline-none transition-all focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/30"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirm(!showConfirm)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-indigo-400 hover:text-indigo-300 transition-colors"
-                        aria-label={showConfirm ? "Hide password" : "Show password"}
-                      >
-                        {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </FieldWrap>
-
-                  <div className="flex gap-3 mt-2">
-                    <Button
-                      type="button"
-                      onClick={() => goTo(1)}
-                      className="flex h-10 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-4 font-medium text-indigo-200 hover:bg-white/10 hover:text-white transition-all"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                      Back
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={loading}
-                      className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg bg-indigo-500 font-medium text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-400 disabled:opacity-60 transition-all"
-                    >
-                      {loading ? (
-                        <>
-                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                          Submitting…
-                        </>
-                      ) : (
-                        "Submit application"
-                      )}
-                    </Button>
-                  </div>
-                </motion.form>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* Divider + sign in link */}
-          <div className="mt-6 border-t border-white/10 pt-5 text-center text-sm text-indigo-400">
-            Already have an account?{" "}
-            <Link href="/login" className="font-medium text-indigo-300 transition-colors hover:text-white">
-              Sign in
-            </Link>
-          </div>
-        </div>
-
-        <p className="mt-6 text-center text-xs text-indigo-600">
-          <Link href="/" className="transition-colors hover:text-indigo-400">
-            ← Back to homepage
+        {/* Sign in link */}
+        <p className="text-center text-sm font-medium text-gray-500 dark:text-zinc-400">
+          Already have an account?{" "}
+          <Link href="/login" className="font-semibold text-gray-900 underline decoration-transparent underline-offset-4 transition-colors duration-200 hover:decoration-current dark:text-white">
+            Login
           </Link>
         </p>
-      </motion.div>
-    </div>
-  );
-}
-
-function ConfirmationScreen({
-  email,
-  institutionName,
-}: {
-  email: string;
-  institutionName: string;
-}) {
-  return (
-    <div className="min-h-screen bg-indigo-950 flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-32 h-80 w-80 rounded-full bg-indigo-600/20 blur-3xl" />
-        <div className="absolute -bottom-40 -left-32 h-80 w-80 rounded-full bg-violet-600/20 blur-3xl" />
       </div>
-
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={TRANSITIONS.successEntrance}
-        className="w-full max-w-md"
-      >
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur-xl text-center">
-          {/* Icon */}
-          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-500/15 ring-1 ring-indigo-500/30">
-            <CheckCircle2 className="h-8 w-8 text-indigo-400" />
-          </div>
-
-          <h2 className="text-xl font-semibold text-white mb-2">Application submitted!</h2>
-          <p className="text-indigo-300 text-sm leading-relaxed mb-6">
-            We&apos;ve received the onboarding request for{" "}
-            <span className="font-medium text-white">{institutionName}</span>. Our team will review
-            your details and reach out to{" "}
-            <span className="font-medium text-indigo-200">{email}</span> within{" "}
-            <span className="font-medium text-white">1–2 business days</span>.
-          </p>
-
-          {/* What happens next */}
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-left space-y-3 mb-6">
-            <p className="text-xs font-semibold uppercase tracking-wider text-indigo-400">
-              What happens next
-            </p>
-            {[
-              "Our team reviews your institution details",
-              "You receive an approval email with setup instructions",
-              "Log in and start onboarding your staff & students",
-            ].map((step, i) => (
-              <div key={i} className="flex items-start gap-3">
-                <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-500/20 text-xs font-semibold text-indigo-400">
-                  {i + 1}
-                </div>
-                <p className="text-sm text-indigo-200">{step}</p>
-              </div>
-            ))}
-          </div>
-
-          <Link href="/">
-            <Button className="w-full h-10 rounded-lg bg-indigo-500 font-medium text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-400">
-              Back to homepage
-            </Button>
-          </Link>
-        </div>
-      </motion.div>
-    </div>
+    </AuthChrome>
   );
 }
