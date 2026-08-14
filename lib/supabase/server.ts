@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { cache } from "react";
 
 export async function createClient() {
   const cookieStore = await cookies();
@@ -23,3 +24,11 @@ export async function createClient() {
     }
   );
 }
+
+// Deduped per request: auth.getUser() revalidates the JWT with Supabase's
+// auth server over the network, so without this, every server component
+// that calls it (layout + page) pays a separate round trip.
+export const getUser = cache(async () => {
+  const supabase = await createClient();
+  return supabase.auth.getUser();
+});

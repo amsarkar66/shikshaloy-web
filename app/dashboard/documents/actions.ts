@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { supabaseAdmin, DEMO_SCHOOL_ID } from "@/lib/supabase/service";
+import { supabaseAdmin } from "@/lib/supabase/service";
+import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import type { DocCategory, DocAudience, FileKind } from "./_data/documents";
 
 export async function uploadDocument(input: {
@@ -11,8 +12,9 @@ export async function uploadDocument(input: {
   fileKind: FileKind;
   sizeKb: number;
 }) {
+  const schoolId = await getCurrentSchoolIdOrThrow();
   const { error } = await supabaseAdmin.from("documents").insert({
-    school_id: DEMO_SCHOOL_ID,
+    school_id: schoolId,
     title: input.title,
     category: input.category,
     audience: input.audience,

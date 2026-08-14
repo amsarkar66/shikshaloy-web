@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { supabaseAdmin, DEMO_SCHOOL_ID } from "@/lib/supabase/service";
+import { supabaseAdmin } from "@/lib/supabase/service";
+import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 
 async function currentProfileId(): Promise<string> {
   const supabase = await createClient();
@@ -36,12 +37,13 @@ export async function sendMessage(conversationId: string, text: string) {
 
 export async function startConversation(otherProfileId: string, text: string) {
   const myId = await currentProfileId();
+  const schoolId = await getCurrentSchoolIdOrThrow();
   if (!text.trim()) return;
 
   const { data: existing } = await supabaseAdmin
     .from("conversations")
     .select("id")
-    .eq("school_id", DEMO_SCHOOL_ID)
+    .eq("school_id", schoolId)
     .or(`and(participant1.eq.${myId},participant2.eq.${otherProfileId}),and(participant1.eq.${otherProfileId},participant2.eq.${myId})`)
     .maybeSingle();
 
@@ -51,7 +53,7 @@ export async function startConversation(otherProfileId: string, text: string) {
     const { data: created, error } = await supabaseAdmin
       .from("conversations")
       .insert({
-        school_id: DEMO_SCHOOL_ID,
+        school_id: schoolId,
         participant1: myId,
         participant2: otherProfileId,
         last_message: text.trim(),

@@ -1,15 +1,23 @@
-import { supabaseAdmin, DEMO_SCHOOL_ID } from "@/lib/supabase/service";
+import { supabaseAdmin } from "@/lib/supabase/service";
+import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getOrSeedRoleTemplates } from "@/lib/settings/role-templates";
 import StaffClient from "./_components/StaffClient";
 import type { StaffMember } from "./_components/StaffClient";
 
 export default async function StaffPage() {
-  const { data } = await supabaseAdmin
-    .from("staff_members")
-    .select("id, employee_id, full_name, phone, email, type, designation, department, joined_date, status, permission_template_id, permission_template_name")
-    .eq("school_id", DEMO_SCHOOL_ID)
-    .order("full_name");
+  const schoolId = await getCurrentSchoolIdOrThrow();
+  const [{ data }, templates] = await Promise.all([
+    supabaseAdmin
+      .from("staff_members")
+      .select("id, employee_id, full_name, phone, email, type, designation, department, joined_date, status, permission_template_id, permission_template_name")
+      .eq("school_id", schoolId)
+      .order("full_name"),
+    getOrSeedRoleTemplates(schoolId),
+  ]);
 
-  const staff: StaffMember[] = (data ?? []).map((s: any) => ({
+  const permissionTemplates = templates.map((t) => ({ id: t.slug, name: t.name }));
+
+  const staff: StaffMember[] = (data ?? []).map((s) => ({
     id: s.id,
     employeeId: s.employee_id ?? "",
     name: s.full_name,
@@ -24,5 +32,5 @@ export default async function StaffPage() {
     permissionTemplateName: s.permission_template_name ?? undefined,
   }));
 
-  return <StaffClient initialStaff={staff} />;
+  return <StaffClient initialStaff={staff} permissionTemplates={permissionTemplates} />;
 }

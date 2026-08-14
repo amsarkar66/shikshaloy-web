@@ -1,8 +1,28 @@
-import { supabaseAdmin, DEMO_SCHOOL_ID } from "@/lib/supabase/service";
+import { supabaseAdmin } from "@/lib/supabase/service";
+import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import ParentsClient from "./_components/ParentsClient";
 import type { Parent, Child } from "./_components/ParentsClient";
 
+interface ParentRow {
+  id: string;
+  full_name: string | null;
+  occupation: string | null;
+  phone: string | null;
+  email: string | null;
+  active: boolean | null;
+  student_parents: {
+    students: {
+      id: string;
+      full_name: string | null;
+      roll_no: string | null;
+      sections: { name: string | null; grades: { level: number | null } | null } | null;
+    } | null;
+  }[] | null;
+}
+
 export default async function ParentsPage() {
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
   const { data: parentRows } = await supabaseAdmin
     .from("parents")
     .select(`
@@ -14,11 +34,11 @@ export default async function ParentsPage() {
         )
       )
     `)
-    .eq("school_id", DEMO_SCHOOL_ID)
+    .eq("school_id", schoolId)
     .order("full_name");
 
-  const parents: Parent[] = (parentRows ?? []).map((p: any) => {
-    const children: Child[] = (p.student_parents ?? []).flatMap((sp: any) => {
+  const parents: Parent[] = ((parentRows ?? []) as unknown as ParentRow[]).map((p) => {
+    const children: Child[] = (p.student_parents ?? []).flatMap((sp) => {
       const s = sp.students;
       if (!s) return [];
       return [{

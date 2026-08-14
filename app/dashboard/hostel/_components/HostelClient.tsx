@@ -4,9 +4,10 @@ import { useState, useMemo } from "react";
 import {
   BedDouble, Users, Home, AlertCircle, Wrench,
   Search, Download, X, Phone,
-  Eye, Pencil, ChevronLeft, ChevronRight,
+  Eye, Pencil, ChevronLeft, ChevronRight, ChevronDown,
   ArrowUpDown, ArrowUp, ArrowDown,
 } from "lucide-react";
+import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
 import {
   ROOM_STATUS_BADGE, FEE_BADGE, ROOM_TYPE_LABEL,
   avatarColor, initials,
@@ -88,25 +89,34 @@ function RoomsTab({ rooms, blocks }: { rooms: HostelRoom[]; blocks: string[] }) 
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-zinc-500 pointer-events-none" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search room…" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search room…" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
         </div>
-        <select value={blockFilter} onChange={(e) => setBlock(e.target.value)} className="h-9 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20">
-          <option value="all">All Blocks</option>
-          {blocks.map((b) => <option key={b} value={b}>Block {b}</option>)}
-        </select>
-        <select value={typeFilter} onChange={(e) => setType(e.target.value as "all" | RoomType)} className="h-9 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20">
-          <option value="all">All Types</option>
-          <option value="single">Single</option>
-          <option value="double">Double</option>
-          <option value="triple">Triple</option>
-          <option value="dormitory">Dormitory</option>
-        </select>
-        <select value={statusFilter} onChange={(e) => setStatus(e.target.value as "all" | RoomStatus)} className="h-9 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20">
-          <option value="all">All Status</option>
-          <option value="available">Available</option>
-          <option value="occupied">Occupied</option>
-          <option value="maintenance">Maintenance</option>
-        </select>
+        <div className="relative">
+          <select value={blockFilter} onChange={(e) => setBlock(e.target.value)} className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+            <option value="all">All Blocks</option>
+            {blocks.map((b) => <option key={b} value={b}>Block {b}</option>)}
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+        </div>
+        <div className="relative">
+          <select value={typeFilter} onChange={(e) => setType(e.target.value as "all" | RoomType)} className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+            <option value="all">All Types</option>
+            <option value="single">Single</option>
+            <option value="double">Double</option>
+            <option value="triple">Triple</option>
+            <option value="dormitory">Dormitory</option>
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+        </div>
+        <div className="relative">
+          <select value={statusFilter} onChange={(e) => setStatus(e.target.value as "all" | RoomStatus)} className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+            <option value="all">All Status</option>
+            <option value="available">Available</option>
+            <option value="occupied">Occupied</option>
+            <option value="maintenance">Maintenance</option>
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+        </div>
         {hasFilter && (
           <button onClick={() => { setQuery(""); setBlock("all"); setType("all"); setStatus("all"); }} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
             <X className="h-3.5 w-3.5" /> Clear
@@ -119,70 +129,64 @@ function RoomsTab({ rooms, blocks }: { rooms: HostelRoom[]; blocks: string[] }) 
           Showing <span className="font-medium text-gray-700 dark:text-zinc-300">{filtered.length}</span> of{" "}
           <span className="font-medium text-gray-700 dark:text-zinc-300">{rooms.length}</span> rooms
         </p>
-        {hasFilter && <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">Filters active</span>}
+        {hasFilter && <span className="text-xs text-primary-600 dark:text-primary-400 font-medium">Filters active</span>}
       </div>
 
-      <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800">
-                <th className="py-3 pl-4 pr-3 text-left"><button onClick={() => toggleSort("roomNo")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Room <SortIcon active={sortField === "roomNo"} dir={sortDir} /></button></th>
-                <th className="px-3 py-3 text-left"><button onClick={() => toggleSort("block")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Block / Floor <SortIcon active={sortField === "block"} dir={sortDir} /></button></th>
-                <th className="px-3 py-3 text-left"><button onClick={() => toggleSort("type")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Type <SortIcon active={sortField === "type"} dir={sortDir} /></button></th>
-                <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Warden</th>
-                <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Amenities</th>
-                <th className="px-3 py-3 text-left"><button onClick={() => toggleSort("occupancy")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Occupancy <SortIcon active={sortField === "occupancy"} dir={sortDir} /></button></th>
-                <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Status</th>
-                <th className="py-3 pl-3 pr-4 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-zinc-700/50">
-              {filtered.length === 0 ? (
-                <tr><td colSpan={8} className="py-20 text-center"><div className="flex flex-col items-center gap-2"><BedDouble className="h-8 w-8 text-gray-300 dark:text-zinc-600" /><p className="text-sm font-medium text-gray-500 dark:text-zinc-400">No rooms found</p></div></td></tr>
-              ) : filtered.map((room) => {
-                const pct = room.capacity ? Math.round((room.occupied / room.capacity) * 100) : 0;
-                const fillCls = pct >= 100 ? "bg-red-500" : pct >= 80 ? "bg-amber-500" : "bg-emerald-500";
-                return (
-                  <tr key={room.id} className={`hover:bg-gray-50 dark:hover:bg-zinc-700/30 transition-colors ${room.status === "maintenance" ? "bg-amber-50/30 dark:bg-amber-500/5" : ""}`}>
-                    <td className="py-3 pl-4 pr-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10"><BedDouble className="h-4 w-4 text-indigo-600 dark:text-indigo-400" /></div>
-                        <p className="font-semibold text-gray-900 dark:text-zinc-100 text-sm">{room.roomNo}</p>
-                      </div>
-                    </td>
-                    <td className="px-3 py-3"><p className="text-sm font-medium text-gray-700 dark:text-zinc-300">Block {room.block}</p><p className="text-xs text-gray-400 dark:text-zinc-500">Floor {room.floor}</p></td>
-                    <td className="px-3 py-3"><span className="inline-flex items-center rounded-lg bg-indigo-500/10 px-2.5 py-1 text-xs font-semibold text-indigo-700 dark:text-indigo-300">{ROOM_TYPE_LABEL[room.type]}</span></td>
-                    <td className="px-3 py-3"><p className={`text-sm whitespace-nowrap ${room.warden === "Unassigned" ? "text-gray-400 dark:text-zinc-500" : "text-gray-700 dark:text-zinc-300"}`}>{room.warden}</p></td>
-                    <td className="px-3 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        {room.amenities.map((a) => <span key={a} className="rounded-md bg-gray-100 dark:bg-zinc-700 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 dark:text-zinc-400">{a}</span>)}
-                      </div>
-                    </td>
-                    <td className="px-3 py-3">
-                      {room.status === "maintenance" ? (
-                        <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400"><Wrench className="h-3.5 w-3.5" /><span className="text-xs font-medium">Under repair</span></div>
-                      ) : (
-                        <div className="flex items-center gap-2 min-w-[100px]">
-                          <div className="flex-1 h-1.5 rounded-full bg-gray-100 dark:bg-zinc-700"><div className={`h-1.5 rounded-full ${fillCls}`} style={{ width: `${pct}%` }} /></div>
-                          <span className="text-xs font-semibold tabular-nums text-gray-700 dark:text-zinc-300">{room.occupied}/{room.capacity}</span>
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-3 py-3"><span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${ROOM_STATUS_BADGE[room.status]}`}>{room.status}</span></td>
-                    <td className="py-3 pl-3 pr-4">
-                      <div className="flex items-center justify-end gap-1">
-                        <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Eye className="h-3.5 w-3.5" /></button>
-                        <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Pencil className="h-3.5 w-3.5" /></button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <Table>
+        <TableHead>
+          <Th position="first"><button onClick={() => toggleSort("roomNo")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Room <SortIcon active={sortField === "roomNo"} dir={sortDir} /></button></Th>
+          <Th><button onClick={() => toggleSort("block")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Block / Floor <SortIcon active={sortField === "block"} dir={sortDir} /></button></Th>
+          <Th><button onClick={() => toggleSort("type")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Type <SortIcon active={sortField === "type"} dir={sortDir} /></button></Th>
+          <Th>Warden</Th>
+          <Th>Amenities</Th>
+          <Th><button onClick={() => toggleSort("occupancy")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Occupancy <SortIcon active={sortField === "occupancy"} dir={sortDir} /></button></Th>
+          <Th>Status</Th>
+          <Th position="last" align="right">Actions</Th>
+        </TableHead>
+        <TableBody>
+          {filtered.length === 0 ? (
+            <TableEmptyRow colSpan={8} icon={BedDouble} message="No rooms found" />
+          ) : filtered.map((room) => {
+            const pct = room.capacity ? Math.round((room.occupied / room.capacity) * 100) : 0;
+            const fillCls = pct >= 100 ? "bg-red-500" : pct >= 80 ? "bg-amber-500" : "bg-emerald-500";
+            return (
+              <Tr key={room.id} className={room.status === "maintenance" ? "bg-amber-50/30 dark:bg-amber-500/5" : ""}>
+                <Td position="first">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10"><BedDouble className="h-4 w-4 text-indigo-600 dark:text-indigo-400" /></div>
+                    <p className="font-semibold text-gray-900 dark:text-zinc-100 text-sm">{room.roomNo}</p>
+                  </div>
+                </Td>
+                <Td><p className="text-sm font-medium text-gray-700 dark:text-zinc-300">Block {room.block}</p><p className="text-xs text-gray-400 dark:text-zinc-500">Floor {room.floor}</p></Td>
+                <Td><span className="inline-flex items-center rounded-lg bg-primary-500/10 px-2.5 py-1 text-xs font-semibold text-primary-700 dark:text-primary-300">{ROOM_TYPE_LABEL[room.type]}</span></Td>
+                <Td><p className={`text-sm whitespace-nowrap ${room.warden === "Unassigned" ? "text-gray-400 dark:text-zinc-500" : "text-gray-700 dark:text-zinc-300"}`}>{room.warden}</p></Td>
+                <Td>
+                  <div className="flex flex-wrap gap-1">
+                    {room.amenities.map((a) => <span key={a} className="rounded-md bg-gray-100 dark:bg-zinc-700 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 dark:text-zinc-400">{a}</span>)}
+                  </div>
+                </Td>
+                <Td>
+                  {room.status === "maintenance" ? (
+                    <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400"><Wrench className="h-3.5 w-3.5" /><span className="text-xs font-medium">Under repair</span></div>
+                  ) : (
+                    <div className="flex items-center gap-2 min-w-[100px]">
+                      <div className="flex-1 h-1.5 rounded-full bg-gray-100 dark:bg-zinc-700"><div className={`h-1.5 rounded-full ${fillCls}`} style={{ width: `${pct}%` }} /></div>
+                      <span className="text-xs font-semibold tabular-nums text-gray-700 dark:text-zinc-300">{room.occupied}/{room.capacity}</span>
+                    </div>
+                  )}
+                </Td>
+                <Td><span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${ROOM_STATUS_BADGE[room.status]}`}>{room.status}</span></Td>
+                <Td position="last">
+                  <div className="flex items-center justify-end gap-1">
+                    <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Eye className="h-3.5 w-3.5" /></button>
+                    <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Pencil className="h-3.5 w-3.5" /></button>
+                  </div>
+                </Td>
+              </Tr>
+            );
+          })}
+        </TableBody>
+      </Table>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {blocks.map((block) => {
@@ -251,18 +255,24 @@ function StudentsTab({ students, blocks }: { students: HostelStudent[]; blocks: 
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-zinc-500 pointer-events-none" />
-          <input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} placeholder="Search student, roll no, room or parent…" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20" />
+          <input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} placeholder="Search student, roll no, room or parent…" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
         </div>
-        <select value={blockFilter} onChange={(e) => { setBlock(e.target.value); setPage(1); }} className="h-9 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20">
-          <option value="all">All Blocks</option>
-          {blocks.map((b) => <option key={b} value={b}>Block {b}</option>)}
-        </select>
-        <select value={feeFilter} onChange={(e) => { setFee(e.target.value as "all" | FeeStatus); setPage(1); }} className="h-9 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20">
-          <option value="all">All Fee Status</option>
-          <option value="paid">Paid</option>
-          <option value="partial">Partial</option>
-          <option value="overdue">Overdue</option>
-        </select>
+        <div className="relative">
+          <select value={blockFilter} onChange={(e) => { setBlock(e.target.value); setPage(1); }} className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+            <option value="all">All Blocks</option>
+            {blocks.map((b) => <option key={b} value={b}>Block {b}</option>)}
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+        </div>
+        <div className="relative">
+          <select value={feeFilter} onChange={(e) => { setFee(e.target.value as "all" | FeeStatus); setPage(1); }} className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+            <option value="all">All Fee Status</option>
+            <option value="paid">Paid</option>
+            <option value="partial">Partial</option>
+            <option value="overdue">Overdue</option>
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+        </div>
         {hasFilter && (
           <button onClick={clearFilters} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
             <X className="h-3.5 w-3.5" /> Clear
@@ -273,70 +283,66 @@ function StudentsTab({ students, blocks }: { students: HostelStudent[]; blocks: 
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-gray-500 dark:text-zinc-500">
-          Showing <span className="font-medium text-gray-700 dark:text-zinc-300">{filtered.length}</span> of{" "}
-          <span className="font-medium text-gray-700 dark:text-zinc-300">{students.length}</span> students
-        </p>
-        {hasFilter && <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">Filters active</span>}
-      </div>
-
-      <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800">
-                <th className="py-3 pl-4 pr-3 text-left"><button onClick={() => toggleSort("name")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Student <SortIcon active={sortField === "name"} dir={sortDir} /></button></th>
-                <th className="px-3 py-3 text-left"><button onClick={() => toggleSort("class")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Class <SortIcon active={sortField === "class"} dir={sortDir} /></button></th>
-                <th className="px-3 py-3 text-left"><button onClick={() => toggleSort("room")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Room <SortIcon active={sortField === "room"} dir={sortDir} /></button></th>
-                <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Parent / Guardian</th>
-                <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Join Date</th>
-                <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Monthly Fee</th>
-                <th className="px-3 py-3 text-left"><button onClick={() => toggleSort("feeStatus")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Fee Status <SortIcon active={sortField === "feeStatus"} dir={sortDir} /></button></th>
-                <th className="py-3 pl-3 pr-4 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-zinc-700/50">
-              {pageData.length === 0 ? (
-                <tr><td colSpan={8} className="py-20 text-center"><div className="flex flex-col items-center gap-2"><Users className="h-8 w-8 text-gray-300 dark:text-zinc-600" /><p className="text-sm font-medium text-gray-500 dark:text-zinc-400">No students found</p></div></td></tr>
-              ) : pageData.map((s) => (
-                <tr key={s.id} className={`hover:bg-gray-50 dark:hover:bg-zinc-700/30 transition-colors ${s.feeStatus === "overdue" ? "bg-red-50/30 dark:bg-red-500/5" : ""}`}>
-                  <td className="py-3 pl-4 pr-3">
-                    <div className="flex items-center gap-3">
-                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ${avatarColor(s.id)}`}>{initials(s.studentName)}</div>
-                      <div className="min-w-0"><p className="font-medium text-gray-900 dark:text-zinc-100 leading-tight truncate">{s.studentName}</p><p className="text-xs text-gray-400 dark:text-zinc-500">{s.rollNo}</p></div>
-                    </div>
-                  </td>
-                  <td className="px-3 py-3"><span className="inline-flex items-center gap-1 rounded-lg bg-indigo-500/10 px-2.5 py-1 text-xs font-semibold text-indigo-700 dark:text-indigo-300">{s.classNum}–{s.section}</span></td>
-                  <td className="px-3 py-3"><p className="text-sm font-medium text-gray-700 dark:text-zinc-300">{s.roomNo}</p><p className="text-xs text-gray-400 dark:text-zinc-500">Block {s.block}</p></td>
-                  <td className="px-3 py-3"><p className="text-sm text-gray-700 dark:text-zinc-300 truncate max-w-[140px]">{s.parentName}</p><p className="text-xs text-gray-400 dark:text-zinc-500">{s.phone}</p></td>
-                  <td className="px-3 py-3 text-sm text-gray-600 dark:text-zinc-400 whitespace-nowrap">{new Date(s.joinDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</td>
-                  <td className="px-3 py-3 text-sm font-medium text-gray-700 dark:text-zinc-300 tabular-nums whitespace-nowrap">₹{s.monthlyFee.toLocaleString("en-IN")}</td>
-                  <td className="px-3 py-3"><span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${FEE_BADGE[s.feeStatus]}`}>{s.feeStatus}</span></td>
-                  <td className="py-3 pl-3 pr-4">
-                    <div className="flex items-center justify-end gap-1">
-                      <a href={`tel:${s.phone}`} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors" title="Call parent"><Phone className="h-3.5 w-3.5" /></a>
-                      <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Pencil className="h-3.5 w-3.5" /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {hasFilter && (
+        <div className="flex items-center justify-end">
+          <span className="text-xs text-primary-600 dark:text-primary-400 font-medium">Filters active</span>
         </div>
-        {totalPages > 1 && (
+      )}
+
+      <Table
+        footer={totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-gray-200 dark:border-zinc-700 px-4 py-3">
-            <p className="text-xs text-gray-500 dark:text-zinc-400">Page {page} of {totalPages}</p>
+            <p className="text-xs text-gray-500 dark:text-zinc-400">
+              Showing <span className="font-medium text-gray-700 dark:text-zinc-300">{(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, filtered.length)}</span> of{" "}
+              <span className="font-medium text-gray-700 dark:text-zinc-300">{filtered.length}</span> students
+            </p>
             <div className="flex items-center gap-1">
               <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 disabled:opacity-40 hover:enabled:bg-gray-100 dark:hover:enabled:bg-zinc-700 transition-colors"><ChevronLeft className="h-3.5 w-3.5" /></button>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
-                <button key={n} onClick={() => setPage(n)} className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-medium transition-colors ${page === n ? "bg-indigo-500 text-white" : "border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-700"}`}>{n}</button>
+                <button key={n} onClick={() => setPage(n)} className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-medium transition-colors ${page === n ? "bg-primary-500 text-white" : "border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-700"}`}>{n}</button>
               ))}
               <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 disabled:opacity-40 hover:enabled:bg-gray-100 dark:hover:enabled:bg-zinc-700 transition-colors"><ChevronRight className="h-3.5 w-3.5" /></button>
             </div>
           </div>
         )}
-      </div>
+      >
+        <TableHead>
+          <Th position="first"><button onClick={() => toggleSort("name")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Student <SortIcon active={sortField === "name"} dir={sortDir} /></button></Th>
+          <Th><button onClick={() => toggleSort("class")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Class <SortIcon active={sortField === "class"} dir={sortDir} /></button></Th>
+          <Th><button onClick={() => toggleSort("room")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Room <SortIcon active={sortField === "room"} dir={sortDir} /></button></Th>
+          <Th>Parent / Guardian</Th>
+          <Th>Join Date</Th>
+          <Th>Monthly Fee</Th>
+          <Th><button onClick={() => toggleSort("feeStatus")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Fee Status <SortIcon active={sortField === "feeStatus"} dir={sortDir} /></button></Th>
+          <Th position="last" align="right">Actions</Th>
+        </TableHead>
+        <TableBody>
+          {pageData.length === 0 ? (
+            <TableEmptyRow colSpan={8} icon={Users} message="No students found" />
+          ) : pageData.map((s) => (
+            <Tr key={s.id} className={s.feeStatus === "overdue" ? "bg-red-50/30 dark:bg-red-500/5" : ""}>
+              <Td position="first">
+                <div className="flex items-center gap-3">
+                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ${avatarColor(s.id)}`}>{initials(s.studentName)}</div>
+                  <div className="min-w-0"><p className="font-medium text-gray-900 dark:text-zinc-100 leading-tight truncate">{s.studentName}</p><p className="text-xs text-gray-400 dark:text-zinc-500">{s.rollNo}</p></div>
+                </div>
+              </Td>
+              <Td><span className="inline-flex items-center gap-1 rounded-lg bg-primary-500/10 px-2.5 py-1 text-xs font-semibold text-primary-700 dark:text-primary-300">{s.classNum}–{s.section}</span></Td>
+              <Td><p className="text-sm font-medium text-gray-700 dark:text-zinc-300">{s.roomNo}</p><p className="text-xs text-gray-400 dark:text-zinc-500">Block {s.block}</p></Td>
+              <Td><p className="text-sm text-gray-700 dark:text-zinc-300 truncate max-w-[140px]">{s.parentName}</p><p className="text-xs text-gray-400 dark:text-zinc-500">{s.phone}</p></Td>
+              <Td className="text-sm text-gray-600 dark:text-zinc-400 whitespace-nowrap">{new Date(s.joinDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</Td>
+              <Td className="text-sm font-medium text-gray-700 dark:text-zinc-300 tabular-nums whitespace-nowrap">₹{s.monthlyFee.toLocaleString("en-IN")}</Td>
+              <Td><span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${FEE_BADGE[s.feeStatus]}`}>{s.feeStatus}</span></Td>
+              <Td position="last">
+                <div className="flex items-center justify-end gap-1">
+                  <a href={`tel:${s.phone}`} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors" title="Call parent"><Phone className="h-3.5 w-3.5" /></a>
+                  <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Pencil className="h-3.5 w-3.5" /></button>
+                </div>
+              </Td>
+            </Tr>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -372,7 +378,7 @@ export default function HostelClient({
 
       <div className="flex gap-1 border-b border-gray-200 dark:border-zinc-800">
         {TABS.map(({ id, label, icon: Icon }) => (
-          <button key={id} onClick={() => setTab(id)} className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${activeTab === id ? "border-indigo-500 text-indigo-600 dark:text-indigo-400" : "border-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 hover:border-gray-300 dark:hover:border-zinc-600"}`}>
+          <button key={id} onClick={() => setTab(id)} className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${activeTab === id ? "border-primary-500 text-primary-600 dark:text-primary-400" : "border-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 hover:border-gray-300 dark:hover:border-zinc-600"}`}>
             <Icon className="h-4 w-4" />{label}
           </button>
         ))}

@@ -3,10 +3,12 @@
 import { useState, useMemo, useCallback } from "react";
 import {
   UserCheck, UserX, Clock, TrendingUp,
-  ChevronLeft, ChevronRight, Download,
+  ChevronLeft, ChevronRight, ChevronDown, Download,
   ArrowLeft, CheckSquare, Users,
 } from "lucide-react";
 import { deptColor } from "../../staff/_data/staff";
+import { Table, TableHead, TableBody, Th, Td, Tr } from "@/components/ui/data-table";
+import { markStudentAttendance, markStaffAttendance } from "../actions";
 
 export type AttendanceStatus      = "present" | "absent" | "late";
 export type StaffAttendanceStatus = "present" | "absent" | "late" | "on_leave";
@@ -78,7 +80,7 @@ function DateNav({ dateStr, onChange }: { dateStr: string; onChange: (d: string)
       <button onClick={()=>onChange(addDays(dateStr,-1))} className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><ChevronLeft className="h-4 w-4"/></button>
       <div className="flex items-center gap-2 px-4 h-9 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
         <span className="text-sm font-medium text-gray-800 dark:text-zinc-200 whitespace-nowrap">{formatLong(dateStr)}</span>
-        {isToday&&<span className="text-[10px] font-bold uppercase tracking-wider text-indigo-500 bg-indigo-500/10 px-1.5 py-0.5 rounded-full">Today</span>}
+        {isToday&&<span className="text-[10px] font-bold uppercase tracking-wider text-primary-500 bg-primary-500/10 px-1.5 py-0.5 rounded-full">Today</span>}
       </div>
       <button onClick={()=>onChange(addDays(dateStr,1))} disabled={isToday} className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:enabled:text-gray-900 dark:hover:enabled:text-zinc-100 disabled:opacity-30 transition-colors"><ChevronRight className="h-4 w-4"/></button>
     </div>
@@ -113,60 +115,54 @@ function OverviewTable({
   onView: (sectionId: string) => void;
 }) {
   return (
-    <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800">
-              <th className="py-3 pl-4 pr-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Section</th>
-              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Class Teacher</th>
-              <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Total</th>
-              <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Present</th>
-              <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-red-500 dark:text-red-400">Absent</th>
-              <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">Late</th>
-              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Rate</th>
-              <th className="py-3 pl-3 pr-4 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-zinc-700/50">
-            {sections.map((sec) => {
-              const students = studentsBySection[sec.id] ?? [];
-              const present  = students.filter((st)=>statusMap[st.id]==="present").length;
-              const absent   = students.filter((st)=>statusMap[st.id]==="absent").length;
-              const late     = students.filter((st)=>statusMap[st.id]==="late").length;
-              const total    = students.length;
-              const rate     = total>0?Math.round(((present+late)/total)*100):0;
-              return (
-                <tr key={sec.id} className="hover:bg-gray-50 dark:hover:bg-zinc-700/30 transition-colors">
-                  <td className="py-3 pl-4 pr-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10"><span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400">{sec.classNum}–{sec.section}</span></div>
-                      <span className="text-sm font-medium text-gray-900 dark:text-zinc-100">Class {sec.classNum}–{sec.section}</span>
-                    </div>
-                  </td>
-                  <td className="px-3 py-3 text-sm text-gray-600 dark:text-zinc-300">{sec.teacher||"—"}</td>
-                  <td className="px-3 py-3 text-center text-sm font-medium text-gray-700 dark:text-zinc-300">{sec.enrolled}</td>
-                  <td className="px-3 py-3 text-center"><span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{present}</span></td>
-                  <td className="px-3 py-3 text-center"><span className="text-sm font-semibold text-red-600 dark:text-red-400">{absent}</span></td>
-                  <td className="px-3 py-3 text-center"><span className="text-sm font-semibold text-amber-600 dark:text-amber-400">{late}</span></td>
-                  <td className="px-3 py-3">
-                    <div className="flex items-center gap-2 min-w-[96px]">
-                      <div className="flex-1 h-1.5 rounded-full bg-gray-100 dark:bg-zinc-700"><div className={`h-1.5 rounded-full ${rateBar(rate)}`} style={{width:`${rate}%`}}/></div>
-                      <span className={`text-xs font-semibold tabular-nums w-9 text-right ${rateColor(rate)}`}>{rate}%</span>
-                    </div>
-                  </td>
-                  <td className="py-3 pl-3 pr-4 text-right">
-                    <button onClick={()=>onView(sec.id)} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-400 transition-colors">
-                      <Users className="h-3 w-3"/> View
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <Table>
+      <TableHead>
+        <Th position="first">Section</Th>
+        <Th>Class Teacher</Th>
+        <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Total</th>
+        <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Present</th>
+        <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-red-500 dark:text-red-400">Absent</th>
+        <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">Late</th>
+        <Th>Rate</Th>
+        <Th position="last" align="right">Action</Th>
+      </TableHead>
+      <TableBody>
+        {sections.map((sec) => {
+          const students = studentsBySection[sec.id] ?? [];
+          const present  = students.filter((st)=>statusMap[st.id]==="present").length;
+          const absent   = students.filter((st)=>statusMap[st.id]==="absent").length;
+          const late     = students.filter((st)=>statusMap[st.id]==="late").length;
+          const total    = students.length;
+          const rate     = total>0?Math.round(((present+late)/total)*100):0;
+          return (
+            <Tr key={sec.id}>
+              <Td position="first">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10"><span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400">{sec.classNum}–{sec.section}</span></div>
+                  <span className="text-sm font-medium text-gray-900 dark:text-zinc-100">Class {sec.classNum}–{sec.section}</span>
+                </div>
+              </Td>
+              <Td className="text-sm text-gray-600 dark:text-zinc-300">{sec.teacher||"—"}</Td>
+              <Td className="text-center text-sm font-medium text-gray-700 dark:text-zinc-300">{sec.enrolled}</Td>
+              <Td className="text-center"><span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{present}</span></Td>
+              <Td className="text-center"><span className="text-sm font-semibold text-red-600 dark:text-red-400">{absent}</span></Td>
+              <Td className="text-center"><span className="text-sm font-semibold text-amber-600 dark:text-amber-400">{late}</span></Td>
+              <Td>
+                <div className="flex items-center gap-2 min-w-[96px]">
+                  <div className="flex-1 h-1.5 rounded-full bg-gray-100 dark:bg-zinc-700"><div className={`h-1.5 rounded-full ${rateBar(rate)}`} style={{width:`${rate}%`}}/></div>
+                  <span className={`text-xs font-semibold tabular-nums w-9 text-right ${rateColor(rate)}`}>{rate}%</span>
+                </div>
+              </Td>
+              <Td position="last" align="right">
+                <button onClick={()=>onView(sec.id)} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:bg-primary-50 hover:text-primary-600 dark:hover:bg-primary-500/10 dark:hover:text-primary-400 transition-colors">
+                  <Users className="h-3 w-3"/> View
+                </button>
+              </Td>
+            </Tr>
+          );
+        })}
+      </TableBody>
+    </Table>
   );
 }
 
@@ -301,14 +297,17 @@ function StaffAttendanceView({ staff, dateStr, staffStatusMap, setStaffStatus }:
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
         <div className="flex items-center gap-1">
           {(["all","teaching","non_teaching"] as const).map((t)=>(
-            <button key={t} onClick={()=>setTypeFilter(t)} className={`h-8 rounded-lg px-3 text-xs font-medium capitalize transition-colors ${typeFilter===t?"bg-indigo-500 text-white shadow-sm":"border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
+            <button key={t} onClick={()=>setTypeFilter(t)} className={`h-8 rounded-lg px-3 text-xs font-medium capitalize transition-colors ${typeFilter===t?"bg-primary-500 text-white shadow-sm":"border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
               {t==="all"?"All":t==="teaching"?"Teaching":"Non-Teaching"}
             </button>
           ))}
         </div>
-        <select value={deptFilter} onChange={(e)=>setDeptFilter(e.target.value)} className="h-8 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-xs text-gray-700 dark:text-zinc-300 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20">
-          {departments.map((d)=><option key={d} value={d}>{d==="all"?"All Departments":d}</option>)}
-        </select>
+        <div className="relative">
+          <select value={deptFilter} onChange={(e)=>setDeptFilter(e.target.value)} className="h-8 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-7 text-xs text-gray-700 dark:text-zinc-300 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20">
+            {departments.map((d)=><option key={d} value={d}>{d==="all"?"All Departments":d}</option>)}
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400 dark:text-zinc-500" />
+        </div>
         <div className="sm:ml-auto flex gap-2">
           <button onClick={markAllPresent} className="flex h-8 items-center gap-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-500/10 px-3 text-xs font-medium text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors"><CheckSquare className="h-3.5 w-3.5"/> Mark All Present</button>
           <button className="flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5"/> Export</button>
@@ -360,12 +359,14 @@ export default function AttendanceClient({
   initialStaff,
   todayAttendance,
   todayStaffAttendance,
+  allowStaffTab = true,
 }: {
   initialSections:          AttendanceSec[];
   initialStudentsBySection: Record<string, AttendanceStudent[]>;
   initialStaff:             AttendanceStaff[];
   todayAttendance:          Record<string, AttendanceStatus>;
   todayStaffAttendance:     Record<string, StaffAttendanceStatus>;
+  allowStaffTab?:           boolean;
 }) {
   const [tab,        setTab]     = useState<"students"|"staff">("students");
   const [dateStr,    setDate]    = useState(todayStr);
@@ -405,15 +406,25 @@ export default function AttendanceClient({
   function openDetail(id: string) { setSectionId(id); setView("detail"); }
   function backToOverview()       { setView("overview"); }
 
-  const setStudentStatus  = useCallback((id: string, s: AttendanceStatus) => setStatusMap((prev)=>({...prev,[id]:s})),[]);
-  const setStaffStatusFn  = useCallback((id: string, s: StaffAttendanceStatus) => setStaffStatusMap((prev)=>({...prev,[id]:s})),[]);
+  const setStudentStatus  = useCallback((id: string, s: AttendanceStatus) => {
+    setStatusMap((prev)=>({...prev,[id]:s}));
+    if (dateStr === todayStr()) void markStudentAttendance(id, sectionId, dateStr, s);
+  },[dateStr, sectionId]);
+
+  const setStaffStatusFn  = useCallback((id: string, s: StaffAttendanceStatus) => {
+    setStaffStatusMap((prev)=>({...prev,[id]:s}));
+    if (dateStr === todayStr()) void markStaffAttendance(id, dateStr, s);
+  },[dateStr]);
 
   const markSectionAllPresent = useCallback(()=>{
     const students = initialStudentsBySection[sectionId] ?? [];
     const map: Record<string, AttendanceStatus> = {};
     students.forEach((st)=>{ map[st.id]="present"; });
     setStatusMap((prev)=>({...prev,...map}));
-  },[sectionId,initialStudentsBySection]);
+    if (dateStr === todayStr()) {
+      students.forEach((st) => { void markStudentAttendance(st.id, sectionId, dateStr, "present"); });
+    }
+  },[sectionId,initialStudentsBySection,dateStr]);
 
   const schoolStats = useMemo(()=>{
     const all = Object.values(initialStudentsBySection).flat();
@@ -431,14 +442,16 @@ export default function AttendanceClient({
     <div className="w-full px-6 py-6 space-y-5">
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
         <DateNav dateStr={dateStr} onChange={handleDateChange}/>
+        {allowStaffTab && (
         <div className="flex rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-0.5">
           {(["students","staff"] as const).map((t)=>(
-            <button key={t} onClick={()=>handleTabChange(t)} className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${tab===t?"bg-indigo-500 text-white shadow-sm":"text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
+            <button key={t} onClick={()=>handleTabChange(t)} className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${tab===t?"bg-primary-500 text-white shadow-sm":"text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
               {t==="students"?<Users className="h-3.5 w-3.5"/>:<UserCheck className="h-3.5 w-3.5"/>}
               {t==="students"?"Students":"Staff"}
             </button>
           ))}
         </div>
+        )}
         <button className="sm:ml-auto flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5"/> Export</button>
       </div>
 

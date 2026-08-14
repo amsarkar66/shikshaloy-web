@@ -1,8 +1,25 @@
-import { supabaseAdmin, DEMO_SCHOOL_ID } from "@/lib/supabase/service";
+import { supabaseAdmin } from "@/lib/supabase/service";
+import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import AdmissionsClient from "./_components/AdmissionsClient";
 import type { Application } from "./_components/AdmissionsClient";
 
+interface AdmissionApplicationRow {
+  id: string; application_no: string | null; applicant_name: string | null; dob: string | null;
+  gender: string | null; applying_for_grade: number | null; parent_name: string | null;
+  parent_phone: string | null; parent_email: string | null; previous_school: string | null;
+  submitted_date: string | null; status: string | null; notes: string | null; academic_year_id: string | null;
+  address: string | null; blood_group: string | null; category: string | null; nationality: string | null;
+  father_name: string | null; father_occupation: string | null; father_phone: string | null; father_email: string | null;
+  mother_name: string | null; mother_occupation: string | null; mother_phone: string | null; mother_email: string | null;
+  guardian_name: string | null; guardian_relation: string | null; guardian_phone: string | null;
+  sibling_studying: boolean | null; sibling_name: string | null;
+  emergency_contact_name: string | null; emergency_contact_phone: string | null;
+  photo_url: string | null;
+  academic_years: { name: string | null } | null;
+}
+
 export default async function AdmissionsPage() {
+  const schoolId = await getCurrentSchoolIdOrThrow();
   const { data } = await supabaseAdmin
     .from("admission_applications")
     .select(`
@@ -18,10 +35,10 @@ export default async function AdmissionsPage() {
       photo_url,
       academic_years ( name )
     `)
-    .eq("school_id", DEMO_SCHOOL_ID)
+    .eq("school_id", schoolId)
     .order("submitted_date", { ascending: false });
 
-  const apps: Application[] = (data ?? []).map((a: any) => ({
+  const apps: Application[] = ((data ?? []) as unknown as AdmissionApplicationRow[]).map((a) => ({
     id:               a.id,
     applicationNo:    a.application_no ?? "",
     applicantName:    a.applicant_name ?? "",
@@ -33,9 +50,9 @@ export default async function AdmissionsPage() {
     parentEmail:      a.parent_email ?? "",
     previousSchool:   a.previous_school ?? undefined,
     submittedDate:    a.submitted_date ?? "",
-    status:           a.status ?? "pending",
+    status:           (a.status ?? "pending") as Application["status"],
     academicYear:     a.academic_years?.name ?? "",
-    academicYearId:   a.academic_year_id,
+    academicYearId:   a.academic_year_id ?? "",
     notes:            a.notes ?? undefined,
 
     address:               a.address ?? undefined,

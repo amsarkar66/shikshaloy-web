@@ -86,10 +86,10 @@ function TimetableGrid({ tt, rowItems }: { tt: ClassTimetable; rowItems: RowItem
             <th className="w-16 py-3 px-3 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500 whitespace-nowrap">Period</th>
             <th className="w-20 py-3 px-2 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500 whitespace-nowrap">Time</th>
             {DAYS.map((day, i) => (
-              <th key={day} className={`py-3 px-2 text-center text-xs font-semibold tracking-wide transition-colors ${i === todayIdx ? "text-indigo-600 dark:text-indigo-400" : "text-gray-600 dark:text-zinc-300"}`}>
+              <th key={day} className={`py-3 px-2 text-center text-xs font-semibold tracking-wide transition-colors ${i === todayIdx ? "text-primary-600 dark:text-primary-400" : "text-gray-600 dark:text-zinc-300"}`}>
                 <span className="inline-flex items-center gap-1">
                   {day}
-                  {i === todayIdx && <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 inline-block" />}
+                  {i === todayIdx && <span className="h-1.5 w-1.5 rounded-full bg-primary-500 inline-block" />}
                 </span>
               </th>
             ))}
@@ -122,7 +122,7 @@ function TimetableGrid({ tt, rowItems }: { tt: ClassTimetable; rowItems: RowItem
                 {DAYS.map((day, di) => {
                   const slot = tt[day]?.[p.num];
                   return (
-                    <td key={day} className={`py-1.5 px-1.5 align-top ${di === todayIdx ? "bg-indigo-50/40 dark:bg-indigo-500/5" : ""}`} style={{ minWidth: 110 }}>
+                    <td key={day} className={`py-1.5 px-1.5 align-top ${di === todayIdx ? "bg-primary-50/40 dark:bg-primary-500/5" : ""}`} style={{ minWidth: 110 }}>
                       {slot ? <SlotCell {...slot} /> : <div className="h-full min-h-[52px] rounded-md border border-dashed border-gray-200 dark:border-zinc-700/50" />}
                     </td>
                   );
@@ -146,7 +146,7 @@ function EmptyState({ label }: { label: string }) {
         <p className="text-sm font-semibold text-gray-700 dark:text-zinc-300">Timetable not configured</p>
         <p className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5">No schedule has been set up for <span className="font-medium">{label}</span> yet.</p>
       </div>
-      <button className="mt-1 flex items-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors shadow-sm">
+      <button className="mt-1 flex items-center gap-1.5 rounded-lg bg-primary-500 hover:bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors shadow-sm">
         <Layers className="h-3.5 w-3.5" /> Configure Timetable
       </button>
     </div>
@@ -201,7 +201,7 @@ function TeacherSummaryTable({ summaries, onSelect }: { summaries: TeacherSummar
                 </td>
                 <td className="px-3 py-3">
                   <div className="flex flex-wrap gap-1">
-                    {t.subjects.slice(0, 2).map((s) => <span key={s} className="inline-flex items-center rounded-md bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 text-[11px] font-medium text-indigo-700 dark:text-indigo-300">{s}</span>)}
+                    {t.subjects.slice(0, 2).map((s) => <span key={s} className="inline-flex items-center rounded-md bg-primary-50 dark:bg-primary-500/10 px-2 py-0.5 text-[11px] font-medium text-primary-700 dark:text-primary-300">{s}</span>)}
                     {t.subjects.length > 2 && <span className="inline-flex items-center rounded-md bg-gray-100 dark:bg-zinc-700 px-2 py-0.5 text-[11px] font-medium text-gray-500 dark:text-zinc-400">+{t.subjects.length - 2}</span>}
                   </div>
                 </td>
@@ -211,9 +211,9 @@ function TeacherSummaryTable({ summaries, onSelect }: { summaries: TeacherSummar
                     {t.classes.length > 4 && <span className="inline-flex items-center rounded-md bg-gray-100 dark:bg-zinc-700 px-2 py-0.5 text-[11px] font-medium text-gray-400 dark:text-zinc-500">+{t.classes.length - 4}</span>}
                   </div>
                 </td>
-                <td className="px-3 py-3"><span className="inline-flex items-center rounded-lg bg-indigo-500/10 px-3 py-1 text-sm font-bold text-indigo-700 dark:text-indigo-300">{t.periods}</span></td>
+                <td className="px-3 py-3"><span className="inline-flex items-center rounded-lg bg-primary-500/10 px-3 py-1 text-sm font-bold text-primary-700 dark:text-primary-300">{t.periods}</span></td>
                 <td className="py-3 pl-3 pr-4 text-right">
-                  <button onClick={(e) => { e.stopPropagation(); onSelect(t.teacher); }} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-400 transition-colors">View Schedule</button>
+                  <button onClick={(e) => { e.stopPropagation(); onSelect(t.teacher); }} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:bg-primary-50 hover:text-primary-600 dark:hover:bg-primary-500/10 dark:hover:text-primary-400 transition-colors">View Schedule</button>
                 </td>
               </tr>
             ))}
@@ -261,7 +261,7 @@ export default function TimetableClient({
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
         <div className="flex rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-0.5 shrink-0">
           {(["class", "teacher"] as ViewMode[]).map((v) => (
-            <button key={v} onClick={() => handleViewChange(v)} className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors ${view === v ? "bg-indigo-500 text-white shadow-sm" : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
+            <button key={v} onClick={() => handleViewChange(v)} className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors ${view === v ? "bg-primary-500 text-white shadow-sm" : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
               {v === "class" ? <Layers className="h-3.5 w-3.5" /> : <Users className="h-3.5 w-3.5" />}
               By {v === "class" ? "Class" : "Teacher"}
             </button>
@@ -270,14 +270,14 @@ export default function TimetableClient({
 
         {view === "class" ? (
           <div className="relative">
-            <select value={selClass} onChange={(e) => setClass(e.target.value)} className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm font-medium text-gray-800 dark:text-zinc-200 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20">
+            <select value={selClass} onChange={(e) => setClass(e.target.value)} className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm font-medium text-gray-800 dark:text-zinc-200 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
               {classList.map((c) => <option key={c} value={c}>Class {c}{!hasAnySlot(timetables[c]) ? "  (not configured)" : ""}</option>)}
             </select>
             <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
           </div>
         ) : selTeacher ? (
           <div className="relative">
-            <select value={selTeacher} onChange={(e) => setTeacher(e.target.value)} className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm font-medium text-gray-800 dark:text-zinc-200 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20">
+            <select value={selTeacher} onChange={(e) => setTeacher(e.target.value)} className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm font-medium text-gray-800 dark:text-zinc-200 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
               {summaries.map((t) => <option key={t.teacher} value={t.teacher}>{t.teacher}</option>)}
             </select>
             <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
@@ -294,12 +294,12 @@ export default function TimetableClient({
       </div>
 
       <div className="flex items-center gap-2">
-        <CalendarDays className="h-4 w-4 text-indigo-500" />
+        <CalendarDays className="h-4 w-4 text-primary-500" />
         <p className="text-sm font-semibold text-gray-800 dark:text-zinc-200">
           {view === "teacher" && !selTeacher ? "All Teachers — Weekly Load Overview" : `${label} — Weekly Schedule`}
         </p>
         {view === "teacher" && selTeacher && (
-          <button onClick={() => setTeacher("")} className="ml-2 text-xs text-indigo-500 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors">← All Teachers</button>
+          <button onClick={() => setTeacher("")} className="ml-2 text-xs text-primary-500 hover:text-primary-700 dark:hover:text-primary-300 transition-colors">← All Teachers</button>
         )}
       </div>
 

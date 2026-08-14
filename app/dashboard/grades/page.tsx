@@ -1,8 +1,23 @@
-import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
+import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 import { getStudentContext } from "@/lib/students/context";
+import { getTeacherContext } from "@/lib/teachers/context";
 import { getGrade, gradeStyle, scoreColor, formatDate } from "../exams/_data/exams";
 import { Award, GraduationCap, TrendingUp } from "lucide-react";
+import GradebookClient, {
+  type GradebookExam, type GradebookCombo, type GradebookStudent, type GradebookExisting,
+} from "./_components/GradebookClient";
+
+interface StudentExamResultRow {
+  marks_obtained: number | null;
+  max_marks: number | null;
+  grade: string | null;
+  is_absent: boolean | null;
+  subjects: { name: string | null } | null;
+  exams: { id: string; name: string | null; type: string | null; status: string | null; start_date: string } | null;
+}
 
 interface ExamGroup {
   examId: string;
@@ -15,21 +30,115 @@ interface ExamGroup {
   pct: number;
 }
 
+interface ComboSeed { sectionId: string; subjectId: string }
+
+async function Gradebook({ role, userId }: { role: string | undefined; userId: string }) {
+  const schoolId = await getCurrentSchoolIdOrThrow();
+  let comboSeeds: ComboSeed[] = [];
+
+  if (role === "teacher") {
+    const teacher = await getTeacherContext(userId);
+    comboSeeds = teacher?.subjectAssignments ?? [];
+  } else {
+    const { data: ssRows } = await supabaseAdmin
+      .from("section_subjects")
+      .select("section_id, subject_id")
+      .eq("school_id", schoolId)
+      .eq("academic_year_id", await getCurrentAcademicYearId());
+    comboSeeds = (ssRows ?? []).map((r) => ({ sectionId: r.section_id, subjectId: r.subject_id }));
+  }
+
+  const sectionIds = Array.from(new Set(comboSeeds.map((c) => c.sectionId)));
+  const subjectIds = Array.from(new Set(comboSeeds.map((c) => c.subjectId)));
+
+  const [{ data: examRows }, { data: sectionRows }, { data: subjectRows }, { data: studentRows }] = await Promise.all([
+    supabaseAdmin.from("exams").select("id, name, type, status, start_date")
+      .eq("school_id", schoolId).order("start_date", { ascending: false }),
+
+    sectionIds.length
+      ? supabaseAdmin.from("sections").select("id, name, grades ( level )").in("id", sectionIds)
+      : Promise.resolve({ data: [] as { id: string; name: string | null; grades: { level: number | null } | null }[] }),
+
+    subjectIds.length
+      ? supabaseAdmin.from("subjects").select("id, name").in("id", subjectIds)
+      : Promise.resolve({ data: [] as { id: string; name: string | null }[] }),
+
+    sectionIds.length
+      ? supabaseAdmin.from("students").select("id, full_name, roll_no, section_id").in("section_id", sectionIds).order("roll_no")
+      : Promise.resolve({ data: [] as { id: string; full_name: string; roll_no: string | null; section_id: string | null }[] }),
+  ]);
+
+  const sectionLabel: Record<string, string> = {};
+  for (const s of (sectionRows ?? []) as unknown as { id: string; name: string | null; grades: { level: number | null } | null }[]) {
+    sectionLabel[s.id] = `${s.grades?.level ?? "?"}-${s.name ?? ""}`;
+  }
+  const subjectName: Record<string, string> = {};
+  for (const s of subjectRows ?? []) subjectName[s.id] = s.name ?? "Subject";
+
+  const combos: GradebookCombo[] = comboSeeds.map((c) => ({
+    key: `${c.sectionId}::${c.subjectId}`,
+    sectionId: c.sectionId,
+    subjectId: c.subjectId,
+    label: `Class ${sectionLabel[c.sectionId] ?? "?"} · ${subjectName[c.subjectId] ?? "Subject"}`,
+  })).sort((a, b) => a.label.localeCompare(b.label));
+
+  const rosterBySection: Record<string, GradebookStudent[]> = {};
+  for (const st of studentRows ?? []) {
+    if (!st.section_id) continue;
+    (rosterBySection[st.section_id] ??= []).push({ id: st.id, name: st.full_name, rollNo: st.roll_no ?? "" });
+  }
+
+  const exams: GradebookExam[] = (examRows ?? []).map((e) => ({
+    id: e.id, name: e.name ?? "Exam", type: e.type ?? "unit_test", status: e.status ?? "upcoming", startDate: e.start_date,
+  }));
+
+  const examIds = exams.map((e) => e.id);
+  const rosterStudentIds = Object.values(rosterBySection).flat().map((s) => s.id);
+
+  const { data: resultRows } = examIds.length && rosterStudentIds.length && subjectIds.length
+    ? await supabaseAdmin
+        .from("exam_results")
+        .select("exam_id, subject_id, student_id, marks_obtained, is_absent")
+        .in("exam_id", examIds)
+        .in("subject_id", subjectIds)
+        .in("student_id", rosterStudentIds)
+    : { data: [] as { exam_id: string; subject_id: string; student_id: string; marks_obtained: number | null; is_absent: boolean | null }[] };
+
+  const existingResults: Record<string, GradebookExisting> = {};
+  for (const r of resultRows ?? []) {
+    existingResults[`${r.exam_id}::${r.subject_id}::${r.student_id}`] = {
+      marks: r.marks_obtained !== null ? Math.round(Number(r.marks_obtained)) : null,
+      isAbsent: !!r.is_absent,
+    };
+  }
+
+  return (
+    <GradebookClient
+      exams={exams}
+      combos={combos}
+      rosterBySection={rosterBySection}
+      existingResults={existingResults}
+    />
+  );
+}
+
 export default async function GradesPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await getUser();
   const role = user?.user_metadata?.role as string | undefined;
 
-  if (!user || role !== "student") {
+  if (!user) {
     return (
       <div className="w-full px-6 py-8">
         <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 py-24 text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-2xl">📊</div>
-          <p className="text-base font-semibold text-gray-900 dark:text-zinc-50">Gradebook coming soon</p>
-          <p className="max-w-xs text-sm text-gray-500 dark:text-zinc-400">A dedicated view for entering and reviewing class results is on the way.</p>
+          <p className="text-base font-semibold text-gray-900 dark:text-zinc-50">Sign in required</p>
         </div>
       </div>
     );
+  }
+
+  if (role !== "student") {
+    return <Gradebook role={role} userId={user.id} />;
   }
 
   const student = await getStudentContext(user.id);
@@ -55,9 +164,9 @@ export default async function GradesPage() {
     .eq("student_id", student.id)
     .order("created_at", { ascending: false });
 
-  const published = ((resultRows ?? []) as any[]).filter((r) => r.exams?.status === "published");
+  const published = ((resultRows ?? []) as unknown as StudentExamResultRow[]).filter((r) => r.exams?.status === "published");
 
-  const byExam = new Map<string, any[]>();
+  const byExam = new Map<string, StudentExamResultRow[]>();
   for (const r of published) {
     const key = r.exams?.id;
     if (!key) continue;

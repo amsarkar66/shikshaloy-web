@@ -6,6 +6,8 @@ import {
   X, Phone, ChevronDown, ChevronUp, Eye, Pencil,
   AlertCircle,
 } from "lucide-react";
+import { FancyButton } from "@/components/ui/fancy-button";
+import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
 import {
   avatarColor, initials, formatTime, formatDate,
   FEE_BADGE, VEHICLE_STATUS_BADGE, ROUTE_STATUS_BADGE, FUEL_ICON,
@@ -48,45 +50,45 @@ function RouteRow({ route }: { route: Route }) {
 
   return (
     <>
-      <tr className="hover:bg-gray-50 dark:hover:bg-zinc-700/30 cursor-pointer transition-colors" onClick={() => setOpen((v) => !v)}>
-        <td className="py-3 pl-4 pr-3">
+      <Tr onClick={() => setOpen((v) => !v)}>
+        <Td position="first">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10 dark:bg-indigo-500/20">
-              <Bus className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-500/10 dark:bg-primary-500/20">
+              <Bus className="h-4 w-4 text-primary-600 dark:text-primary-400" />
             </div>
             <div>
               <p className="font-semibold text-gray-900 dark:text-zinc-100 text-sm leading-tight">{route.routeName}</p>
               <p className="text-xs text-gray-400 dark:text-zinc-500">{route.routeNo}</p>
             </div>
           </div>
-        </td>
-        <td className="px-3 py-3">
+        </Td>
+        <Td>
           <p className="text-sm text-gray-700 dark:text-zinc-300">{route.driverPhone ? route.driverPhone : <span className="text-gray-400 dark:text-zinc-500">Unassigned</span>}</p>
-        </td>
-        <td className="px-3 py-3"><span className="text-sm text-gray-600 dark:text-zinc-400">{route.stops.length} stops</span></td>
-        <td className="px-3 py-3">
+        </Td>
+        <Td><span className="text-sm text-gray-600 dark:text-zinc-400">{route.stops.length} stops</span></Td>
+        <Td>
           <div className="flex items-center gap-2 min-w-[110px]">
             <div className="flex-1 h-1.5 rounded-full bg-gray-100 dark:bg-zinc-700">
               <div className={`h-1.5 rounded-full ${fillColor}`} style={{ width: `${fill}%` }} />
             </div>
             <span className="text-xs font-semibold tabular-nums text-gray-700 dark:text-zinc-300">{route.studentCount}/{route.capacity}</span>
           </div>
-        </td>
-        <td className="px-3 py-3 text-xs text-gray-500 dark:text-zinc-400">
+        </Td>
+        <Td className="text-xs text-gray-500 dark:text-zinc-400">
           <p>↑ {formatTime(route.morningDeparture)}</p>
           <p>↓ {formatTime(route.eveningDeparture)}</p>
-        </td>
-        <td className="px-3 py-3">
+        </Td>
+        <Td>
           <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${ROUTE_STATUS_BADGE[route.status]}`}>{route.status}</span>
-        </td>
-        <td className="py-3 pl-3 pr-4 text-right">
+        </Td>
+        <Td position="last" align="right">
           <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors ml-auto">
             {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
           </button>
-        </td>
-      </tr>
+        </Td>
+      </Tr>
       {open && (
-        <tr className="bg-indigo-50/40 dark:bg-indigo-500/5">
+        <tr className="bg-primary-50/40 dark:bg-primary-500/5">
           <td colSpan={7} className="px-6 py-4">
             {route.stops.length === 0 ? (
               <p className="text-xs text-gray-400 dark:text-zinc-500">No stops configured.</p>
@@ -97,10 +99,10 @@ function RouteRow({ route }: { route: Route }) {
                   {route.stops.map((stop, idx) => (
                     <div key={stop} className="flex items-center gap-0">
                       <div className="flex items-center gap-1.5 rounded-lg bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 px-3 py-1.5">
-                        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-indigo-500 text-[9px] font-bold text-white shrink-0">{idx + 1}</span>
+                        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary-500 text-[9px] font-bold text-white shrink-0">{idx + 1}</span>
                         <span className="text-xs font-medium text-gray-700 dark:text-zinc-300 whitespace-nowrap">{stop}</span>
                       </div>
-                      {idx < route.stops.length - 1 && <div className="w-6 h-px bg-indigo-300 dark:bg-indigo-700" />}
+                      {idx < route.stops.length - 1 && <div className="w-6 h-px bg-primary-300 dark:bg-primary-700" />}
                     </div>
                   ))}
                 </div>
@@ -133,11 +135,11 @@ function RoutesTab({ routes }: { routes: Route[] }) {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-zinc-500 pointer-events-none" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search route or route number…" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search route or route number…" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
         </div>
         <div className="flex items-center gap-1">
           {(["all", "active", "inactive"] as const).map((s) => (
-            <button key={s} onClick={() => setStatus(s)} className={`h-9 rounded-lg px-3 text-sm font-medium capitalize transition-colors ${statusFilter === s ? "bg-indigo-500 text-white shadow-sm" : "border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
+            <button key={s} onClick={() => setStatus(s)} className={`h-9 rounded-lg px-3 text-sm font-medium capitalize transition-colors ${statusFilter === s ? "bg-primary-500 text-white shadow-sm" : "border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
               {s === "all" ? "All Status" : s}
             </button>
           ))}
@@ -147,29 +149,27 @@ function RoutesTab({ routes }: { routes: Route[] }) {
             </button>
           )}
         </div>
-        <button className="flex h-9 items-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 px-4 text-sm font-medium text-white shadow-sm transition-colors shrink-0 sm:ml-auto">
+        <FancyButton size="sm" className="shrink-0 sm:ml-auto">
           <Plus className="h-4 w-4" /> Add Route
-        </button>
+        </FancyButton>
       </div>
 
-      <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800">
-                {["Route", "Driver", "Stops", "Occupancy", "Timings", "Status", ""].map((h) => (
-                  <th key={h} className={`py-3 ${h === "Route" ? "pl-4 pr-3" : h === "" ? "pl-3 pr-4" : "px-3"} text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400`}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-zinc-700/50">
-              {filtered.length === 0 ? (
-                <tr><td colSpan={7} className="py-16 text-center"><div className="flex flex-col items-center gap-2"><MapPin className="h-8 w-8 text-gray-300 dark:text-zinc-600" /><p className="text-sm font-medium text-gray-500 dark:text-zinc-400">No routes found</p></div></td></tr>
-              ) : filtered.map((route) => <RouteRow key={route.id} route={route} />)}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <Table>
+        <TableHead>
+          <Th position="first">Route</Th>
+          <Th>Driver</Th>
+          <Th>Stops</Th>
+          <Th>Occupancy</Th>
+          <Th>Timings</Th>
+          <Th>Status</Th>
+          <Th position="last" />
+        </TableHead>
+        <TableBody>
+          {filtered.length === 0 ? (
+            <TableEmptyRow colSpan={7} icon={MapPin} message="No routes found" />
+          ) : filtered.map((route) => <RouteRow key={route.id} route={route} />)}
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -204,11 +204,11 @@ function VehiclesTab({ vehicles }: { vehicles: Vehicle[] }) {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-zinc-500 pointer-events-none" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search registration or model…" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search registration or model…" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
         </div>
         <div className="flex items-center gap-1">
           {(["all", "active", "maintenance", "inactive"] as const).map((s) => (
-            <button key={s} onClick={() => setStatus(s)} className={`h-9 rounded-lg px-3 text-sm font-medium capitalize transition-colors ${statusFilter === s ? "bg-indigo-500 text-white shadow-sm" : "border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
+            <button key={s} onClick={() => setStatus(s)} className={`h-9 rounded-lg px-3 text-sm font-medium capitalize transition-colors ${statusFilter === s ? "bg-primary-500 text-white shadow-sm" : "border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
               {s === "all" ? "All" : s}
             </button>
           ))}
@@ -218,68 +218,67 @@ function VehiclesTab({ vehicles }: { vehicles: Vehicle[] }) {
             </button>
           )}
         </div>
-        <button className="flex h-9 items-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 px-4 text-sm font-medium text-white shadow-sm transition-colors shrink-0 sm:ml-auto">
+        <FancyButton size="sm" className="shrink-0 sm:ml-auto">
           <Plus className="h-4 w-4" /> Add Vehicle
-        </button>
+        </FancyButton>
       </div>
 
-      <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800">
-                {["Vehicle", "Model", "Driver", "Capacity", "Fuel", "Next Service", "Status", ""].map((h) => (
-                  <th key={h} className={`py-3 ${h === "Vehicle" ? "pl-4 pr-3" : h === "" ? "pl-3 pr-4 text-right" : "px-3"} text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400`}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-zinc-700/50">
-              {filtered.length === 0 ? (
-                <tr><td colSpan={8} className="py-16 text-center"><div className="flex flex-col items-center gap-2"><Bus className="h-8 w-8 text-gray-300 dark:text-zinc-600" /><p className="text-sm font-medium text-gray-500 dark:text-zinc-400">No vehicles found</p></div></td></tr>
-              ) : filtered.map((v) => {
-                const svc = serviceInfo(v);
-                return (
-                  <tr key={v.id} className={`hover:bg-gray-50 dark:hover:bg-zinc-700/30 transition-colors ${v.status === "maintenance" ? "bg-amber-50/30 dark:bg-amber-500/5" : ""}`}>
-                    <td className="py-3 pl-4 pr-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-500/10">
-                          <Bus className="h-4 w-4 text-teal-600 dark:text-teal-400" />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-900 dark:text-zinc-100 text-sm leading-tight font-mono">{v.regNo}</p>
-                          <p className="text-xs text-gray-400 dark:text-zinc-500">{v.year}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-3 py-3 text-sm text-gray-700 dark:text-zinc-300 whitespace-nowrap">{v.model}</td>
-                    <td className="px-3 py-3 text-sm text-gray-700 dark:text-zinc-300">
-                      {v.hasDriver ? "Assigned" : <span className="text-gray-400 dark:text-zinc-500">Unassigned</span>}
-                    </td>
-                    <td className="px-3 py-3 text-sm font-medium text-gray-700 dark:text-zinc-300 tabular-nums">{v.capacity}</td>
-                    <td className="px-3 py-3">
-                      <span className="text-sm">{FUEL_ICON[v.fuelType]}</span>
-                      <span className="ml-1.5 text-xs font-medium text-gray-600 dark:text-zinc-400 capitalize">{v.fuelType}</span>
-                    </td>
-                    <td className="px-3 py-3">
-                      <p className="text-xs text-gray-600 dark:text-zinc-400">{formatDate(v.nextService)}</p>
-                      <p className={`text-xs font-medium ${svc.cls}`}>{svc.label}</p>
-                    </td>
-                    <td className="px-3 py-3">
-                      <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${VEHICLE_STATUS_BADGE[v.status]}`}>{v.status}</span>
-                    </td>
-                    <td className="py-3 pl-3 pr-4">
-                      <div className="flex items-center justify-end gap-1">
-                        <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Eye className="h-3.5 w-3.5" /></button>
-                        <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Pencil className="h-3.5 w-3.5" /></button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <Table>
+        <TableHead>
+          <Th position="first">Vehicle</Th>
+          <Th>Model</Th>
+          <Th>Driver</Th>
+          <Th>Capacity</Th>
+          <Th>Fuel</Th>
+          <Th>Next Service</Th>
+          <Th>Status</Th>
+          <Th position="last" align="right" />
+        </TableHead>
+        <TableBody>
+          {filtered.length === 0 ? (
+            <TableEmptyRow colSpan={8} icon={Bus} message="No vehicles found" />
+          ) : filtered.map((v) => {
+            const svc = serviceInfo(v);
+            return (
+              <Tr key={v.id} className={v.status === "maintenance" ? "bg-amber-50/30 dark:bg-amber-500/5" : ""}>
+                <Td position="first">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-500/10">
+                      <Bus className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900 dark:text-zinc-100 text-sm leading-tight font-mono">{v.regNo}</p>
+                      <p className="text-xs text-gray-400 dark:text-zinc-500">{v.year}</p>
+                    </div>
+                  </div>
+                </Td>
+                <Td className="text-sm text-gray-700 dark:text-zinc-300 whitespace-nowrap">{v.model}</Td>
+                <Td className="text-sm text-gray-700 dark:text-zinc-300">
+                  {v.hasDriver ? "Assigned" : <span className="text-gray-400 dark:text-zinc-500">Unassigned</span>}
+                </Td>
+                <Td className="text-sm font-medium text-gray-700 dark:text-zinc-300 tabular-nums">{v.capacity}</Td>
+                <Td>
+                  <span className="text-sm">{FUEL_ICON[v.fuelType]}</span>
+                  <span className="ml-1.5 text-xs font-medium text-gray-600 dark:text-zinc-400 capitalize">{v.fuelType}</span>
+                </Td>
+                <Td>
+                  <p className="text-xs text-gray-600 dark:text-zinc-400">{formatDate(v.nextService)}</p>
+                  <p className={`text-xs font-medium ${svc.cls}`}>{svc.label}</p>
+                </Td>
+                <Td>
+                  <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${VEHICLE_STATUS_BADGE[v.status]}`}>{v.status}</span>
+                </Td>
+                <Td position="last">
+                  <div className="flex items-center justify-end gap-1">
+                    <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Eye className="h-3.5 w-3.5" /></button>
+                    <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Pencil className="h-3.5 w-3.5" /></button>
+                  </div>
+                </Td>
+              </Tr>
+            );
+          })}
+        </TableBody>
+      </Table>
 
       <div className="grid grid-cols-3 gap-4">
         {(["active", "maintenance", "inactive"] as VehicleStatus[]).map((s) => {
@@ -337,18 +336,24 @@ function StudentsTab({ students, routes }: { students: StudentTransport[]; route
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-zinc-500 pointer-events-none" />
-          <input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} placeholder="Search student, roll no or stop…" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20" />
+          <input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} placeholder="Search student, roll no or stop…" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
         </div>
-        <select value={routeFilter} onChange={(e) => { setRoute(e.target.value); setPage(1); }} className="h-9 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20">
-          <option value="all">All Routes</option>
-          {routeOptions.map((r) => <option key={r.routeNo} value={r.routeNo}>{r.routeNo} — {r.routeName}</option>)}
-        </select>
-        <select value={feeFilter} onChange={(e) => { setFee(e.target.value as "all" | TransportFeeStatus); setPage(1); }} className="h-9 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20">
-          <option value="all">All Fee Status</option>
-          <option value="paid">Paid</option>
-          <option value="partial">Partial</option>
-          <option value="overdue">Overdue</option>
-        </select>
+        <div className="relative">
+          <select value={routeFilter} onChange={(e) => { setRoute(e.target.value); setPage(1); }} className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+            <option value="all">All Routes</option>
+            {routeOptions.map((r) => <option key={r.routeNo} value={r.routeNo}>{r.routeNo} — {r.routeName}</option>)}
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+        </div>
+        <div className="relative">
+          <select value={feeFilter} onChange={(e) => { setFee(e.target.value as "all" | TransportFeeStatus); setPage(1); }} className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+            <option value="all">All Fee Status</option>
+            <option value="paid">Paid</option>
+            <option value="partial">Partial</option>
+            <option value="overdue">Overdue</option>
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+        </div>
         {hasFilter && (
           <button onClick={clearFilters} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
             <X className="h-3.5 w-3.5" /> Clear
@@ -356,74 +361,82 @@ function StudentsTab({ students, routes }: { students: StudentTransport[]; route
         )}
         <div className="flex gap-2 sm:ml-auto">
           <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5" /> Export</button>
-          <button className="flex h-9 items-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 px-4 text-sm font-medium text-white shadow-sm transition-colors"><Plus className="h-4 w-4" /> Assign Student</button>
+          <FancyButton size="sm"><Plus className="h-4 w-4" /> Assign Student</FancyButton>
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-gray-500 dark:text-zinc-500">
-          Showing <span className="font-medium text-gray-700 dark:text-zinc-300">{filtered.length}</span> of{" "}
-          <span className="font-medium text-gray-700 dark:text-zinc-300">{students.length}</span> students
-        </p>
-        {hasFilter && <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">Filters active</span>}
-      </div>
-
-      <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800">
-                {["Student", "Class", "Route", "Stop", "Monthly Fee", "Fee Status", "Actions"].map((h) => (
-                  <th key={h} className={`py-3 ${h === "Student" ? "pl-4 pr-3" : h === "Actions" ? "pl-3 pr-4 text-right" : "px-3"} text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400`}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-zinc-700/50">
-              {pageData.length === 0 ? (
-                <tr><td colSpan={7} className="py-16 text-center"><div className="flex flex-col items-center gap-2"><Users className="h-8 w-8 text-gray-300 dark:text-zinc-600" /><p className="text-sm font-medium text-gray-500 dark:text-zinc-400">No students found</p><p className="text-xs text-gray-400 dark:text-zinc-500">No students are assigned to transport yet.</p></div></td></tr>
-              ) : pageData.map((s) => (
-                <tr key={s.id} className={`hover:bg-gray-50 dark:hover:bg-zinc-700/30 transition-colors ${s.feeStatus === "overdue" ? "bg-red-50/30 dark:bg-red-500/5" : ""}`}>
-                  <td className="py-3 pl-4 pr-3">
-                    <div className="flex items-center gap-3">
-                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ${avatarColor(s.id)}`}>{initials(s.studentName)}</div>
-                      <div className="min-w-0">
-                        <p className="font-medium text-gray-900 dark:text-zinc-100 leading-tight truncate">{s.studentName}</p>
-                        <p className="text-xs text-gray-400 dark:text-zinc-500">{s.rollNo}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-3 py-3"><span className="inline-flex items-center gap-1 rounded-lg bg-indigo-500/10 px-2.5 py-1 text-xs font-semibold text-indigo-700 dark:text-indigo-300">{s.classNum}–{s.section}</span></td>
-                  <td className="px-3 py-3">
-                    <p className="text-sm font-medium text-gray-700 dark:text-zinc-300">{s.routeName}</p>
-                    <p className="text-xs text-gray-400 dark:text-zinc-500">{s.routeNo}</p>
-                  </td>
-                  <td className="px-3 py-3"><div className="flex items-center gap-1.5"><MapPin className="h-3 w-3 text-gray-400 dark:text-zinc-500 shrink-0" /><span className="text-sm text-gray-700 dark:text-zinc-300 whitespace-nowrap">{s.stopName}</span></div></td>
-                  <td className="px-3 py-3 text-sm font-medium text-gray-700 dark:text-zinc-300 tabular-nums">₹{s.monthlyFee.toLocaleString("en-IN")}</td>
-                  <td className="px-3 py-3"><span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${FEE_BADGE[s.feeStatus]}`}>{s.feeStatus}</span></td>
-                  <td className="py-3 pl-3 pr-4">
-                    <div className="flex items-center justify-end gap-1">
-                      <a href={`tel:${s.phone}`} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors" title="Call parent"><Phone className="h-3.5 w-3.5" /></a>
-                      <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Pencil className="h-3.5 w-3.5" /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {hasFilter && (
+        <div className="flex items-center justify-end">
+          <span className="text-xs text-primary-600 dark:text-primary-400 font-medium">Filters active</span>
         </div>
-        {totalPages > 1 && (
+      )}
+
+      <Table
+        footer={totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-gray-200 dark:border-zinc-700 px-4 py-3">
-            <p className="text-xs text-gray-500 dark:text-zinc-400">Page {page} of {totalPages}</p>
+            <p className="text-xs text-gray-500 dark:text-zinc-400">
+              Showing <span className="font-medium text-gray-700 dark:text-zinc-300">{(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, filtered.length)}</span> of{" "}
+              <span className="font-medium text-gray-700 dark:text-zinc-300">{filtered.length}</span> students
+            </p>
             <div className="flex items-center gap-1">
               <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 disabled:opacity-40 hover:enabled:bg-gray-100 dark:hover:enabled:bg-zinc-700 transition-colors text-xs">‹</button>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
-                <button key={n} onClick={() => setPage(n)} className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-medium transition-colors ${page === n ? "bg-indigo-500 text-white" : "border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-700"}`}>{n}</button>
+                <button key={n} onClick={() => setPage(n)} className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-medium transition-colors ${page === n ? "bg-primary-500 text-white" : "border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-700"}`}>{n}</button>
               ))}
               <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 disabled:opacity-40 hover:enabled:bg-gray-100 dark:hover:enabled:bg-zinc-700 transition-colors text-xs">›</button>
             </div>
           </div>
         )}
-      </div>
+      >
+        <TableHead>
+          <Th position="first">Student</Th>
+          <Th>Class</Th>
+          <Th>Route</Th>
+          <Th>Stop</Th>
+          <Th>Monthly Fee</Th>
+          <Th>Fee Status</Th>
+          <Th position="last" align="right">Actions</Th>
+        </TableHead>
+        <TableBody>
+          {pageData.length === 0 ? (
+            <tr>
+              <td colSpan={7} className="py-16 text-center">
+                <div className="flex flex-col items-center gap-2">
+                  <Users className="h-8 w-8 text-gray-300 dark:text-zinc-600" />
+                  <p className="text-sm font-medium text-gray-500 dark:text-zinc-400">No students found</p>
+                  <p className="text-xs text-gray-400 dark:text-zinc-500">No students are assigned to transport yet.</p>
+                </div>
+              </td>
+            </tr>
+          ) : pageData.map((s) => (
+            <Tr key={s.id} className={s.feeStatus === "overdue" ? "bg-red-50/30 dark:bg-red-500/5" : ""}>
+              <Td position="first">
+                <div className="flex items-center gap-3">
+                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ${avatarColor(s.id)}`}>{initials(s.studentName)}</div>
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-900 dark:text-zinc-100 leading-tight truncate">{s.studentName}</p>
+                    <p className="text-xs text-gray-400 dark:text-zinc-500">{s.rollNo}</p>
+                  </div>
+                </div>
+              </Td>
+              <Td><span className="inline-flex items-center gap-1 rounded-lg bg-primary-500/10 px-2.5 py-1 text-xs font-semibold text-primary-700 dark:text-primary-300">{s.classNum}–{s.section}</span></Td>
+              <Td>
+                <p className="text-sm font-medium text-gray-700 dark:text-zinc-300">{s.routeName}</p>
+                <p className="text-xs text-gray-400 dark:text-zinc-500">{s.routeNo}</p>
+              </Td>
+              <Td><div className="flex items-center gap-1.5"><MapPin className="h-3 w-3 text-gray-400 dark:text-zinc-500 shrink-0" /><span className="text-sm text-gray-700 dark:text-zinc-300 whitespace-nowrap">{s.stopName}</span></div></Td>
+              <Td className="text-sm font-medium text-gray-700 dark:text-zinc-300 tabular-nums">₹{s.monthlyFee.toLocaleString("en-IN")}</Td>
+              <Td><span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${FEE_BADGE[s.feeStatus]}`}>{s.feeStatus}</span></Td>
+              <Td position="last">
+                <div className="flex items-center justify-end gap-1">
+                  <a href={`tel:${s.phone}`} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors" title="Call parent"><Phone className="h-3.5 w-3.5" /></a>
+                  <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Pencil className="h-3.5 w-3.5" /></button>
+                </div>
+              </Td>
+            </Tr>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -462,7 +475,7 @@ export default function TransportClient({
 
       <div className="flex gap-1 border-b border-gray-200 dark:border-zinc-800">
         {TABS.map(({ id, label, icon: Icon }) => (
-          <button key={id} onClick={() => setTab(id)} className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${activeTab === id ? "border-indigo-500 text-indigo-600 dark:text-indigo-400" : "border-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 hover:border-gray-300 dark:hover:border-zinc-600"}`}>
+          <button key={id} onClick={() => setTab(id)} className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${activeTab === id ? "border-primary-500 text-primary-600 dark:text-primary-400" : "border-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 hover:border-gray-300 dark:hover:border-zinc-600"}`}>
             <Icon className="h-4 w-4" />{label}
           </button>
         ))}

@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { supabaseAdmin, DEMO_SCHOOL_ID, DEMO_AY_ID } from "@/lib/supabase/service";
+import { supabaseAdmin } from "@/lib/supabase/service";
+import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 
 export async function schedulePtmSession(input: {
   sectionId: string;
@@ -12,9 +14,10 @@ export async function schedulePtmSession(input: {
   slotMinutes: number;
   totalSlots: number;
 }) {
+  const schoolId = await getCurrentSchoolIdOrThrow();
   const { error } = await supabaseAdmin.from("ptm_sessions").insert({
-    school_id: DEMO_SCHOOL_ID,
-    academic_year_id: DEMO_AY_ID,
+    school_id: schoolId,
+    academic_year_id: await getCurrentAcademicYearId(),
     section_id: input.sectionId,
     teacher_id: input.teacherId,
     date: input.date,
@@ -26,4 +29,33 @@ export async function schedulePtmSession(input: {
   });
   if (error) throw new Error(error.message);
   revalidatePath("/dashboard/events");
+}
+
+export async function bookPtmSlot(input: {
+  sessionId: string;
+  studentId: string;
+  parentId: string;
+  slotTime: string;
+}) {
+  const { error } = await supabaseAdmin.from("ptm_bookings").insert({
+    session_id: input.sessionId,
+    student_id: input.studentId,
+    parent_id: input.parentId,
+    slot_time: input.slotTime,
+    status: "booked",
+  });
+  if (error) throw new Error(error.message);
+  revalidatePath("/dashboard/ptm");
+  revalidatePath("/dashboard");
+}
+
+export async function cancelPtmBooking(bookingId: string, parentId: string) {
+  const { error } = await supabaseAdmin
+    .from("ptm_bookings")
+    .delete()
+    .eq("id", bookingId)
+    .eq("parent_id", parentId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/dashboard/ptm");
+  revalidatePath("/dashboard");
 }

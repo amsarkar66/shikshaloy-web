@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { supabaseAdmin, DEMO_SCHOOL_ID, DEMO_AY_ID } from "@/lib/supabase/service";
+import { supabaseAdmin } from "@/lib/supabase/service";
+import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 
 export async function assignHomework(input: {
   title: string;
@@ -11,9 +13,10 @@ export async function assignHomework(input: {
   dueDate: string;
   description: string;
 }) {
+  const schoolId = await getCurrentSchoolIdOrThrow();
   const { error } = await supabaseAdmin.from("homework").insert({
-    school_id: DEMO_SCHOOL_ID,
-    academic_year_id: DEMO_AY_ID,
+    school_id: schoolId,
+    academic_year_id: await getCurrentAcademicYearId(),
     title: input.title,
     subject_id: input.subjectId,
     section_id: input.sectionId,

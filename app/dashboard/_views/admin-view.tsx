@@ -6,7 +6,9 @@ import {
   Calendar, ChevronRight, CheckCircle2, Clock,
   AlertTriangle, IndianRupee, Briefcase,
 } from "lucide-react";
-import { supabaseAdmin, DEMO_SCHOOL_ID } from "@/lib/supabase/service";
+import { supabaseAdmin } from "@/lib/supabase/service";
+import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import AttendanceStatusPie, { type AttendanceBucket, type DailyPoint } from "./_components/AttendanceStatusPie";
 
 // ── Greeting ─────────────────────────────────────────────────────────────────
 
@@ -36,6 +38,52 @@ function formatRelativeTime(iso: string): string {
 
 function formatCurrency(n: number) {
   return n >= 100000 ? `₹${(n / 100000).toFixed(1)}L` : `₹${n.toLocaleString("en-IN")}`;
+}
+
+function startOfWeekISO(d: Date): string {
+  const day = d.getDay();
+  const diff = (day === 0 ? -6 : 1) - day;
+  const monday = new Date(d);
+  monday.setDate(d.getDate() + diff);
+  return monday.toISOString().slice(0, 10);
+}
+
+function startOfMonthISO(d: Date): string {
+  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+}
+
+function bucketAttendance(
+  rows: { status: string; date: string }[],
+  totalCount: number,
+  forceDays?: number,
+): AttendanceBucket {
+  const numDays = forceDays ?? new Set(rows.map((r) => r.date)).size;
+  const present = rows.filter((r) => r.status === "present").length;
+  const absent = rows.filter((r) => r.status === "absent").length;
+  const late = rows.filter((r) => r.status === "late").length;
+  const onLeave = rows.filter((r) => r.status === "on_leave").length;
+  const unmarked = Math.max(totalCount * numDays - rows.length, 0);
+  return { present, absent, late, onLeave, unmarked };
+}
+
+function dailySeries(
+  rows: { status: string; date: string }[],
+  totalCount: number,
+  fromISO: string,
+  toISO: string,
+): DailyPoint[] {
+  const presentByDate = new Map<string, number>();
+  for (const r of rows) {
+    if (r.date < fromISO || r.date > toISO) continue;
+    if (!presentByDate.has(r.date)) presentByDate.set(r.date, 0);
+    if (r.status === "present") presentByDate.set(r.date, presentByDate.get(r.date)! + 1);
+  }
+  return Array.from(presentByDate.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, present]) => ({
+      date,
+      pct: totalCount > 0 ? Math.round((present / totalCount) * 1000) / 10 : 0,
+    }));
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -177,7 +225,7 @@ function RecentActivity({ items }: { items: ActivityItem[] }) {
     <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5">
       <div className="mb-4 flex items-center justify-between">
         <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Recent Activity</p>
-        <Link href="/dashboard/audit-log" className="flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 hover:underline">
+        <Link href="/dashboard/audit-log" className="flex items-center gap-1 text-xs text-primary-600 dark:text-primary-400 hover:underline">
           View all <ChevronRight className="h-3 w-3" />
         </Link>
       </div>
@@ -258,7 +306,7 @@ function FeeBreakdown({
                 strokeLinecap="round"
                 strokeDasharray={`${collectedDash} ${circ}`}
                 strokeDashoffset={circ * 0.25}
-                className="text-indigo-500"
+                className="text-primary-500"
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -308,10 +356,10 @@ function TodaySchedule({ items }: { items: ScheduleItem[] }) {
       ) : (
         <div className="space-y-1">
           {items.map((s, i) => (
-            <div key={i} className={`flex items-center gap-3 rounded-lg px-2 py-2 ${s.now ? "bg-indigo-500/5 dark:bg-indigo-500/10" : ""}`}>
+            <div key={i} className={`flex items-center gap-3 rounded-lg px-2 py-2 ${s.now ? "bg-primary-500/5 dark:bg-primary-500/10" : ""}`}>
               <span className={`w-10 shrink-0 text-[11px] font-mono font-semibold ${
                 s.done ? "text-gray-300 dark:text-zinc-600" :
-                s.now  ? "text-indigo-600 dark:text-indigo-400" :
+                s.now  ? "text-primary-600 dark:text-primary-400" :
                 "text-gray-500 dark:text-zinc-400"
               }`}>
                 {s.time}
@@ -327,13 +375,13 @@ function TodaySchedule({ items }: { items: ScheduleItem[] }) {
               </div>
               <span className={`text-xs font-medium ${
                 s.done ? "line-through text-gray-400 dark:text-zinc-600" :
-                s.now  ? "text-indigo-700 dark:text-indigo-300" :
+                s.now  ? "text-primary-700 dark:text-primary-300" :
                 "text-gray-700 dark:text-zinc-300"
               }`}>
                 {s.label}
               </span>
               {s.now && (
-                <span className="ml-auto text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded-full">
+                <span className="ml-auto text-[10px] font-semibold text-primary-600 dark:text-primary-400 bg-primary-500/10 px-1.5 py-0.5 rounded-full">
                   Now
                 </span>
               )}
@@ -352,13 +400,19 @@ export async function AdminView({ user }: { user: User }) {
     || user.email?.split("@")[0]
     || "Principal";
   const institution = (user.user_metadata?.institution_name as string) ?? null;
+  const schoolId = await getCurrentSchoolIdOrThrow();
 
-  const todayISO = new Date().toISOString().slice(0, 10);
-  const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
+  const now = new Date();
+  const todayISO = now.toISOString().slice(0, 10);
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const weekStartISO = startOfWeekISO(now);
+  const monthStartISO = startOfMonthISO(now);
+  const attendanceRangeStartISO = weekStartISO < monthStartISO ? weekStartISO : monthStartISO;
 
   const [
     { count: totalStudents },
     { count: teachingStaffCount },
+    { count: totalStaffCount },
     { count: onLeaveCount },
     { data: studentRows },
     { data: feeRows },
@@ -366,48 +420,68 @@ export async function AdminView({ user }: { user: User }) {
     { data: periodRows },
     { data: eventRows },
     { data: ptmRows },
+    { data: todayAttRows },
+    { data: staffAttRows },
   ] = await Promise.all([
-    supabaseAdmin.from("students").select("id", { count: "exact", head: true }).eq("school_id", DEMO_SCHOOL_ID),
+    supabaseAdmin.from("students").select("id", { count: "exact", head: true }).eq("school_id", schoolId),
 
     supabaseAdmin.from("staff_members").select("id", { count: "exact", head: true })
-      .eq("school_id", DEMO_SCHOOL_ID).eq("type", "teaching"),
+      .eq("school_id", schoolId).eq("type", "teaching"),
+
+    supabaseAdmin.from("staff_members").select("id", { count: "exact", head: true })
+      .eq("school_id", schoolId).neq("status", "inactive"),
 
     supabaseAdmin.from("leave_requests").select("id", { count: "exact", head: true })
-      .eq("school_id", DEMO_SCHOOL_ID).eq("status", "approved")
+      .eq("school_id", schoolId).eq("status", "approved")
       .lte("from_date", todayISO).gte("to_date", todayISO),
 
     supabaseAdmin.from("students")
       .select("attendance_pct, sections ( name, grades ( level ) )")
-      .eq("school_id", DEMO_SCHOOL_ID),
+      .eq("school_id", schoolId),
 
     supabaseAdmin.from("fee_payments")
       .select("student_id, month_str, amount_due, amount_paid")
-      .eq("school_id", DEMO_SCHOOL_ID),
+      .eq("school_id", schoolId),
 
     supabaseAdmin.from("audit_log")
       .select("action, module, description, actor_name, actor_role, created_at")
-      .eq("school_id", DEMO_SCHOOL_ID)
+      .eq("school_id", schoolId)
       .order("created_at", { ascending: false })
       .limit(5),
 
     supabaseAdmin.from("timetable_periods")
       .select("number, start_time, end_time, is_break, break_label")
-      .eq("school_id", DEMO_SCHOOL_ID)
+      .eq("school_id", schoolId)
       .order("start_time"),
 
     supabaseAdmin.from("school_events")
       .select("title, time, end_time, is_all_day")
-      .eq("school_id", DEMO_SCHOOL_ID)
+      .eq("school_id", schoolId)
       .eq("date", todayISO),
 
     supabaseAdmin.from("ptm_sessions")
       .select("start_time, end_time, sections ( name, grades ( level ) )")
-      .eq("school_id", DEMO_SCHOOL_ID)
+      .eq("school_id", schoolId)
       .eq("date", todayISO),
+
+    supabaseAdmin.from("student_attendance")
+      .select("status, date")
+      .eq("school_id", schoolId)
+      .gte("date", attendanceRangeStartISO)
+      .lte("date", todayISO),
+
+    supabaseAdmin.from("staff_attendance")
+      .select("status, date")
+      .eq("school_id", schoolId)
+      .gte("date", attendanceRangeStartISO)
+      .lte("date", todayISO),
   ]);
 
   // ── Students / classes / attendance ─────────────────────────
-  const students = (studentRows ?? []) as any[];
+  const students = (studentRows ?? []) as unknown as {
+    attendance_pct: number | null;
+    sections: { name: string | null; grades: { level: number | null } | null } | null;
+  }[];
   const avgAttendance = students.length
     ? Math.round((students.reduce((s, x) => s + Number(x.attendance_pct ?? 0), 0) / students.length) * 10) / 10
     : 0;
@@ -427,8 +501,39 @@ export async function AdminView({ user }: { user: User }) {
     .sort((a, b) => b.value - a.value)
     .slice(0, 6);
 
+  // ── Attendance status breakdown (day / week / month, student / staff) ─
+  const rangeAtt = (todayAttRows ?? []) as unknown as { status: string; date: string }[];
+  const studentCount = totalStudents ?? 0;
+  const studentAttendanceByRange = {
+    day:   bucketAttendance(rangeAtt.filter((r) => r.date === todayISO), studentCount, 1),
+    week:  bucketAttendance(rangeAtt.filter((r) => r.date >= weekStartISO), studentCount),
+    month: bucketAttendance(rangeAtt.filter((r) => r.date >= monthStartISO), studentCount),
+  };
+
+  const rangeStaffAtt = (staffAttRows ?? []) as unknown as { status: string; date: string }[];
+  const staffCount = totalStaffCount ?? 0;
+  const staffAttendanceByRange = {
+    day:   bucketAttendance(rangeStaffAtt.filter((r) => r.date === todayISO), staffCount, 1),
+    week:  bucketAttendance(rangeStaffAtt.filter((r) => r.date >= weekStartISO), staffCount),
+    month: bucketAttendance(rangeStaffAtt.filter((r) => r.date >= monthStartISO), staffCount),
+  };
+
+  const studentSeries = {
+    week:  dailySeries(rangeAtt, studentCount, weekStartISO, todayISO),
+    month: dailySeries(rangeAtt, studentCount, monthStartISO, todayISO),
+  };
+  const staffSeries = {
+    week:  dailySeries(rangeStaffAtt, staffCount, weekStartISO, todayISO),
+    month: dailySeries(rangeStaffAtt, staffCount, monthStartISO, todayISO),
+  };
+
   // ── Fees ─────────────────────────────────────────────────────
-  const fees = (feeRows ?? []) as any[];
+  const fees = (feeRows ?? []) as unknown as {
+    student_id: string;
+    month_str: string;
+    amount_due: number | null;
+    amount_paid: number | null;
+  }[];
   const byMonth: Record<string, { due: number; paid: number }> = {};
   for (const f of fees) {
     (byMonth[f.month_str] ??= { due: 0, paid: 0 });
@@ -490,17 +595,26 @@ export async function AdminView({ user }: { user: User }) {
   ];
 
   // ── Recent activity (from audit_log) ────────────────────────
-  const activity: ActivityItem[] = ((auditRows ?? []) as any[]).map((a) => ({
+  const activity: ActivityItem[] = ((auditRows ?? []) as unknown as {
+    action: string;
+    module: string;
+    description: string | null;
+    actor_name: string | null;
+    actor_role: string | null;
+    created_at: string;
+  }[]).map((a) => ({
     icon: ACTION_ICON[a.action] ?? ClipboardCheck,
     color: MODULE_COLOR[a.module] ?? "text-gray-500 bg-gray-500/10",
-    title: a.description,
+    title: a.description ?? "",
     sub: `${a.actor_name} · ${a.module}`,
     time: formatRelativeTime(a.created_at),
   }));
 
   // ── Today's schedule (real periods + events + PTM) ──────────
   const scheduleItems: { time: string; label: string; startMin: number; endMin: number }[] = [];
-  for (const p of (periodRows ?? []) as any[]) {
+  for (const p of (periodRows ?? []) as unknown as {
+    number: number; start_time: string; end_time: string; is_break: boolean | null; break_label: string | null;
+  }[]) {
     const [h, m] = p.start_time.split(":").map(Number);
     const [eh, em] = p.end_time.split(":").map(Number);
     scheduleItems.push({
@@ -510,7 +624,9 @@ export async function AdminView({ user }: { user: User }) {
       endMin: eh * 60 + em,
     });
   }
-  for (const e of (eventRows ?? []) as any[]) {
+  for (const e of (eventRows ?? []) as unknown as {
+    title: string; time: string | null; end_time: string | null; is_all_day: boolean | null;
+  }[]) {
     if (e.is_all_day || !e.time) continue;
     const [h, m] = e.time.split(":").map(Number);
     const end = e.end_time ? e.end_time.split(":").map(Number) : [h, m + 30];
@@ -519,7 +635,9 @@ export async function AdminView({ user }: { user: User }) {
       startMin: h * 60 + m, endMin: end[0] * 60 + end[1],
     });
   }
-  for (const s of (ptmRows ?? []) as any[]) {
+  for (const s of (ptmRows ?? []) as unknown as {
+    start_time: string; end_time: string; sections: { name: string | null; grades: { level: number | null } | null } | null;
+  }[]) {
     const [h, m] = s.start_time.split(":").map(Number);
     const [eh, em] = s.end_time.split(":").map(Number);
     const label = `PTM — Class ${s.sections?.grades?.level ?? "?"}-${s.sections?.name ?? ""}`;
@@ -542,7 +660,7 @@ export async function AdminView({ user }: { user: User }) {
             {getGreeting()}, {name} 👋
           </h2>
           <p className="mt-0.5 text-sm text-gray-500 dark:text-zinc-400">
-            {institution && <span className="mr-2 text-indigo-600 dark:text-indigo-400">{institution} ·</span>}
+            {institution && <span className="mr-2 text-primary-600 dark:text-primary-400">{institution} ·</span>}
             {formatHeaderDate()}
           </p>
         </div>
@@ -558,7 +676,15 @@ export async function AdminView({ user }: { user: User }) {
 
         {/* Left column */}
         <div className="lg:col-span-2 space-y-6">
-          <ClassAttendanceChart data={classAttendance} avgPct={avgAttendance} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <ClassAttendanceChart data={classAttendance} avgPct={avgAttendance} />
+            <AttendanceStatusPie
+              student={studentAttendanceByRange}
+              staff={staffAttendanceByRange}
+              studentSeries={studentSeries}
+              staffSeries={staffSeries}
+            />
+          </div>
           <RecentActivity items={activity} />
         </div>
 

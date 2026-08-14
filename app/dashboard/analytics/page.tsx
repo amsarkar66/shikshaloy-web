@@ -1,34 +1,53 @@
-import { supabaseAdmin, DEMO_SCHOOL_ID, DEMO_AY_ID } from "@/lib/supabase/service";
+import { supabaseAdmin } from "@/lib/supabase/service";
+import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 import AnalyticsClient from "./_components/AnalyticsClient";
 import { GRADE_COLOR } from "./_data/analytics";
 import type { FeeMonth, ClassAttendance, SubjectPerf, GradeSlice } from "./_data/analytics";
 
+interface StudentAttendanceRow {
+  id: string;
+  attendance_pct: number | null;
+  sections: { name: string | null; grades: { level: number | null } | null } | null;
+}
+
+interface ExamResultRow {
+  marks_obtained: number | null;
+  max_marks: number | null;
+  grade: string;
+  is_absent: boolean | null;
+  subjects: { name: string | null } | null;
+}
+
 export default async function AnalyticsPage() {
+  const schoolId = await getCurrentSchoolIdOrThrow();
+  const academicYearId = await getCurrentAcademicYearId();
+
   const [
     { data: ayRow },
     { data: studentRows },
     { data: feeRows },
     { data: examRows },
   ] = await Promise.all([
-    supabaseAdmin.from("academic_years").select("name").eq("id", DEMO_AY_ID).single(),
+    supabaseAdmin.from("academic_years").select("name").eq("id", academicYearId).single(),
 
     supabaseAdmin
       .from("students")
       .select("id, attendance_pct, sections ( name, grades ( level ) )")
-      .eq("school_id", DEMO_SCHOOL_ID),
+      .eq("school_id", schoolId),
 
     supabaseAdmin
       .from("fee_payments")
       .select("month_str, amount_due, amount_paid")
-      .eq("school_id", DEMO_SCHOOL_ID),
+      .eq("school_id", schoolId),
 
     supabaseAdmin
       .from("exam_results")
       .select("marks_obtained, max_marks, grade, is_absent, subjects ( name )")
-      .eq("school_id", DEMO_SCHOOL_ID),
+      .eq("school_id", schoolId),
   ]);
 
-  const students = (studentRows ?? []) as any[];
+  const students = (studentRows ?? []) as unknown as StudentAttendanceRow[];
   const totalStudents = students.length;
   const avgAttendance = totalStudents
     ? students.reduce((s, x) => s + Number(x.attendance_pct ?? 0), 0) / totalStudents
@@ -48,7 +67,7 @@ export default async function AnalyticsPage() {
 
   // Fee collection by month
   const byMonth: Record<string, { due: number; paid: number }> = {};
-  for (const f of (feeRows ?? []) as any[]) {
+  for (const f of feeRows ?? []) {
     (byMonth[f.month_str] ??= { due: 0, paid: 0 });
     byMonth[f.month_str].due += Number(f.amount_due ?? 0);
     byMonth[f.month_str].paid += Number(f.amount_paid ?? 0);
@@ -65,7 +84,7 @@ export default async function AnalyticsPage() {
   const feeCollectionRate = totalDue ? Math.round((totalPaid / totalDue) * 100) : 0;
 
   // Exam results: subject performance + grade distribution + overall pass rate
-  const results = (examRows ?? []) as any[];
+  const results = (examRows ?? []) as unknown as ExamResultRow[];
   const attempted = results.filter((r) => !r.is_absent);
   const passed = attempted.filter((r) => Number(r.marks_obtained) >= Number(r.max_marks) * 0.33);
   const overallPassRate = attempted.length ? Math.round((passed.length / attempted.length) * 100) : 0;

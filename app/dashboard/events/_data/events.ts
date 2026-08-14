@@ -13,6 +13,7 @@ export interface SchoolEvent {
   description: string;
   audience:    AudienceType[];
   isAllDay:    boolean;
+  isPublic?:   boolean;
   /** Set when this event represents a PTM session — lets the UI open the bookings view instead of a plain detail. */
   ptmSessionId?: string;
 }

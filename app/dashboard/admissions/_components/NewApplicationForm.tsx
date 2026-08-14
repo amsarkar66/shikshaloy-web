@@ -4,11 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft, Loader2, GraduationCap, Users, Heart, Phone as PhoneIcon,
+  ArrowLeft, Loader2, GraduationCap, Users, Heart, Phone as PhoneIcon, ChevronDown, FolderOpen,
 } from "lucide-react";
+import { FancyButton } from "@/components/ui/fancy-button";
 import { createApplication, type NewApplicationInput, type PrimaryContact } from "../actions";
 import { APPLY_CLASSES } from "../_data/admissions";
 import { PhotoUpload } from "../../_components/photo-upload";
+import { DocumentsUpload, type DocEntry } from "./DocumentsUpload";
 
 export interface AcademicYearOption {
   id: string;
@@ -16,14 +18,16 @@ export interface AcademicYearOption {
 }
 
 const inputClass =
-  "h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20";
+  "h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20";
+const selectClass =
+  "h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20";
 const labelClass = "mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400";
 
 function Section({ icon: Icon, title, children }: { icon: React.ElementType; title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5 space-y-4">
       <div className="flex items-center gap-2">
-        <Icon className="h-4 w-4 text-indigo-500" />
+        <Icon className="h-4 w-4 text-primary-500" />
         <h3 className="text-sm font-semibold text-gray-900 dark:text-zinc-100">{title}</h3>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{children}</div>
@@ -44,6 +48,7 @@ const BLANK_FORM = {
   siblingStudying: false, siblingName: "",
   emergencyContactName: "", emergencyContactPhone: "",
   photoUrl: null as string | null,
+  documents: [] as DocEntry[],
   notes: "",
 };
 
@@ -88,7 +93,7 @@ export default function NewApplicationForm({ academicYears }: { academicYears: A
   return (
     <div className="w-full px-6 py-6 space-y-5 max-w-4xl">
       <div className="flex items-center gap-3">
-        <Link href="/dashboard/admissions" className="flex items-center gap-1.5 text-sm font-medium text-gray-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+        <Link href="/dashboard/admissions" className="flex items-center gap-1.5 text-sm font-medium text-gray-500 dark:text-zinc-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
           <ArrowLeft className="h-4 w-4" /> All Applications
         </Link>
       </div>
@@ -113,23 +118,32 @@ export default function NewApplicationForm({ academicYears }: { academicYears: A
           </div>
           <div>
             <label className={labelClass}>Gender</label>
-            <select className={inputClass} value={form.gender} onChange={(e) => update("gender", e.target.value as typeof form.gender)}>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-              <option value="Other">Other</option>
-            </select>
+            <div className="relative">
+              <select className={selectClass} value={form.gender} onChange={(e) => update("gender", e.target.value as typeof form.gender)}>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+            </div>
           </div>
           <div>
             <label className={labelClass}>Applying For *</label>
-            <select className={inputClass} value={form.applyingForGrade} onChange={(e) => update("applyingForGrade", e.target.value)}>
-              {APPLY_CLASSES.map((c) => <option key={c} value={c}>Class {c}</option>)}
-            </select>
+            <div className="relative">
+              <select className={selectClass} value={form.applyingForGrade} onChange={(e) => update("applyingForGrade", e.target.value)}>
+                {APPLY_CLASSES.map((c) => <option key={c} value={c}>Class {c}</option>)}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+            </div>
           </div>
           <div>
             <label className={labelClass}>Academic Year *</label>
-            <select className={inputClass} value={form.academicYearId} onChange={(e) => update("academicYearId", e.target.value)} required>
-              {academicYears.map((y) => <option key={y.id} value={y.id}>{y.name}</option>)}
-            </select>
+            <div className="relative">
+              <select className={selectClass} value={form.academicYearId} onChange={(e) => update("academicYearId", e.target.value)} required>
+                {academicYears.map((y) => <option key={y.id} value={y.id}>{y.name}</option>)}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+            </div>
           </div>
           <div>
             <label className={labelClass}>Previous School</label>
@@ -141,14 +155,17 @@ export default function NewApplicationForm({ academicYears }: { academicYears: A
           </div>
           <div>
             <label className={labelClass}>Category</label>
-            <select className={inputClass} value={form.category} onChange={(e) => update("category", e.target.value)}>
-              <option value="">—</option>
-              <option value="General">General</option>
-              <option value="OBC">OBC</option>
-              <option value="SC">SC</option>
-              <option value="ST">ST</option>
-              <option value="Other">Other</option>
-            </select>
+            <div className="relative">
+              <select className={selectClass} value={form.category} onChange={(e) => update("category", e.target.value)}>
+                <option value="">—</option>
+                <option value="General">General</option>
+                <option value="OBC">OBC</option>
+                <option value="SC">SC</option>
+                <option value="ST">ST</option>
+                <option value="Other">Other</option>
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+            </div>
           </div>
           <div>
             <label className={labelClass}>Nationality</label>
@@ -233,7 +250,7 @@ export default function NewApplicationForm({ academicYears }: { academicYears: A
           </div>
           {form.siblingStudying && (
             <div className="sm:col-span-2">
-              <label className={labelClass}>Sibling's Name</label>
+              <label className={labelClass}>Sibling&apos;s Name</label>
               <input className={inputClass} value={form.siblingName} onChange={(e) => update("siblingName", e.target.value)} />
             </div>
           )}
@@ -250,6 +267,14 @@ export default function NewApplicationForm({ academicYears }: { academicYears: A
           </div>
         </Section>
 
+        <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5 space-y-4">
+          <div className="flex items-center gap-2">
+            <FolderOpen className="h-4 w-4 text-primary-500" />
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-zinc-100">Documents</h3>
+          </div>
+          <DocumentsUpload documents={form.documents} onChange={(docs) => update("documents", docs)} />
+        </div>
+
         <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5">
           <label className={labelClass}>Notes</label>
           <textarea className={inputClass} style={{ height: "auto" }} rows={3} value={form.notes} onChange={(e) => update("notes", e.target.value)} />
@@ -265,10 +290,10 @@ export default function NewApplicationForm({ academicYears }: { academicYears: A
           <Link href="/dashboard/admissions" className="flex h-9 items-center rounded-lg border border-gray-200 dark:border-zinc-700 px-4 text-sm text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800">
             Cancel
           </Link>
-          <button type="submit" disabled={busy || academicYears.length === 0} className="flex h-9 items-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 px-4 text-sm font-medium text-white transition-colors">
+          <FancyButton type="submit" disabled={busy || academicYears.length === 0} size="sm">
             {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             {academicYears.length === 0 ? "No academic year available" : "Submit Application"}
-          </button>
+          </FancyButton>
         </div>
       </form>
     </div>

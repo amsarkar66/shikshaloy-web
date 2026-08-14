@@ -25,6 +25,21 @@ export interface FeePaymentRow {
   paymentMode: PaymentMode | null;
 }
 
+export interface GradeOption {
+  id: string;
+  level: number;
+}
+
+export interface FeeStructure {
+  id: string;
+  gradeId: string | null; // null = all grades
+  gradeLevel: number | null;
+  category: string;
+  amount: number;
+  frequency: "monthly" | "quarterly" | "annual";
+  isOptional: boolean;
+}
+
 export interface MonthlyFeeRecord {
   studentId: string;
   monthStr: string;

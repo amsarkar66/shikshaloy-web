@@ -5,13 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, AlertCircle, Info } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { FancyButton } from "@/components/ui/fancy-button";
 import {
   AuthChrome,
   FieldLabel,
   GoogleIcon,
   OtpInput,
-  buttonPrimaryClass,
   buttonStrokeClass,
   cardClass,
   inputClass,
@@ -182,10 +181,11 @@ function VerifyEmailScreen({ email, onBack }: { email: string; onBack: () => voi
             </motion.div>
           )}
 
-          <Button
+          <FancyButton
             type="submit"
             disabled={verifying || otp.length < 6}
-            className={`mt-2 ${buttonPrimaryClass}`}
+            size="sm"
+            className="mt-2 h-10 w-full px-3.5"
           >
             {verifying ? (
               <>
@@ -195,7 +195,7 @@ function VerifyEmailScreen({ email, onBack }: { email: string; onBack: () => voi
             ) : (
               "Verify email"
             )}
-          </Button>
+          </FancyButton>
         </form>
       </div>
     </AuthChrome>
@@ -415,10 +415,11 @@ export default function SignupPage() {
             </motion.div>
           )}
 
-          <Button
+          <FancyButton
             type="submit"
             disabled={loading}
-            className={`mt-2 ${buttonPrimaryClass}`}
+            size="sm"
+            className="mt-2 h-10 w-full px-3.5"
           >
             {loading ? (
               <>
@@ -428,7 +429,7 @@ export default function SignupPage() {
             ) : (
               "Continue"
             )}
-          </Button>
+          </FancyButton>
         </form>
 
         {/* Sign in link */}

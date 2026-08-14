@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { AlertCircle } from "lucide-react";
+import { getCountries } from "libphonenumber-js";
 import {
   Select as SelectRoot,
   SelectTrigger,
@@ -20,35 +21,25 @@ export const INDIAN_STATES = [
   "Delhi", "Jammu & Kashmir", "Ladakh", "Puducherry",
 ];
 
+// Generated from libphonenumber-js's own supported-country list + the
+// browser's Intl API for names, instead of a hand-maintained list — this
+// keeps it automatically in sync with the phone number formatter below and
+// needs no manual name-to-country-code mapping.
+const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
+const COUNTRY_ENTRIES = getCountries()
+  .map((code) => ({ code, name: regionNames.of(code) ?? code }))
+  .sort((a, b) => a.name.localeCompare(b.name));
+
 // Alphabetical — India sits at its natural spot; the Select is defaulted to
 // it via `value`, and the dropdown opens aligned on the selected item, so it
 // doesn't need special placement in the list.
-export const COUNTRIES = [
-  "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Argentina", "Armenia",
-  "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados",
-  "Belarus", "Belgium", "Belize", "Benin", "Bhutan", "Bolivia", "Bosnia and Herzegovina",
-  "Botswana", "Brazil", "Brunei", "Bulgaria", "Burkina Faso", "Burundi", "Cambodia",
-  "Cameroon", "Canada", "Chad", "Chile", "China", "Colombia", "Comoros", "Costa Rica",
-  "Croatia", "Cuba", "Cyprus", "Czech Republic", "Denmark", "Djibouti", "Dominican Republic",
-  "Ecuador", "Egypt", "El Salvador", "Estonia", "Eswatini", "Ethiopia", "Fiji", "Finland",
-  "France", "Gabon", "Gambia", "Georgia", "Germany", "Ghana", "Greece", "Guatemala",
-  "Guinea", "Guyana", "Haiti", "Honduras", "Hong Kong", "Hungary", "Iceland", "India",
-  "Indonesia", "Iran", "Iraq", "Ireland", "Israel", "Italy", "Jamaica", "Japan", "Jordan", "Kazakhstan",
-  "Kenya", "Kuwait", "Kyrgyzstan", "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia",
-  "Libya", "Liechtenstein", "Lithuania", "Luxembourg", "Madagascar", "Malawi", "Malaysia",
-  "Maldives", "Mali", "Malta", "Mauritania", "Mauritius", "Mexico", "Moldova", "Monaco",
-  "Mongolia", "Montenegro", "Morocco", "Mozambique", "Myanmar", "Namibia", "Nepal",
-  "Netherlands", "New Zealand", "Nicaragua", "Niger", "Nigeria", "North Korea",
-  "North Macedonia", "Norway", "Oman", "Pakistan", "Panama", "Papua New Guinea",
-  "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Qatar", "Romania", "Russia",
-  "Rwanda", "Saudi Arabia", "Senegal", "Serbia", "Seychelles", "Sierra Leone", "Singapore",
-  "Slovakia", "Slovenia", "Somalia", "South Africa", "South Korea", "South Sudan", "Spain",
-  "Sri Lanka", "Sudan", "Suriname", "Sweden", "Switzerland", "Syria", "Taiwan", "Tajikistan",
-  "Tanzania", "Thailand", "Togo", "Trinidad and Tobago", "Tunisia", "Turkey",
-  "Turkmenistan", "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom",
-  "United States", "Uruguay", "Uzbekistan", "Venezuela", "Vietnam", "Yemen", "Zambia",
-  "Zimbabwe",
-];
+export const COUNTRIES = COUNTRY_ENTRIES.map((c) => c.name);
+
+// Country display name -> ISO 3166-1 alpha-2 code, for looking up phone
+// number formatting rules from the selected Country field.
+export const COUNTRY_CODE_BY_NAME: Record<string, string> = Object.fromEntries(
+  COUNTRY_ENTRIES.map((c) => [c.name, c.code])
+);
 
 export function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Plus, X } from "lucide-react";
+import { Plus, X, ChevronDown } from "lucide-react";
+import { FancyButton } from "@/components/ui/fancy-button";
 import { BOOKING_STATUS_BADGE, formatDate, type PtmSession } from "../_data/ptm";
 import { schedulePtmSession } from "../actions";
 
@@ -48,38 +49,44 @@ export function ScheduleModal({
         <div className="space-y-3 p-5">
           <div className="space-y-1">
             <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">Class</label>
-            <select value={sectionId} onChange={(e) => setSectionId(e.target.value)} className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20">
-              {sections.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-            </select>
+            <div className="relative">
+              <select value={sectionId} onChange={(e) => setSectionId(e.target.value)} className="h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-2 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+                {sections.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+            </div>
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">Class teacher</label>
-            <select value={teacherId} onChange={(e) => setTeacherId(e.target.value)} className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20">
-              {teachers.map((t) => <option key={t.id} value={t.id}>{t.name} ({t.designation})</option>)}
-            </select>
+            <div className="relative">
+              <select value={teacherId} onChange={(e) => setTeacherId(e.target.value)} className="h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-2 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+                {teachers.map((t) => <option key={t.id} value={t.id}>{t.name} ({t.designation})</option>)}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+            </div>
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">Date</label>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20" />
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">Start</label>
-              <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20" />
+              <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">End</label>
-              <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20" />
+              <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">Slot (min)</label>
-              <input type="number" min={5} step={5} value={slotMinutes} onChange={(e) => setSlotMinutes(Number(e.target.value))} className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20" />
+              <input type="number" min={5} step={5} value={slotMinutes} onChange={(e) => setSlotMinutes(Number(e.target.value))} className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
             </div>
           </div>
         </div>
         <div className="flex justify-end gap-2 border-t border-gray-200 dark:border-zinc-800 px-5 py-4">
           <button type="button" onClick={onClose} className="h-9 rounded-lg border border-gray-200 dark:border-zinc-700 px-4 text-sm text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800">Cancel</button>
-          <button type="submit" disabled={isPending} className="flex h-9 items-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 px-4 text-sm font-medium text-white transition-colors disabled:opacity-50"><Plus className="h-4 w-4" /> {isPending ? "Scheduling…" : "Schedule"}</button>
+          <FancyButton type="submit" disabled={isPending} size="sm"><Plus className="h-4 w-4" /> {isPending ? "Scheduling…" : "Schedule"}</FancyButton>
         </div>
       </form>
     </div>

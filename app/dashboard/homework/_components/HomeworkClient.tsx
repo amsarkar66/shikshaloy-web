@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import {
   ClipboardList, CheckCircle2, Clock, AlertTriangle,
-  Search, Plus, ChevronLeft, ChevronRight, X,
+  Search, Plus, ChevronLeft, ChevronRight, ChevronDown, X,
   ArrowUpDown, ArrowUp, ArrowDown, BookOpen,
 } from "lucide-react";
 import {
@@ -11,6 +11,8 @@ import {
   type Homework, type HomeworkStatus,
 } from "../_data/homework";
 import { assignHomework } from "../actions";
+import { FancyButton } from "@/components/ui/fancy-button";
+import { Table, TableHead, TableBody, Th, Td, Tr } from "@/components/ui/data-table";
 
 type SortField = "title" | "dueDate" | "submission";
 type SortDir = "asc" | "desc";
@@ -103,37 +105,46 @@ function NewAssignmentModal({
             <input
               value={title} onChange={(e) => setTitle(e.target.value)} required
               placeholder="e.g. Algebra worksheet — Chapter 4"
-              className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
+              className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">Subject</label>
-              <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20">
-                {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
+              <div className="relative">
+                <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-2 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+                  {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+              </div>
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">Class</label>
-              <select value={sectionId} onChange={(e) => setSectionId(e.target.value)} className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20">
-                {sections.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-              </select>
+              <div className="relative">
+                <select value={sectionId} onChange={(e) => setSectionId(e.target.value)} className="h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-2 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+                  {sections.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+              </div>
             </div>
           </div>
 
           <div className="space-y-1">
             <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">Teacher</label>
-            <select value={teacherId} onChange={(e) => setTeacherId(e.target.value)} className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20">
-              {teachers.map((t) => <option key={t.id} value={t.id}>{t.name} ({t.designation})</option>)}
-            </select>
+            <div className="relative">
+              <select value={teacherId} onChange={(e) => setTeacherId(e.target.value)} className="h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-2 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+                {teachers.map((t) => <option key={t.id} value={t.id}>{t.name} ({t.designation})</option>)}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+            </div>
           </div>
 
           <div className="space-y-1">
             <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">Due date</label>
             <input
               type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} required
-              className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
+              className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
             />
           </div>
 
@@ -142,7 +153,7 @@ function NewAssignmentModal({
             <textarea
               value={description} onChange={(e) => setDescription(e.target.value)} rows={3}
               placeholder="What should students do?"
-              className="w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
+              className="w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
             />
           </div>
         </div>
@@ -151,9 +162,9 @@ function NewAssignmentModal({
           <button type="button" onClick={onClose} className="h-9 rounded-lg border border-gray-200 dark:border-zinc-700 px-4 text-sm text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800">
             Cancel
           </button>
-          <button type="submit" disabled={isPending} className="flex h-9 items-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 px-4 text-sm font-medium text-white transition-colors disabled:opacity-50">
+          <FancyButton type="submit" disabled={isPending} size="sm">
             <Plus className="h-4 w-4" /> {isPending ? "Assigning…" : "Assign"}
-          </button>
+          </FancyButton>
         </div>
       </form>
     </div>
@@ -217,135 +228,57 @@ export default function HomeworkClient({
             value={query}
             onChange={(e) => { setQuery(e.target.value); setPage(1); }}
             placeholder="Search by title or teacher…"
-            className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-indigo-400 dark:focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+            className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 dark:focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
           />
         </div>
-        <select
-          value={subjectFilter}
-          onChange={(e) => { setSubjectFilter(e.target.value); setPage(1); }}
-          className="h-9 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
-        >
+        <div className="relative">
+          <select
+            value={subjectFilter}
+            onChange={(e) => { setSubjectFilter(e.target.value); setPage(1); }}
+            className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
+          >
           <option value="all">All Subjects</option>
           {subjectNames.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+        </div>
+        <div className="relative">
         <select
           value={statusFilter}
           onChange={(e) => { setStatusFilter(e.target.value as "all" | HomeworkStatus); setPage(1); }}
-          className="h-9 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
+          className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
         >
           <option value="all">All Status</option>
           <option value="active">Active</option>
           <option value="closed">Closed</option>
         </select>
+          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+        </div>
         {hasFilter && (
           <button onClick={clearFilters} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
             <X className="h-3.5 w-3.5" /> Clear
           </button>
         )}
         <div className="flex gap-2 sm:ml-auto">
-          <button onClick={() => setModalOpen(true)} className="flex h-9 items-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 px-4 text-sm font-medium text-white transition-colors shadow-sm">
+          <FancyButton onClick={() => setModalOpen(true)} size="sm">
             <Plus className="h-4 w-4" /> New Assignment
-          </button>
+          </FancyButton>
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-gray-500 dark:text-zinc-500">
-          Showing <span className="font-medium text-gray-700 dark:text-zinc-300">{filtered.length}</span> of{" "}
-          <span className="font-medium text-gray-700 dark:text-zinc-300">{homework.length}</span> assignments
-        </p>
-        {hasFilter && <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">Filters active</span>}
-      </div>
-
-      <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800">
-                <th className="py-3 pl-4 pr-3 text-left">
-                  <button onClick={() => toggleSort("title")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
-                    Assignment <SortIcon active={sortField === "title"} dir={sortDir} />
-                  </button>
-                </th>
-                <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Class</th>
-                <th className="px-3 py-3 text-left">
-                  <button onClick={() => toggleSort("dueDate")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
-                    Due Date <SortIcon active={sortField === "dueDate"} dir={sortDir} />
-                  </button>
-                </th>
-                <th className="px-3 py-3 text-left">
-                  <button onClick={() => toggleSort("submission")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
-                    Submissions <SortIcon active={sortField === "submission"} dir={sortDir} />
-                  </button>
-                </th>
-                <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-zinc-700/50">
-              {pageData.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-20 text-center">
-                    <div className="flex flex-col items-center gap-2">
-                      <BookOpen className="h-8 w-8 text-gray-300 dark:text-zinc-600" />
-                      <p className="text-sm font-medium text-gray-500 dark:text-zinc-400">No assignments found</p>
-                      <p className="text-xs text-gray-400 dark:text-zinc-500">Try adjusting your search or filters</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                pageData.map((hw) => {
-                  const rate = submissionRate(hw);
-                  const overdue = isOverdue(hw);
-                  return (
-                    <tr key={hw.id} className="hover:bg-gray-50 dark:hover:bg-zinc-700/30 transition-colors">
-                      <td className="py-3 pl-4 pr-3">
-                        <div className="min-w-0">
-                          <p className="font-medium text-gray-900 dark:text-zinc-100 leading-tight truncate max-w-[260px]">{hw.title}</p>
-                          <p className="text-xs text-gray-400 dark:text-zinc-500 truncate max-w-[260px]">{hw.subject} · {hw.teacher}</p>
-                        </div>
-                      </td>
-                      <td className="px-3 py-3">
-                        <span className="text-sm text-gray-700 dark:text-zinc-300">Class {hw.sectionLabel}</span>
-                      </td>
-                      <td className="px-3 py-3">
-                        <span className={`text-sm tabular-nums ${overdue ? "text-red-600 dark:text-red-400 font-semibold" : "text-gray-700 dark:text-zinc-300"}`}>
-                          {formatDate(hw.dueDate)}
-                        </span>
-                        {overdue && <span className="ml-1.5 text-[10px] font-semibold uppercase text-red-500">overdue</span>}
-                      </td>
-                      <td className="px-3 py-3">
-                        <div className="flex items-center gap-2 min-w-[120px]">
-                          <div className="flex-1 h-1.5 rounded-full bg-gray-100 dark:bg-zinc-700">
-                            <div
-                              className={`h-1.5 rounded-full transition-all ${rate >= 80 ? "bg-emerald-500" : rate >= 40 ? "bg-amber-500" : "bg-red-500"}`}
-                              style={{ width: `${rate}%` }}
-                            />
-                          </div>
-                          <span className="text-xs font-semibold tabular-nums text-gray-600 dark:text-zinc-400">
-                            {hw.submitted}/{hw.totalStudents}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-3 py-3">
-                        <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${
-                          hw.status === "closed"
-                            ? "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20"
-                            : "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
-                        }`}>
-                          {hw.status === "closed" ? "Closed" : "Active"}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+      {hasFilter && (
+        <div className="flex items-center justify-end">
+          <span className="text-xs text-primary-600 dark:text-primary-400 font-medium">Filters active</span>
         </div>
+      )}
 
-        {totalPages > 1 && (
+      <Table
+        footer={totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-gray-200 dark:border-zinc-700 px-4 py-3">
-            <p className="text-xs text-gray-500 dark:text-zinc-400">Page {page} of {totalPages}</p>
+            <p className="text-xs text-gray-500 dark:text-zinc-400">
+              Showing <span className="font-medium text-gray-700 dark:text-zinc-300">{(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, filtered.length)}</span> of{" "}
+              <span className="font-medium text-gray-700 dark:text-zinc-300">{filtered.length}</span> assignments
+            </p>
             <div className="flex items-center gap-1">
               <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 disabled:opacity-40 hover:enabled:bg-gray-100 dark:hover:enabled:bg-zinc-700 transition-colors">
                 <ChevronLeft className="h-3.5 w-3.5" />
@@ -355,7 +288,7 @@ export default function HomeworkClient({
                   key={n}
                   onClick={() => setPage(n)}
                   className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-medium transition-colors ${
-                    page === n ? "bg-indigo-500 text-white" : "border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-700"
+                    page === n ? "bg-primary-500 text-white" : "border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-700"
                   }`}
                 >
                   {n}
@@ -367,7 +300,86 @@ export default function HomeworkClient({
             </div>
           </div>
         )}
-      </div>
+      >
+        <TableHead>
+          <Th position="first">
+            <button onClick={() => toggleSort("title")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
+              Assignment <SortIcon active={sortField === "title"} dir={sortDir} />
+            </button>
+          </Th>
+          <Th>Class</Th>
+          <Th>
+            <button onClick={() => toggleSort("dueDate")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
+              Due Date <SortIcon active={sortField === "dueDate"} dir={sortDir} />
+            </button>
+          </Th>
+          <Th>
+            <button onClick={() => toggleSort("submission")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
+              Submissions <SortIcon active={sortField === "submission"} dir={sortDir} />
+            </button>
+          </Th>
+          <Th>Status</Th>
+        </TableHead>
+        <TableBody>
+          {pageData.length === 0 ? (
+            <tr>
+              <td colSpan={5} className="py-20 text-center">
+                <div className="flex flex-col items-center gap-2">
+                  <BookOpen className="h-8 w-8 text-gray-300 dark:text-zinc-600" />
+                  <p className="text-sm font-medium text-gray-500 dark:text-zinc-400">No assignments found</p>
+                  <p className="text-xs text-gray-400 dark:text-zinc-500">Try adjusting your search or filters</p>
+                </div>
+              </td>
+            </tr>
+          ) : (
+            pageData.map((hw) => {
+              const rate = submissionRate(hw);
+              const overdue = isOverdue(hw);
+              return (
+                <Tr key={hw.id}>
+                  <Td position="first">
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-900 dark:text-zinc-100 leading-tight truncate max-w-[260px]">{hw.title}</p>
+                      <p className="text-xs text-gray-400 dark:text-zinc-500 truncate max-w-[260px]">{hw.subject} · {hw.teacher}</p>
+                    </div>
+                  </Td>
+                  <Td>
+                    <span className="text-sm text-gray-700 dark:text-zinc-300">Class {hw.sectionLabel}</span>
+                  </Td>
+                  <Td>
+                    <span className={`text-sm tabular-nums ${overdue ? "text-red-600 dark:text-red-400 font-semibold" : "text-gray-700 dark:text-zinc-300"}`}>
+                      {formatDate(hw.dueDate)}
+                    </span>
+                    {overdue && <span className="ml-1.5 text-[10px] font-semibold uppercase text-red-500">overdue</span>}
+                  </Td>
+                  <Td>
+                    <div className="flex items-center gap-2 min-w-[120px]">
+                      <div className="flex-1 h-1.5 rounded-full bg-gray-100 dark:bg-zinc-700">
+                        <div
+                          className={`h-1.5 rounded-full transition-all ${rate >= 80 ? "bg-emerald-500" : rate >= 40 ? "bg-amber-500" : "bg-red-500"}`}
+                          style={{ width: `${rate}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-semibold tabular-nums text-gray-600 dark:text-zinc-400">
+                        {hw.submitted}/{hw.totalStudents}
+                      </span>
+                    </div>
+                  </Td>
+                  <Td>
+                    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${
+                      hw.status === "closed"
+                        ? "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20"
+                        : "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
+                    }`}>
+                      {hw.status === "closed" ? "Closed" : "Active"}
+                    </span>
+                  </Td>
+                </Tr>
+              );
+            })
+          )}
+        </TableBody>
+      </Table>
 
       <NewAssignmentModal
         open={modalOpen}

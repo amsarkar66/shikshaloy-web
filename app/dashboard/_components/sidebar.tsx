@@ -42,9 +42,16 @@ import {
   IdCard,
   FolderOpen,
   History,
+  X,
+  MessageSquareWarning,
+  Images,
+  Gauge,
+  UserCog,
+  LifeBuoy,
 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { LogoutButton } from "./logout-button";
+import { SchoolSwitcher } from "./school-switcher";
 import packageJson from "@/package.json";
 
 type NavItem = { label: string; href: string; icon: React.ElementType; badge?: "soon" };
@@ -58,15 +65,93 @@ const NAV: Record<string, NavGroup[]> = {
         { label: "Institutions", href: "/dashboard/institutions", icon: Building2 },
       ],
     },
+    {
+      group: "Revenue",
+      items: [
+        { label: "Subscriptions", href: "/dashboard/subscriptions", icon: CreditCard },
+        { label: "Invoices",      href: "/dashboard/invoices",      icon: Receipt },
+      ],
+    },
+    {
+      group: "Growth & Health",
+      items: [
+        { label: "Platform Analytics", href: "/dashboard/platform-analytics", icon: TrendingUp },
+        { label: "Usage",              href: "/dashboard/usage",              icon: Gauge },
+      ],
+    },
+    {
+      group: "Support",
+      items: [
+        { label: "Support Requests", href: "/dashboard/support",                icon: MessageSquareWarning },
+        { label: "Announcements",    href: "/dashboard/platform-announcements", icon: Megaphone },
+      ],
+    },
+    {
+      group: "Administration",
+      items: [
+        { label: "Platform Team", href: "/dashboard/team",      icon: UserCog },
+        { label: "Audit Log",     href: "/dashboard/audit-log", icon: History },
+        { label: "Settings",      href: "/dashboard/settings",  icon: Settings },
+      ],
+    },
   ],
   super_admin: [
     {
       items: [
-        { label: "Overview",  href: "/dashboard",          icon: LayoutDashboard },
-        { label: "Schools",   href: "/dashboard/schools",  icon: Landmark },
-        { label: "Staff",     href: "/dashboard/staff",    icon: Users },
-        { label: "Billing",   href: "/dashboard/billing",  icon: CreditCard },
-        { label: "Settings",  href: "/dashboard/settings", icon: Settings },
+        { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
+      ],
+    },
+    {
+      group: "Institution",
+      items: [
+        { label: "Schools",                  href: "/dashboard/schools",   icon: Landmark },
+        { label: "Principals & School Admins", href: "/dashboard/principals", icon: UserCog },
+      ],
+    },
+    {
+      group: "People",
+      items: [
+        { label: "Staff",           href: "/dashboard/staff",      icon: Users },
+        { label: "Leave Approvals", href: "/dashboard/leaves",     icon: CalendarOff },
+        { label: "Admissions",      href: "/dashboard/admissions", icon: UserPlus },
+      ],
+    },
+    {
+      group: "Academics",
+      items: [
+        { label: "Academic Calendar", href: "/dashboard/academic-calendar", icon: CalendarRange },
+        { label: "Exams & Results",   href: "/dashboard/exams",             icon: ClipboardCheck },
+      ],
+    },
+    {
+      group: "Finance",
+      items: [
+        { label: "Billing & Subscription", href: "/dashboard/billing",        icon: CreditCard },
+        { label: "Fee Collection",         href: "/dashboard/fee-collection", icon: Receipt },
+      ],
+    },
+    {
+      group: "Reports & Analytics",
+      items: [
+        { label: "Reports",   href: "/dashboard/reports",   icon: FileBarChart },
+        { label: "Analytics", href: "/dashboard/analytics", icon: TrendingUp },
+      ],
+    },
+    {
+      group: "Communication",
+      items: [
+        { label: "Announcements",       href: "/dashboard/announcements", icon: Megaphone },
+        { label: "Messages",            href: "/dashboard/messages",      icon: MessageSquare },
+        { label: "Documents & Circulars", href: "/dashboard/documents",   icon: FolderOpen },
+        { label: "Grievances",          href: "/dashboard/grievances",    icon: MessageSquareWarning },
+      ],
+    },
+    {
+      group: "Administration",
+      items: [
+        { label: "Settings",       href: "/dashboard/settings",  icon: Settings },
+        { label: "Audit Log",      href: "/dashboard/audit-log", icon: History },
+        { label: "Help & Support", href: "/dashboard/help",      icon: LifeBuoy },
       ],
     },
   ],
@@ -125,6 +210,7 @@ const NAV: Record<string, NavGroup[]> = {
         { label: "Messages",          href: "/dashboard/messages",      icon: MessageSquare },
         { label: "Events & Calendar", href: "/dashboard/events",        icon: Calendar },
         { label: "Documents & Circulars",   href: "/dashboard/documents", icon: FolderOpen },
+        { label: "Grievances",        href: "/dashboard/grievances",    icon: MessageSquareWarning },
       ],
     },
     {
@@ -134,6 +220,7 @@ const NAV: Record<string, NavGroup[]> = {
         { label: "Library",    href: "/dashboard/library",    icon: Library },
         { label: "Hostel",     href: "/dashboard/hostel",     icon: BedDouble },
         { label: "Inventory",  href: "/dashboard/inventory",  icon: Package },
+        { label: "Website Gallery", href: "/dashboard/gallery", icon: Images },
       ],
     },
     {
@@ -151,14 +238,6 @@ const NAV: Record<string, NavGroup[]> = {
       ],
     },
   ],
-  staff: [
-    {
-      items: [
-        { label: "Overview", href: "/dashboard",         icon: LayoutDashboard },
-        { label: "Reports",  href: "/dashboard/reports", icon: FileBarChart },
-      ],
-    },
-  ],
   teacher: [
     {
       items: [
@@ -170,14 +249,39 @@ const NAV: Record<string, NavGroup[]> = {
         { label: "Timetable",  href: "/dashboard/timetable",  icon: CalendarDays },
       ],
     },
+    {
+      group: "Communication",
+      items: [
+        { label: "PTM",      href: "/dashboard/ptm",      icon: Users2 },
+        { label: "Messages", href: "/dashboard/messages", icon: MessageSquare },
+      ],
+    },
+    {
+      group: "Self Service",
+      items: [
+        { label: "Leaves", href: "/dashboard/leaves", icon: CalendarOff },
+      ],
+    },
   ],
   parent: [
     {
       items: [
         { label: "Overview",     href: "/dashboard",          icon: LayoutDashboard },
         { label: "My Children",  href: "/dashboard/children", icon: Heart },
-        { label: "Fees",         href: "/dashboard/fees",     icon: CreditCard },
-        { label: "Reports",      href: "/dashboard/reports",  icon: FileBarChart },
+      ],
+    },
+    {
+      group: "Communication",
+      items: [
+        { label: "PTM",      href: "/dashboard/ptm",      icon: Users2 },
+        { label: "Messages", href: "/dashboard/messages", icon: MessageSquare },
+      ],
+    },
+    {
+      group: "Finance & Reports",
+      items: [
+        { label: "Fees",    href: "/dashboard/fees",    icon: CreditCard },
+        { label: "Reports", href: "/dashboard/reports", icon: FileBarChart },
       ],
     },
   ],
@@ -201,8 +305,140 @@ const NAV: Record<string, NavGroup[]> = {
         { label: "Attendance", href: "/dashboard/attendance", icon: ClipboardList },
       ],
     },
+    {
+      group: "Communication",
+      items: [
+        { label: "Messages", href: "/dashboard/messages", icon: MessageSquare },
+      ],
+    },
+    {
+      group: "Self Service",
+      items: [
+        { label: "Leaves", href: "/dashboard/leaves", icon: CalendarOff },
+      ],
+    },
   ],
 };
+
+const STAFF_TEMPLATE_NAV: Record<string, NavGroup[]> = {
+  librarian: [
+    { items: [{ label: "Overview", href: "/dashboard", icon: LayoutDashboard }] },
+    {
+      group: "Workspace",
+      items: [{ label: "Library", href: "/dashboard/library", icon: Library }],
+    },
+    {
+      group: "Communication",
+      items: [
+        { label: "Announcements", href: "/dashboard/announcements", icon: Megaphone },
+        { label: "Messages",      href: "/dashboard/messages",      icon: MessageSquare },
+        { label: "Documents",     href: "/dashboard/documents",     icon: FolderOpen },
+      ],
+    },
+    { group: "Self Service", items: [{ label: "Leaves", href: "/dashboard/leaves", icon: CalendarOff }] },
+  ],
+  warden: [
+    { items: [{ label: "Overview", href: "/dashboard", icon: LayoutDashboard }] },
+    {
+      group: "Workspace",
+      items: [{ label: "Hostel", href: "/dashboard/hostel", icon: BedDouble }],
+    },
+    {
+      group: "Communication",
+      items: [
+        { label: "Announcements", href: "/dashboard/announcements", icon: Megaphone },
+        { label: "Messages",      href: "/dashboard/messages",      icon: MessageSquare },
+        { label: "Documents",     href: "/dashboard/documents",     icon: FolderOpen },
+      ],
+    },
+    { group: "Self Service", items: [{ label: "Leaves", href: "/dashboard/leaves", icon: CalendarOff }] },
+  ],
+  accountant: [
+    { items: [{ label: "Overview", href: "/dashboard", icon: LayoutDashboard }] },
+    {
+      group: "Finance",
+      items: [
+        { label: "Fee Management", href: "/dashboard/fees",     icon: CreditCard },
+        { label: "Expenses",       href: "/dashboard/expenses", icon: Receipt },
+        { label: "Payroll",        href: "/dashboard/payroll",  icon: Wallet },
+      ],
+    },
+    {
+      group: "Communication",
+      items: [
+        { label: "Messages",  href: "/dashboard/messages",  icon: MessageSquare },
+        { label: "Documents", href: "/dashboard/documents", icon: FolderOpen },
+      ],
+    },
+    { group: "Self Service", items: [{ label: "Leaves", href: "/dashboard/leaves", icon: CalendarOff }] },
+  ],
+  hr_manager: [
+    { items: [{ label: "Overview", href: "/dashboard", icon: LayoutDashboard }] },
+    {
+      group: "People",
+      items: [
+        { label: "Staff Directory",  href: "/dashboard/staff",  icon: Briefcase },
+        { label: "Leave Approvals",  href: "/dashboard/leaves", icon: CalendarOff },
+      ],
+    },
+    {
+      group: "Finance",
+      items: [{ label: "Payroll", href: "/dashboard/payroll", icon: Wallet }],
+    },
+    {
+      group: "Communication",
+      items: [
+        { label: "Announcements", href: "/dashboard/announcements", icon: Megaphone },
+        { label: "Messages",      href: "/dashboard/messages",      icon: MessageSquare },
+        { label: "Documents",     href: "/dashboard/documents",     icon: FolderOpen },
+      ],
+    },
+  ],
+  receptionist: [
+    { items: [{ label: "Overview", href: "/dashboard", icon: LayoutDashboard }] },
+    {
+      group: "Front Desk",
+      items: [{ label: "Admissions", href: "/dashboard/admissions", icon: UserPlus }],
+    },
+    {
+      group: "Communication",
+      items: [
+        { label: "Announcements", href: "/dashboard/announcements", icon: Megaphone },
+        { label: "Messages",      href: "/dashboard/messages",      icon: MessageSquare },
+        { label: "Documents",     href: "/dashboard/documents",     icon: FolderOpen },
+      ],
+    },
+    { group: "Self Service", items: [{ label: "Leaves", href: "/dashboard/leaves", icon: CalendarOff }] },
+  ],
+  lab_assistant: [
+    { items: [{ label: "Overview", href: "/dashboard", icon: LayoutDashboard }] },
+    {
+      group: "Workspace",
+      items: [{ label: "Inventory", href: "/dashboard/inventory", icon: Package }],
+    },
+    {
+      group: "Communication",
+      items: [
+        { label: "Messages",  href: "/dashboard/messages",  icon: MessageSquare },
+        { label: "Documents", href: "/dashboard/documents", icon: FolderOpen },
+      ],
+    },
+    { group: "Self Service", items: [{ label: "Leaves", href: "/dashboard/leaves", icon: CalendarOff }] },
+  ],
+};
+
+const STAFF_DEFAULT_NAV: NavGroup[] = [
+  { items: [{ label: "Overview", href: "/dashboard", icon: LayoutDashboard }] },
+  {
+    group: "Communication",
+    items: [
+      { label: "Announcements", href: "/dashboard/announcements", icon: Megaphone },
+      { label: "Messages",      href: "/dashboard/messages",      icon: MessageSquare },
+      { label: "Documents",     href: "/dashboard/documents",     icon: FolderOpen },
+    ],
+  },
+  { group: "Self Service", items: [{ label: "Leaves", href: "/dashboard/leaves", icon: CalendarOff }] },
+];
 
 const ROLE_META: Record<string, { label: string; icon: React.ElementType; color: string }> = {
   kernel:      { label: "Product Owner",     icon: Shield,        color: "text-indigo-500  bg-indigo-500/20  ring-indigo-500/30"  },
@@ -215,28 +451,63 @@ const ROLE_META: Record<string, { label: string; icon: React.ElementType; color:
   driver:      { label: "Driver",            icon: Bus,           color: "text-teal-500    bg-teal-500/20    ring-teal-500/30"    },
 };
 
-export function Sidebar({ role, user }: { role: string; user: User }) {
+export function Sidebar({
+  role, user, open, onClose, schools, activeSchoolId,
+}: {
+  role: string;
+  user: User;
+  open: boolean;
+  onClose: () => void;
+  schools?: { id: string; name: string }[];
+  activeSchoolId?: string | null;
+}) {
   const pathname = usePathname();
-  const navGroups = NAV[role] ?? NAV.student;
+  const staffTemplateId = user.user_metadata?.staff_template_id as string | undefined;
+  const navGroups =
+    role === "staff"
+      ? (staffTemplateId && STAFF_TEMPLATE_NAV[staffTemplateId]) || STAFF_DEFAULT_NAV
+      : NAV[role] ?? NAV.student;
   const meta = ROLE_META[role] ?? ROLE_META.student;
-  const RoleIcon = meta.icon;
   const roleLabel =
     role === "staff"
       ? (user.user_metadata?.staff_type as string | undefined) ?? meta.label
       : meta.label;
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r border-indigo-100 dark:border-zinc-800 bg-white dark:bg-zinc-950">
+    <>
+      {open && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-60 shrink-0 flex-col border-r border-primary-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 ${
+          open ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
       {/* Logo */}
-      <div className="flex h-[60px] shrink-0 items-center gap-2.5 border-b border-indigo-100 dark:border-zinc-800 px-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500 shadow shadow-indigo-500/40">
-          <GraduationCap className="h-4 w-4 text-white" />
-        </div>
-        <div className="leading-tight">
+      <div className="flex h-[60px] shrink-0 items-center gap-2.5 border-b border-primary-100 dark:border-zinc-800 px-5">
+        <img src="/logo.svg" alt="" className="h-8 w-8" />
+        <div className="flex-1 leading-tight">
           <p className="text-sm font-bold tracking-tight text-gray-900 dark:text-zinc-50">Shikshaloy</p>
           <p className="text-[11px] font-medium text-gray-400 dark:text-zinc-600">v{packageJson.version}</p>
         </div>
+        <button
+          onClick={onClose}
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 hover:text-gray-900 dark:hover:text-zinc-50 lg:hidden"
+          aria-label="Close menu"
+        >
+          <X className="h-4 w-4" />
+        </button>
       </div>
+
+      {role === "super_admin" && schools && schools.length > 1 && (
+        <div className="border-b border-primary-100 dark:border-zinc-800 pt-3">
+          <SchoolSwitcher schools={schools} activeSchoolId={activeSchoolId ?? null} />
+        </div>
+      )}
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto p-3 space-y-4">
@@ -266,9 +537,10 @@ export function Sidebar({ role, user }: { role: string; user: User }) {
                   <Link
                     key={href}
                     href={href}
+                    onClick={onClose}
                     className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
                       active
-                        ? "bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-semibold"
+                        ? "bg-primary-500/10 dark:bg-primary-500/20 text-primary-600 dark:text-primary-400 font-semibold"
                         : "text-zinc-500 dark:text-zinc-400 font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800/60 hover:text-zinc-900 dark:hover:text-zinc-100"
                     }`}
                   >
@@ -283,20 +555,23 @@ export function Sidebar({ role, user }: { role: string; user: User }) {
       </nav>
 
       {/* User footer */}
-      <div className="shrink-0 border-t border-indigo-100 dark:border-zinc-800 p-3 space-y-1">
-        <div className="flex items-center gap-2.5 px-3 py-2">
-          <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ring-1 ${meta.color}`}>
-            <RoleIcon className="h-3.5 w-3.5" />
-          </div>
-          <div className="min-w-0">
+      <div className="shrink-0 border-t border-primary-100 dark:border-zinc-800 p-3">
+        <div className="flex items-center justify-center gap-2.5 px-1 py-1">
+          <img
+            src="/user-profile-icon.svg"
+            alt=""
+            className="h-7 w-7 shrink-0 rounded-full"
+          />
+          <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-medium text-gray-900 dark:text-zinc-50">
               {(user.user_metadata?.full_name as string) || roleLabel}
             </p>
-            <p className="truncate text-[10px] text-indigo-500 dark:text-zinc-500">{user.email}</p>
+            <p className="truncate text-[10px] text-primary-500 dark:text-zinc-500">{user.email}</p>
           </div>
+          <LogoutButton />
         </div>
-        <LogoutButton />
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

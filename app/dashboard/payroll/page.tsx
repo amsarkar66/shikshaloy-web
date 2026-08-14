@@ -1,23 +1,25 @@
-import { supabaseAdmin, DEMO_SCHOOL_ID } from "@/lib/supabase/service";
+import { supabaseAdmin } from "@/lib/supabase/service";
+import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import PayrollClient from "./_components/PayrollClient";
 import type { PayrollStaff, PayrollRecord } from "./_data/payroll";
 
 export default async function PayrollPage() {
+  const schoolId = await getCurrentSchoolIdOrThrow();
   const [{ data: staffRows }, { data: recordRows }] = await Promise.all([
     supabaseAdmin
       .from("staff_members")
       .select("id, employee_id, full_name, designation, department, type, status")
-      .eq("school_id", DEMO_SCHOOL_ID)
+      .eq("school_id", schoolId)
       .order("full_name"),
 
     supabaseAdmin
       .from("payroll_records")
       .select("staff_id, month_str, basic, hra, da, ta, other_allowances, pf_deduction, tds_deduction, prof_tax, gross, net, status, slip_no, paid_on, pay_mode")
-      .eq("school_id", DEMO_SCHOOL_ID)
+      .eq("school_id", schoolId)
       .order("month_str"),
   ]);
 
-  const staff: PayrollStaff[] = (staffRows ?? []).map((s: any) => ({
+  const staff: PayrollStaff[] = (staffRows ?? []).map((s) => ({
     id: s.id,
     name: s.full_name ?? "",
     employeeId: s.employee_id ?? "",
@@ -27,7 +29,7 @@ export default async function PayrollPage() {
     status: s.status ?? "active",
   }));
 
-  const records: PayrollRecord[] = (recordRows ?? []).map((r: any) => ({
+  const records: PayrollRecord[] = (recordRows ?? []).map((r) => ({
     staffId: r.staff_id,
     monthStr: r.month_str,
     basic: Number(r.basic ?? 0),

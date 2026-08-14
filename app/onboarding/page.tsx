@@ -13,38 +13,48 @@ export default async function OnboardingPage() {
   const role = user.user_metadata?.role as string | undefined;
   if (role !== "super_admin") redirect("/dashboard");
 
-  const { data: existingSchool } = await supabaseAdmin
-    .from("schools")
-    .select(
-      "id, status, name, institution_type, board, established_year, city, state, country, address, pin_code, student_range, staff_range, grades_from, grades_to, tagline, phone, email, website, udise_code"
-    )
+  const { data: existingInstitution } = await supabaseAdmin
+    .from("institutions")
+    .select("id, status, name, type, city, state, country, address, phone, email, website")
     .eq("owner_id", user.id)
     .maybeSingle();
 
   // Only a rejected application can come back through onboarding to fix
   // and resubmit — pending/active institutions have nothing to redo here.
-  if (existingSchool && existingSchool.status !== "rejected") redirect("/dashboard");
+  if (existingInstitution && existingInstitution.status !== "rejected") redirect("/dashboard");
 
-  const initialData = existingSchool
+  const existingSchool = existingInstitution
+    ? (
+        await supabaseAdmin
+          .from("schools")
+          .select("board, established_year, pin_code, student_range, staff_range, grades_from, grades_to, tagline, udise_code")
+          .eq("institution_id", existingInstitution.id)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle()
+      ).data
+    : null;
+
+  const initialData = existingInstitution
     ? {
-        name: existingSchool.name ?? "",
-        institutionType: existingSchool.institution_type ?? "",
-        board: existingSchool.board ?? "",
-        establishedYear: existingSchool.established_year ? String(existingSchool.established_year) : "",
-        city: existingSchool.city ?? "",
-        state: existingSchool.state ?? "",
-        country: existingSchool.country ?? "India",
-        address: existingSchool.address ?? "",
-        pinCode: existingSchool.pin_code ?? "",
-        studentRange: existingSchool.student_range ?? "",
-        staffRange: existingSchool.staff_range ?? "",
-        gradesFrom: existingSchool.grades_from ?? "",
-        gradesTo: existingSchool.grades_to ?? "",
-        tagline: existingSchool.tagline ?? "",
-        phone: existingSchool.phone ?? "",
-        email: existingSchool.email ?? "",
-        website: existingSchool.website ?? "",
-        udiseCode: existingSchool.udise_code ?? "",
+        name: existingInstitution.name ?? "",
+        institutionType: existingInstitution.type ?? "",
+        board: existingSchool?.board ?? "",
+        establishedYear: existingSchool?.established_year ? String(existingSchool.established_year) : "",
+        city: existingInstitution.city ?? "",
+        state: existingInstitution.state ?? "",
+        country: existingInstitution.country ?? "India",
+        address: existingInstitution.address ?? "",
+        pinCode: existingSchool?.pin_code ?? "",
+        studentRange: existingSchool?.student_range ?? "",
+        staffRange: existingSchool?.staff_range ?? "",
+        gradesFrom: existingSchool?.grades_from ?? "",
+        gradesTo: existingSchool?.grades_to ?? "",
+        tagline: existingSchool?.tagline ?? "",
+        phone: existingInstitution.phone ?? "",
+        email: existingInstitution.email ?? "",
+        website: existingInstitution.website ?? "",
+        udiseCode: existingSchool?.udise_code ?? "",
       }
     : undefined;
 
@@ -54,8 +64,7 @@ export default async function OnboardingPage() {
     <InstitutionForm
       onSubmit={submitOnboarding}
       initialData={initialData}
-      isResubmit={!!existingSchool}
-      confirmedPhone={user.phone_confirmed_at ? (user.phone ?? null) : null}
+      isResubmit={!!existingInstitution}
       userName={userName}
       userEmail={user.email ?? ""}
     />

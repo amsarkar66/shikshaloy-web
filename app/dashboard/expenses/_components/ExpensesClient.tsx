@@ -13,6 +13,8 @@ import {
   type Expense, type ExpenseStatus, type BudgetLine,
 } from "../_data/expenses";
 import { addExpense } from "../actions";
+import { FancyButton } from "@/components/ui/fancy-button";
+import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
 
 // ── Month nav ─────────────────────────────────────────────────────────────────
 
@@ -25,7 +27,7 @@ function MonthNav({ months, index, onChange }: { months: string[]; index: number
       </button>
       <div className="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 h-8">
         <span className="text-sm font-semibold text-gray-900 dark:text-zinc-100">{monthStr ? formatMonth(monthStr) : "No data"}</span>
-        {index === months.length - 1 && monthStr && <span className="rounded-full bg-indigo-500 px-1.5 py-0.5 text-[10px] font-bold text-white">Latest</span>}
+        {index === months.length - 1 && monthStr && <span className="rounded-full bg-primary-500 px-1.5 py-0.5 text-[10px] font-bold text-white">Latest</span>}
       </div>
       <button onClick={() => onChange(index + 1)} disabled={index >= months.length - 1} className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors">
         <ChevronRight className="h-4 w-4 text-gray-500 dark:text-zinc-400" />
@@ -73,7 +75,7 @@ function BudgetBreakdown({ expenses, budgets, monthStr }: { expenses: Expense[];
   return (
     <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
       <div className="px-4 py-3 border-b border-gray-100 dark:border-zinc-700/50 flex items-center gap-2">
-        <BarChart2 className="h-4 w-4 text-indigo-500" />
+        <BarChart2 className="h-4 w-4 text-primary-500" />
         <p className="text-sm font-semibold text-gray-900 dark:text-zinc-100">Budget vs. Spent — {formatMonth(monthStr)}</p>
       </div>
       {rows.length === 0 ? (
@@ -147,7 +149,7 @@ function AddExpenseForm({ categories, onClose, onAdded }: { categories: string[]
   }
 
   return (
-    <div className="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-500/5 p-5 space-y-4">
+    <div className="rounded-xl border border-primary-200 dark:border-primary-800 bg-primary-50/50 dark:bg-primary-500/5 p-5 space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-gray-900 dark:text-zinc-100">Add Expense</p>
         <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200"><X className="h-4 w-4" /></button>
@@ -155,26 +157,26 @@ function AddExpenseForm({ categories, onClose, onAdded }: { categories: string[]
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <div>
           <label className="text-xs font-medium text-gray-500 dark:text-zinc-400 block mb-1">Category</label>
-          <input list="expense-categories" value={category} onChange={(e) => setCategory(e.target.value)} className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20" />
+          <input list="expense-categories" value={category} onChange={(e) => setCategory(e.target.value)} className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
           <datalist id="expense-categories">
             {categories.map((c) => <option key={c} value={c} />)}
           </datalist>
         </div>
         <div>
           <label className="text-xs font-medium text-gray-500 dark:text-zinc-400 block mb-1">Description</label>
-          <input value={description} onChange={(e) => setDescription(e.target.value)} type="text" placeholder="Brief description…" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20" />
+          <input value={description} onChange={(e) => setDescription(e.target.value)} type="text" placeholder="Brief description…" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
         </div>
         <div>
           <label className="text-xs font-medium text-gray-500 dark:text-zinc-400 block mb-1">Vendor / Payee</label>
-          <input value={vendor} onChange={(e) => setVendor(e.target.value)} type="text" placeholder="Vendor name…" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20" />
+          <input value={vendor} onChange={(e) => setVendor(e.target.value)} type="text" placeholder="Vendor name…" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
         </div>
         <div>
           <label className="text-xs font-medium text-gray-500 dark:text-zinc-400 block mb-1">Amount (₹)</label>
-          <input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" placeholder="0" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20" />
+          <input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" placeholder="0" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
         </div>
         <div>
           <label className="text-xs font-medium text-gray-500 dark:text-zinc-400 block mb-1">Date</label>
-          <input value={date} onChange={(e) => setDate(e.target.value)} type="date" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20" />
+          <input value={date} onChange={(e) => setDate(e.target.value)} type="date" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
         </div>
         <div>
           <label className="text-xs font-medium text-gray-500 dark:text-zinc-400 block mb-1">Receipt / Reference</label>
@@ -198,28 +200,28 @@ function ExpenseDetail({ expense, onBack }: { expense: Expense; onBack: () => vo
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-medium text-gray-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+        <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-medium text-gray-500 dark:text-zinc-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to Expenses
         </button>
         <div className="sm:ml-auto flex gap-2">
-          <button onClick={() => window.print()} className="flex h-8 items-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 px-3 text-xs font-medium text-white transition-colors">
+          <FancyButton onClick={() => window.print()} size="xs">
             <Printer className="h-3.5 w-3.5" /> Print
-          </button>
+          </FancyButton>
         </div>
       </div>
 
       <div className="rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm max-w-2xl mx-auto">
-        <div className="bg-indigo-600 px-8 py-6 flex items-center gap-4">
+        <div className="bg-primary-600 px-8 py-6 flex items-center gap-4">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/20">
             <Receipt className="h-6 w-6 text-white" />
           </div>
           <div className="flex-1">
             <p className="text-lg font-extrabold text-white">Shikshaloy School</p>
-            <p className="text-indigo-200 text-xs mt-0.5">Expense Voucher</p>
+            <p className="text-primary-200 text-xs mt-0.5">Expense Voucher</p>
           </div>
           {expense.receiptRef && (
             <div className="text-right hidden sm:block">
-              <p className="text-indigo-200 text-[10px] uppercase tracking-widest font-semibold">Voucher No.</p>
+              <p className="text-primary-200 text-[10px] uppercase tracking-widest font-semibold">Voucher No.</p>
               <p className="text-white text-sm font-bold font-mono">{expense.receiptRef}</p>
             </div>
           )}
@@ -308,14 +310,14 @@ function ExpenseTable({
       <div className="flex items-center gap-2">
         <div className="flex rounded-lg border border-gray-200 dark:border-zinc-700 overflow-hidden">
           {(["list", "budget"] as const).map((v) => (
-            <button key={v} onClick={() => setView(v)} className={`h-8 px-4 text-xs font-medium capitalize transition-colors ${view === v ? "bg-indigo-500 text-white" : "bg-white dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
+            <button key={v} onClick={() => setView(v)} className={`h-8 px-4 text-xs font-medium capitalize transition-colors ${view === v ? "bg-primary-500 text-white" : "bg-white dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
               {v === "budget" ? "Budget View" : "Expense List"}
             </button>
           ))}
         </div>
-        <button onClick={() => setShowAdd((v) => !v)} className="ml-auto flex h-9 items-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 px-4 text-sm font-medium text-white shadow-sm transition-colors">
+        <FancyButton onClick={() => setShowAdd((v) => !v)} size="sm" className="ml-auto">
           <Plus className="h-4 w-4" /> Add Expense
-        </button>
+        </FancyButton>
       </div>
 
       {showAdd && <AddExpenseForm categories={categories} onClose={() => setShowAdd(false)} onAdded={onAdded} />}
@@ -327,11 +329,11 @@ function ExpenseTable({
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1 min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-zinc-500 pointer-events-none" />
-              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search description, vendor or category…" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20" />
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search description, vendor or category…" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
             </div>
             <div className="flex items-center gap-1">
               {(["all", "approved", "pending", "rejected"] as const).map((s) => (
-                <button key={s} onClick={() => setStatus(s)} className={`h-9 rounded-lg px-3 text-sm font-medium capitalize transition-colors ${statusFilter === s ? "bg-indigo-500 text-white shadow-sm" : "border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
+                <button key={s} onClick={() => setStatus(s)} className={`h-9 rounded-lg px-3 text-sm font-medium capitalize transition-colors ${statusFilter === s ? "bg-primary-500 text-white shadow-sm" : "border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
                   {s === "all" ? "All Status" : STATUS_LABEL[s]}
                 </button>
               ))}
@@ -344,11 +346,11 @@ function ExpenseTable({
           </div>
 
           <div className="flex flex-wrap gap-1.5">
-            <button onClick={() => setCategory("all")} className={`h-7 rounded-full px-3 text-xs font-medium transition-colors ${categoryFilter === "all" ? "bg-indigo-500 text-white" : "border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
+            <button onClick={() => setCategory("all")} className={`h-7 rounded-full px-3 text-xs font-medium transition-colors ${categoryFilter === "all" ? "bg-primary-500 text-white" : "border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
               All
             </button>
             {categories.map((c) => (
-              <button key={c} onClick={() => setCategory(c)} className={`h-7 rounded-full px-3 text-xs font-medium transition-colors flex items-center gap-1.5 ${categoryFilter === c ? "bg-indigo-500 text-white" : "border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
+              <button key={c} onClick={() => setCategory(c)} className={`h-7 rounded-full px-3 text-xs font-medium transition-colors flex items-center gap-1.5 ${categoryFilter === c ? "bg-primary-500 text-white" : "border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
                 <span className={`h-1.5 w-1.5 rounded-full ${categoryColor(c)}`} />
                 {c}
               </button>
@@ -358,51 +360,49 @@ function ExpenseTable({
           <p className="text-xs text-gray-500 dark:text-zinc-500">
             Showing <span className="font-medium text-gray-700 dark:text-zinc-300">{filtered.length}</span> of{" "}
             <span className="font-medium text-gray-700 dark:text-zinc-300">{expenses.length}</span> expenses
-            {hasFilter && <span className="ml-2 text-indigo-600 dark:text-indigo-400 font-medium">· Filters active</span>}
+            {hasFilter && <span className="ml-2 text-primary-600 dark:text-primary-400 font-medium">· Filters active</span>}
           </p>
 
-          <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="border-b border-gray-100 dark:border-zinc-700/50 bg-gray-50 dark:bg-zinc-800/80">
-                  <tr>
-                    {["Date", "Category", "Description", "Vendor", "Amount", "Status", ""].map((h) => (
-                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 whitespace-nowrap">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-zinc-700/50">
-                  {filtered.length === 0 ? (
-                    <tr><td colSpan={7} className="py-14 text-center text-sm text-gray-400 dark:text-zinc-500">No expenses match this filter</td></tr>
-                  ) : filtered.map((expense) => (
-                    <tr key={expense.id} className={`hover:bg-gray-50 dark:hover:bg-zinc-700/20 transition-colors ${expense.status === "rejected" ? "opacity-60" : ""}`}>
-                      <td className="px-4 py-3 text-xs text-gray-500 dark:text-zinc-400 whitespace-nowrap">{formatDate(expense.date)}</td>
-                      <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-700 dark:text-zinc-300">
-                          <span className={`h-2 w-2 rounded-full ${categoryColor(expense.category)}`} />
-                          {expense.category}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-800 dark:text-zinc-200 max-w-[200px] truncate">{expense.description || "—"}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-zinc-400 whitespace-nowrap">{expense.vendor || "—"}</td>
-                      <td className="px-4 py-3 text-sm font-semibold tabular-nums text-gray-900 dark:text-zinc-100 whitespace-nowrap">{formatCurrency(expense.amount)}</td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_BADGE[expense.status]}`}>
-                          {expense.status === "approved" && <Check className="h-3 w-3" />}
-                          {expense.status === "pending" && <Clock className="h-3 w-3" />}
-                          {expense.status === "rejected" && <Ban className="h-3 w-3" />}
-                          {STATUS_LABEL[expense.status]}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <button onClick={() => onView(expense)} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-400 transition-colors">View</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <Table>
+            <TableHead>
+              <Th position="first">Date</Th>
+              <Th>Category</Th>
+              <Th>Description</Th>
+              <Th>Vendor</Th>
+              <Th>Amount</Th>
+              <Th>Status</Th>
+              <Th position="last" align="right"></Th>
+            </TableHead>
+            <TableBody>
+              {filtered.length === 0 ? (
+                <TableEmptyRow colSpan={7} message="No expenses match this filter" />
+              ) : filtered.map((expense) => (
+                <Tr key={expense.id} className={expense.status === "rejected" ? "opacity-60" : ""}>
+                  <Td position="first" className="text-xs text-gray-500 dark:text-zinc-400 whitespace-nowrap">{formatDate(expense.date)}</Td>
+                  <Td>
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-700 dark:text-zinc-300">
+                      <span className={`h-2 w-2 rounded-full ${categoryColor(expense.category)}`} />
+                      {expense.category}
+                    </span>
+                  </Td>
+                  <Td className="text-sm text-gray-800 dark:text-zinc-200 max-w-[200px] truncate">{expense.description || "—"}</Td>
+                  <Td className="text-sm text-gray-600 dark:text-zinc-400 whitespace-nowrap">{expense.vendor || "—"}</Td>
+                  <Td className="text-sm font-semibold tabular-nums text-gray-900 dark:text-zinc-100 whitespace-nowrap">{formatCurrency(expense.amount)}</Td>
+                  <Td>
+                    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_BADGE[expense.status]}`}>
+                      {expense.status === "approved" && <Check className="h-3 w-3" />}
+                      {expense.status === "pending" && <Clock className="h-3 w-3" />}
+                      {expense.status === "rejected" && <Ban className="h-3 w-3" />}
+                      {STATUS_LABEL[expense.status]}
+                    </span>
+                  </Td>
+                  <Td position="last" align="right">
+                    <button onClick={() => onView(expense)} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:bg-primary-50 hover:text-primary-600 dark:hover:bg-primary-500/10 dark:hover:text-primary-400 transition-colors">View</button>
+                  </Td>
+                </Tr>
+              ))}
+            </TableBody>
+          </Table>
         </>
       )}
     </div>

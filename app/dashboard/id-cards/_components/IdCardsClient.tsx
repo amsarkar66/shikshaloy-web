@@ -1,200 +1,398 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  IdCard, Search, Printer, GraduationCap, Droplets,
-  CheckSquare, Square, Users, Briefcase,
+  Printer, Download, Share2, Star, Info, Users, Briefcase, IdCard as IdCardIcon, MoreVertical,
 } from "lucide-react";
-import { avatarColor, initials, type PersonType, type CardPerson } from "../_data/people";
+import type { CardPerson, PersonType } from "../_data/people";
+import { IdCard } from "./id-card";
+import { TemplateGallery } from "./template-gallery";
+import { CardSettingsPanel } from "./card-settings";
+import { FieldVisibilityPanel } from "./field-visibility-panel";
+import { PersonPickerTable } from "./person-picker-table";
+import {
+  ID_CARD_TEMPLATES, CARD_SIZES, DEFAULT_ID_CARD_SETTINGS, ID_CARD_SETTINGS_STORAGE_KEY,
+  type IdCardSettings,
+} from "@/lib/id-cards/templates";
+import { PRINT_SCALE } from "@/lib/id-cards/preview-scale";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import { FancyButton } from "@/components/ui/fancy-button";
 
-function IdCardPreview({ person }: { person: CardPerson }) {
-  return (
-    <div className="id-card w-[320px] shrink-0 overflow-hidden rounded-2xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
-      <div className="flex items-center gap-2 bg-indigo-500 px-4 py-3">
-        <div className="flex h-6 w-6 items-center justify-center rounded-md bg-white/20">
-          <GraduationCap className="h-3.5 w-3.5 text-white" />
-        </div>
-        <p className="text-sm font-bold tracking-tight text-white">Shikshaloy</p>
-        <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-white/80">
-          {person.type === "student" ? "Student ID" : "Staff ID"}
-        </span>
-      </div>
-
-      <div className="flex gap-3 p-4">
-        <div className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-xl text-lg font-bold text-white ${avatarColor(person.id)}`}>
-          {initials(person.name)}
-        </div>
-        <div className="min-w-0 flex-1 space-y-0.5">
-          <p className="truncate font-semibold text-gray-900 dark:text-zinc-50">{person.name}</p>
-          <p className="truncate text-xs text-gray-500 dark:text-zinc-400">{person.subtitle}</p>
-          <p className="text-xs font-medium text-indigo-600 dark:text-indigo-400">{person.idNumber}</p>
-          <div className="flex items-center gap-1 pt-1 text-[11px] text-gray-500 dark:text-zinc-400">
-            <Droplets className="h-3 w-3" /> {person.bloodGroup}
-          </div>
-        </div>
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md border border-dashed border-gray-300 dark:border-zinc-600">
-          <div className="grid grid-cols-4 gap-0.5">
-            {Array.from({ length: 16 }).map((_, i) => (
-              <span key={i} className={`h-1.5 w-1.5 ${(i * 7) % 3 === 0 ? "bg-gray-800 dark:bg-zinc-300" : "bg-transparent"}`} />
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between border-t border-gray-100 dark:border-zinc-800 px-4 py-2">
-        <p className="text-[10px] text-gray-400 dark:text-zinc-500">Valid till {person.validTill}</p>
-        <p className="text-[10px] text-gray-400 dark:text-zinc-500">shikshaloy.com</p>
-      </div>
-    </div>
-  );
-}
-
-export default function IdCardsClient({ people }: { people: CardPerson[] }) {
-  const [tab, setTab] = useState<PersonType>("student");
-  const [query, setQuery] = useState("");
+export default function IdCardsClient({
+  people, schoolName, schoolLogoUrl,
+}: {
+  people: CardPerson[];
+  schoolName: string;
+  schoolLogoUrl: string | null;
+}) {
+  const [personType, setPersonType] = useState<PersonType>("student");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [generated, setGenerated] = useState(false);
 
-  const filtered = useMemo(() => {
-    const q = query.toLowerCase();
-    return people.filter(
-      (p) => p.type === tab && (!q || p.name.toLowerCase().includes(q) || p.idNumber.toLowerCase().includes(q))
-    );
-  }, [people, tab, query]);
+  const [settings, setSettings] = useState<IdCardSettings>(DEFAULT_ID_CARD_SETTINGS);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [shareMessage, setShareMessage] = useState<string | null>(null);
+  const [capturing, setCapturing] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(ID_CARD_SETTINGS_STORAGE_KEY);
+      if (raw) setSettings({ ...DEFAULT_ID_CARD_SETTINGS, ...JSON.parse(raw) });
+    } catch {
+      // ignore malformed storage
+    }
+  }, []);
+
+  useEffect(() => { if (selected.size === 0) setGenerated(false); }, [selected]);
+
+  const peopleOfType = useMemo(() => people.filter((p) => p.type === personType), [people, personType]);
+  const activeTemplate = ID_CARD_TEMPLATES.find((t) => t.id === settings.templateId) ?? ID_CARD_TEMPLATES[0];
+  const activeCardSize = CARD_SIZES.find((s) => s.id === settings.cardSizeId) ?? CARD_SIZES[0];
+  const longSideMm = Math.max(activeCardSize.widthMm, activeCardSize.heightMm);
+  const shortSideMm = Math.min(activeCardSize.widthMm, activeCardSize.heightMm);
+  const printWidthMm = settings.orientation === "vertical" ? shortSideMm : longSideMm;
+  const printHeightMm = settings.orientation === "vertical" ? longSideMm : shortSideMm;
 
   function toggle(id: string) {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   }
-
-  function toggleAll() {
+  function selectMany(ids: string[]) {
+    setSelected((prev) => { const next = new Set(prev); ids.forEach((id) => next.add(id)); return next; });
+  }
+  function invert(ids: string[]) {
     setSelected((prev) => {
-      const allSelected = filtered.every((p) => prev.has(p.id));
       const next = new Set(prev);
-      filtered.forEach((p) => (allSelected ? next.delete(p.id) : next.add(p.id)));
+      ids.forEach((id) => (next.has(id) ? next.delete(id) : next.add(id)));
       return next;
     });
   }
+  function clearSelection() { setSelected(new Set()); }
 
-  const selectedPeople = people.filter((p) => selected.has(p.id));
-  const allFilteredSelected = filtered.length > 0 && filtered.every((p) => selected.has(p.id));
+  const selectedPeople = useMemo(() => people.filter((p) => selected.has(p.id)), [people, selected]);
+  const isBulk = selectedPeople.length > 1;
+
+  const previewPeople = generated ? selectedPeople : [];
+  const samplePerson = previewPeople[0] ?? null;
+  const restPeople = previewPeople.slice(1);
+  const thumbs = restPeople.slice(0, 4);
+  const moreCount = restPeople.length - thumbs.length;
+
+  function handlePrint() { window.print(); }
+
+  async function handleDownload() {
+    if (previewPeople.length === 0 || downloading) return;
+    setDownloading(true);
+    setCapturing(true);
+    // Let the print-area render off-screen at full size before capturing it.
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import("html2canvas-pro"),
+        import("jspdf"),
+      ]);
+      const printArea = document.getElementById("id-card-print-area");
+      const frames = printArea
+        ? Array.from(printArea.querySelectorAll<HTMLElement>(".print-card-frame"))
+        : [];
+
+      const pageWidthMm = 210;
+      const pageHeightMm = 297;
+      const marginMm = 10;
+      const gapMm = 4;
+
+      const doc = new jsPDF({ unit: "mm", format: "a4" });
+      let x = marginMm;
+      let y = marginMm;
+      let rowHeight = 0;
+
+      for (const frame of frames) {
+        const canvas = await html2canvas(frame, { scale: 3, backgroundColor: "#ffffff" });
+        const imgData = canvas.toDataURL("image/png");
+
+        if (x + printWidthMm > pageWidthMm - marginMm) {
+          x = marginMm;
+          y += rowHeight + gapMm;
+          rowHeight = 0;
+        }
+        if (y + printHeightMm > pageHeightMm - marginMm) {
+          doc.addPage();
+          x = marginMm;
+          y = marginMm;
+          rowHeight = 0;
+        }
+        doc.addImage(imgData, "PNG", x, y, printWidthMm, printHeightMm);
+        x += printWidthMm + gapMm;
+        rowHeight = Math.max(rowHeight, printHeightMm);
+      }
+
+      doc.save(`id-cards-${new Date().toISOString().slice(0, 10)}.pdf`);
+    } finally {
+      setCapturing(false);
+      setDownloading(false);
+    }
+  }
+
+  async function handleShare() {
+    const text = `${previewPeople.length} ID card${previewPeople.length === 1 ? "" : "s"} generated for ${schoolName}`;
+    const nav = navigator as Navigator & { share?: (data: { title: string; text: string }) => Promise<void> };
+    if (nav.share) {
+      try { await nav.share({ title: "ID Cards", text }); } catch { /* user cancelled */ }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      setShareMessage("Summary copied to clipboard");
+      setTimeout(() => setShareMessage(null), 2500);
+    } catch {
+      setShareMessage("Unable to share");
+      setTimeout(() => setShareMessage(null), 2500);
+    }
+  }
+
+  function handleSaveTemplate() {
+    localStorage.setItem(ID_CARD_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    setSaveMessage("Template settings saved as default");
+    setTimeout(() => setSaveMessage(null), 2500);
+  }
 
   return (
-    <div className="w-full px-6 py-6 space-y-5">
-      <style>{`
-        @media print {
-          body * { visibility: hidden; }
-          #id-card-print-area, #id-card-print-area * { visibility: visible; }
-          #id-card-print-area { position: absolute; inset: 0; }
-        }
-      `}</style>
-
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">ID Card Generator</h1>
-          <p className="text-sm text-gray-500 dark:text-zinc-400">Select students or staff to generate printable ID cards.</p>
-        </div>
-        <button
-          onClick={() => window.print()}
-          disabled={selectedPeople.length === 0}
-          className="flex h-9 items-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 disabled:opacity-40 px-4 text-sm font-medium text-white transition-colors shadow-sm"
-        >
-          <Printer className="h-4 w-4" /> Print {selectedPeople.length > 0 ? `(${selectedPeople.length})` : ""}
-        </button>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-5">
-        {/* Selection panel */}
-        <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
-          <div className="flex border-b border-gray-200 dark:border-zinc-800">
-            {(["student", "staff"] as PersonType[]).map((t) => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`flex flex-1 items-center justify-center gap-1.5 py-2.5 text-sm font-medium transition-colors ${
-                  tab === t
-                    ? "border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400"
-                    : "text-gray-500 dark:text-zinc-400 hover:text-gray-800 dark:hover:text-zinc-200"
-                }`}
+    <div className="w-full px-6 py-6 lg:h-full lg:flex lg:flex-col print:h-auto print:p-0">
+      <div className="print:hidden flex flex-col gap-5 lg:flex-1 lg:min-h-0">
+        <div className="shrink-0 space-y-1.5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">ID Card Generator</h1>
+              <p className="text-sm text-gray-500 dark:text-zinc-400">Design, preview and print ID cards for students and staff.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <FancyButton
+                onClick={handlePrint}
+                disabled={previewPeople.length === 0}
+                size="sm"
               >
-                {t === "student" ? <Users className="h-4 w-4" /> : <Briefcase className="h-4 w-4" />}
-                {t === "student" ? "Students" : "Staff"}
+                <Printer className="h-3.5 w-3.5" /> Print{previewPeople.length > 1 ? ` (${previewPeople.length})` : ""}
+              </FancyButton>
+              <button
+                onClick={handleDownload}
+                disabled={previewPeople.length === 0 || downloading}
+                title="Download as a PDF (A4)"
+                className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 disabled:opacity-40 px-4 text-sm font-medium text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
+              >
+                <Download className="h-3.5 w-3.5" />
+                {downloading ? "Generating…" : `Download${previewPeople.length > 1 ? ` (${previewPeople.length})` : ""}`}
               </button>
-            ))}
-          </div>
-
-          <div className="p-3 space-y-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-zinc-500 pointer-events-none" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search by name or ID…"
-                className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
-              />
-            </div>
-
-            <button
-              onClick={toggleAll}
-              className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
-            >
-              {allFilteredSelected ? <CheckSquare className="h-3.5 w-3.5" /> : <Square className="h-3.5 w-3.5" />}
-              {allFilteredSelected ? "Deselect all" : "Select all"} ({filtered.length})
-            </button>
-
-            <div className="max-h-[420px] space-y-1 overflow-y-auto">
-              {filtered.map((p) => {
-                const checked = selected.has(p.id);
-                return (
-                  <button
-                    key={p.id}
-                    onClick={() => toggle(p.id)}
-                    className={`flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left transition-colors ${
-                      checked ? "bg-indigo-500/10" : "hover:bg-gray-50 dark:hover:bg-zinc-700/40"
-                    }`}
-                  >
-                    {checked ? (
-                      <CheckSquare className="h-4 w-4 shrink-0 text-indigo-500" />
-                    ) : (
-                      <Square className="h-4 w-4 shrink-0 text-gray-300 dark:text-zinc-600" />
-                    )}
-                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[11px] font-bold text-white ${avatarColor(p.id)}`}>
-                      {initials(p.name)}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-gray-900 dark:text-zinc-100">{p.name}</p>
-                      <p className="truncate text-xs text-gray-400 dark:text-zinc-500">{p.idNumber} · {p.subtitle}</p>
-                    </div>
-                  </button>
-                );
-              })}
-              {filtered.length === 0 && (
-                <p className="py-8 text-center text-sm text-gray-400 dark:text-zinc-500">No matches</p>
-              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors">
+                  <MoreVertical className="h-4 w-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" sideOffset={6} className="w-44">
+                  <DropdownMenuItem className="cursor-pointer" disabled={previewPeople.length === 0} onClick={handleShare}>
+                    <Share2 /> Share
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="cursor-pointer" onClick={handleSaveTemplate}>
+                    <Star /> Save Template
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
-        </div>
-
-        {/* Preview panel */}
-        <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900/40 p-5">
-          {selectedPeople.length === 0 ? (
-            <div className="flex h-full min-h-[300px] flex-col items-center justify-center gap-2 text-center">
-              <IdCard className="h-8 w-8 text-gray-300 dark:text-zinc-600" />
-              <p className="text-sm font-medium text-gray-500 dark:text-zinc-400">No cards selected</p>
-              <p className="text-xs text-gray-400 dark:text-zinc-500">Pick students or staff on the left to preview their ID cards here.</p>
-            </div>
-          ) : (
-            <div id="id-card-print-area" className="flex flex-wrap gap-4">
-              {selectedPeople.map((p) => (
-                <IdCardPreview key={p.id} person={p} />
-              ))}
-            </div>
+          {(saveMessage || shareMessage) && (
+            <p className="text-xs text-emerald-600 dark:text-emerald-400">{saveMessage ?? shareMessage}</p>
           )}
         </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr_320px] lg:grid-rows-[minmax(0,1fr)] gap-5 items-stretch lg:flex-1 lg:min-h-0">
+          {/* Left column — selection */}
+          <div className="flex flex-col gap-3 lg:h-full lg:min-h-0">
+            <div className="flex shrink-0 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
+              {(["student", "staff"] as PersonType[]).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => { setPersonType(t); setSelected(new Set()); }}
+                  className={`flex flex-1 items-center justify-center gap-1.5 py-2.5 text-sm font-medium transition-colors ${
+                    personType === t
+                      ? "border-b-2 border-primary-500 text-primary-600 dark:text-primary-400"
+                      : "text-gray-500 dark:text-zinc-400 hover:text-gray-800 dark:hover:text-zinc-200"
+                  }`}
+                >
+                  {t === "student" ? <Users className="h-4 w-4" /> : <Briefcase className="h-4 w-4" />}
+                  {t === "student" ? "Students" : "Staff"}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex-1 min-h-0 flex flex-col">
+              <PersonPickerTable
+                people={peopleOfType}
+                type={personType}
+                selected={selected}
+                onToggle={toggle}
+                onSelectMany={selectMany}
+                onClear={clearSelection}
+                onInvert={invert}
+                onGenerate={() => setGenerated(true)}
+              />
+            </div>
+          </div>
+
+          {/* Middle column — canvas / preview */}
+          <div className="flex flex-col rounded-xl border border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900/40 p-6 min-h-[400px] lg:h-full lg:min-h-0">
+            <div className="mb-4 flex shrink-0 items-center gap-1.5">
+              <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">
+                ID Card Preview {generated && samplePerson && isBulk ? "(Sample)" : ""}
+              </p>
+              <Info className="h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+            </div>
+
+            <div className="flex flex-1 min-h-0 flex-col items-center justify-center overflow-y-auto">
+            {!generated || !samplePerson ? (
+              <div className="flex flex-col items-center justify-center gap-2 text-center">
+                <IdCardIcon className="h-8 w-8 text-gray-300 dark:text-zinc-600" />
+                <p className="text-sm font-medium text-gray-500 dark:text-zinc-400">No cards generated yet</p>
+                <p className="text-xs text-gray-400 dark:text-zinc-500">
+                  Select one {personType} for a single card, or several for a batch — then click Generate.
+                </p>
+              </div>
+            ) : (
+              <div className="flex w-full flex-col items-center">
+                <div className="flex justify-center overflow-x-auto py-4">
+                  <IdCard
+                    person={samplePerson}
+                    template={activeTemplate}
+                    orientation={settings.orientation}
+                    layout={settings.layoutId}
+                    widthMm={printWidthMm}
+                    heightMm={printHeightMm}
+                    showBarcode={settings.showBarcode}
+                    showQr={settings.showQr}
+                    visibleFields={settings.visibleFields}
+                    schoolName={schoolName}
+                    schoolLogoUrl={schoolLogoUrl}
+                  />
+                </div>
+
+                {isBulk && restPeople.length > 0 && (
+                  <div className="mt-4">
+                    <div className="flex flex-wrap items-stretch justify-center gap-2">
+                      {thumbs.map((p) => (
+                        <IdCard
+                          key={p.id}
+                          person={p}
+                          template={activeTemplate}
+                          orientation={settings.orientation}
+                          layout={settings.layoutId}
+                          widthMm={printWidthMm}
+                          heightMm={printHeightMm}
+                          showBarcode={settings.showBarcode}
+                          showQr={settings.showQr}
+                          visibleFields={settings.visibleFields}
+                          schoolName={schoolName}
+                          schoolLogoUrl={schoolLogoUrl}
+                          variant="mini"
+                        />
+                      ))}
+                      {moreCount > 0 && (
+                        <div className="flex w-24 shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-gray-300 dark:border-zinc-600 px-1.5 text-center text-gray-400 dark:text-zinc-500">
+                          <span className="text-sm font-semibold">+{moreCount}</span>
+                          <span className="text-[10px] leading-tight">
+                            more {personType === "student" ? "student" : "staff member"}{moreCount === 1 ? "" : "s"}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {isBulk && (
+                  <p className="mt-3 text-center text-[11px] text-gray-400 dark:text-zinc-500">
+                    This is a sample preview. All selected {personType === "student" ? "students" : "staff"} will get ID cards in the same design.
+                  </p>
+                )}
+              </div>
+            )}
+            </div>
+          </div>
+
+          {/* Right column — properties */}
+          <div className="space-y-5 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pr-1">
+            <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5">
+              <p className="mb-4 text-sm font-semibold text-gray-900 dark:text-zinc-50">
+                {isBulk ? "Batch Settings (Applied to all)" : "ID Card Settings"}
+              </p>
+              <CardSettingsPanel settings={settings} onChange={setSettings} />
+            </div>
+
+            <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5">
+              <p className="mb-4 text-sm font-semibold text-gray-900 dark:text-zinc-50">Fields to Show</p>
+              <FieldVisibilityPanel settings={settings} onChange={setSettings} />
+            </div>
+
+            <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5">
+              <p className="mb-4 text-sm font-semibold text-gray-900 dark:text-zinc-50">Color Theme</p>
+              <TemplateGallery selectedId={settings.templateId} layoutId={settings.layoutId} onSelect={(id) => setSettings((s) => ({ ...s, templateId: id }))} />
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* Print-only area: full-size cards for every card being generated. Each card
+          keeps its full preview-scale design (so nothing re-flows or clips) inside a
+          frame sized to the card's true physical dimensions; the print CSS below
+          visually shrinks the card down to fit that frame exactly. */}
+      <div
+        id="id-card-print-area"
+        className={
+          capturing
+            ? "capture-mode fixed left-0 top-0 z-[-1] flex flex-wrap gap-4 bg-white opacity-0"
+            : "hidden print:flex print:flex-wrap print:gap-4"
+        }
+      >
+        {previewPeople.map((p) => (
+          <div
+            key={p.id}
+            className="print-card-frame shrink-0 overflow-hidden"
+            style={{ width: `${printWidthMm}mm`, height: `${printHeightMm}mm` }}
+          >
+            <IdCard
+              person={p}
+              template={activeTemplate}
+              orientation={settings.orientation}
+              layout={settings.layoutId}
+              widthMm={printWidthMm}
+              heightMm={printHeightMm}
+              showBarcode={settings.showBarcode}
+              showQr={settings.showQr}
+              visibleFields={settings.visibleFields}
+              schoolName={schoolName}
+              schoolLogoUrl={schoolLogoUrl}
+            />
+          </div>
+        ))}
+      </div>
+
+      <style>{`
+        @media print {
+          @page { margin: 8mm; size: auto; }
+          .print-card-frame .id-card { transform: scale(${PRINT_SCALE}); transform-origin: top left; }
+          /* Push a card that doesn't fully fit on the current page to the next
+             one instead of letting the page boundary slice it in half. */
+          .print-card-frame { break-inside: avoid; page-break-inside: avoid; }
+        }
+        /* Mirrors the @media print scaling above so the off-screen PDF capture
+           (driven by JS, not an actual print) crops each card to its true
+           physical size instead of the larger on-screen preview size. */
+        #id-card-print-area.capture-mode .print-card-frame .id-card {
+          transform: scale(${PRINT_SCALE});
+          transform-origin: top left;
+        }
+      `}</style>
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Upload, Download, X, FileSpreadsheet, CheckCircle2, AlertTriangle } from "lucide-react";
+import { FancyButton } from "@/components/ui/fancy-button";
 
 export interface ImportColumn {
   key: string;
@@ -100,13 +101,13 @@ export function BulkImportModal({ open, onClose, title, columns, onImport }: Bul
         <div className="max-h-[70vh] overflow-y-auto p-5 space-y-4">
           <button
             onClick={downloadTemplate}
-            className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+            className="flex items-center gap-1.5 text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline"
           >
             <Download className="h-3.5 w-3.5" /> Download CSV template
           </button>
 
           <div
-            className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 dark:border-zinc-700 p-6 text-center cursor-pointer hover:border-indigo-400 transition-colors"
+            className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 dark:border-zinc-700 p-6 text-center cursor-pointer hover:border-primary-400 transition-colors"
             onClick={() => fileRef.current?.click()}
           >
             <Upload className="h-6 w-6 text-gray-400 dark:text-zinc-500" />
@@ -164,14 +165,14 @@ export function BulkImportModal({ open, onClose, title, columns, onImport }: Bul
           >
             Cancel
           </button>
-          <button
+          <FancyButton
             onClick={handleImport}
             disabled={body.length === 0}
-            className="flex h-9 items-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 disabled:opacity-40 px-4 text-sm font-medium text-white transition-colors"
+            size="sm"
           >
             <CheckCircle2 className="h-4 w-4" />
             Import{body.length > 0 ? ` ${body.length} row${body.length === 1 ? "" : "s"}` : ""}
-          </button>
+          </FancyButton>
         </div>
       </div>
     </div>

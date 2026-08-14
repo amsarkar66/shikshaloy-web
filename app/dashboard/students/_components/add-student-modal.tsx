@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { X, Loader2, CheckCircle2, KeyRound, Copy } from "lucide-react";
+import { X, Loader2, CheckCircle2, KeyRound, Copy, ChevronDown } from "lucide-react";
+import { FancyButton } from "@/components/ui/fancy-button";
 import { addStudentManual, type AddStudentInput } from "../actions";
 import type { EnrollStudentResult } from "@/lib/students/enroll";
 import { PhotoUpload } from "../../_components/photo-upload";
@@ -20,14 +21,20 @@ interface AddStudentModalProps {
 }
 
 const inputClass =
-  "h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20";
+  "h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20";
+
+const selectClass =
+  "h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20";
 
 export function AddStudentModal({ open, onClose, sections, onCreated }: AddStudentModalProps) {
   const [form, setForm] = useState({
     fullName: "", dob: "", gender: "Male" as "Male" | "Female" | "Other",
-    sectionId: sections[0]?.id ?? "", phone: "", address: "",
+    sectionId: sections[0]?.id ?? "", admissionNo: "", phone: "", address: "",
     parentName: "", parentPhone: "", parentEmail: "",
     photoUrl: null as string | null,
+    bloodGroup: "", religion: "", caste: "", motherTongue: "", language: "",
+    emergencyContactName: "", emergencyContactPhone: "", emergencyContactRelation: "",
+    medicalConditions: "", allergies: "",
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,9 +48,12 @@ export function AddStudentModal({ open, onClose, sections, onCreated }: AddStude
 
   function reset() {
     setForm({
-      fullName: "", dob: "", gender: "Male", sectionId: sections[0]?.id ?? "",
+      fullName: "", dob: "", gender: "Male", sectionId: sections[0]?.id ?? "", admissionNo: "",
       phone: "", address: "", parentName: "", parentPhone: "", parentEmail: "",
       photoUrl: null,
+      bloodGroup: "", religion: "", caste: "", motherTongue: "", language: "",
+      emergencyContactName: "", emergencyContactPhone: "", emergencyContactRelation: "",
+      medicalConditions: "", allergies: "",
     });
     setError(null);
     setResult(null);
@@ -74,12 +84,23 @@ export function AddStudentModal({ open, onClose, sections, onCreated }: AddStude
         gender: form.gender,
         sectionId: form.sectionId,
         gradeLevel: section.gradeLevel,
+        admissionNo: form.admissionNo || null,
         phone: form.phone || null,
         address: form.address || null,
         parentName: form.parentName || null,
         parentPhone: form.parentPhone || null,
         parentEmail: form.parentEmail || null,
         photoUrl: form.photoUrl,
+        bloodGroup: form.bloodGroup || null,
+        religion: form.religion || null,
+        caste: form.caste || null,
+        motherTongue: form.motherTongue || null,
+        language: form.language || null,
+        emergencyContactName: form.emergencyContactName || null,
+        emergencyContactPhone: form.emergencyContactPhone || null,
+        emergencyContactRelation: form.emergencyContactRelation || null,
+        medicalConditions: form.medicalConditions || null,
+        allergies: form.allergies || null,
       };
       const res = await addStudentManual(input);
       setResult(res);
@@ -159,7 +180,7 @@ export function AddStudentModal({ open, onClose, sections, onCreated }: AddStude
               >
                 <Copy className="h-3.5 w-3.5"/>Copy credentials
               </button>
-              <button onClick={handleClose} className="flex-1 h-9 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-xs font-medium text-white transition-colors">Done</button>
+              <FancyButton onClick={handleClose} size="sm" className="flex-1">Done</FancyButton>
             </div>
           </div>
         ) : (
@@ -179,19 +200,29 @@ export function AddStudentModal({ open, onClose, sections, onCreated }: AddStude
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Gender</label>
-                <select className={inputClass} value={form.gender} onChange={(e) => update("gender", e.target.value as typeof form.gender)}>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
-                </select>
+                <div className="relative">
+                  <select className={selectClass} value={form.gender} onChange={(e) => update("gender", e.target.value as typeof form.gender)}>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+                </div>
               </div>
               <div className="col-span-2">
                 <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Class / Section *</label>
-                <select className={inputClass} value={form.sectionId} onChange={(e) => update("sectionId", e.target.value)} required>
-                  {sections.map((s) => (
-                    <option key={s.id} value={s.id}>Class {s.gradeLevel}-{s.name}</option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select className={selectClass} value={form.sectionId} onChange={(e) => update("sectionId", e.target.value)} required>
+                    {sections.map((s) => (
+                      <option key={s.id} value={s.id}>Class {s.gradeLevel}-{s.name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+                </div>
+              </div>
+              <div className="col-span-2">
+                <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Admission No.</label>
+                <input className={inputClass} value={form.admissionNo} onChange={(e) => update("admissionNo", e.target.value)} />
               </div>
               <div className="col-span-2">
                 <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Phone</label>
@@ -200,6 +231,70 @@ export function AddStudentModal({ open, onClose, sections, onCreated }: AddStude
               <div className="col-span-2">
                 <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Address</label>
                 <input className={inputClass} value={form.address} onChange={(e) => update("address", e.target.value)} />
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100 dark:border-zinc-800 pt-4">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Additional Details</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Blood Group</label>
+                  <div className="relative">
+                    <select className={selectClass} value={form.bloodGroup} onChange={(e) => update("bloodGroup", e.target.value)}>
+                      <option value="">Select</option>
+                      {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((bg) => <option key={bg} value={bg}>{bg}</option>)}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+                  </div>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Mother Tongue</label>
+                  <input className={inputClass} value={form.motherTongue} onChange={(e) => update("motherTongue", e.target.value)} />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Religion</label>
+                  <input className={inputClass} value={form.religion} onChange={(e) => update("religion", e.target.value)} />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Caste</label>
+                  <input className={inputClass} value={form.caste} onChange={(e) => update("caste", e.target.value)} />
+                </div>
+                <div className="col-span-2">
+                  <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Language(s) Known</label>
+                  <input className={inputClass} value={form.language} onChange={(e) => update("language", e.target.value)} placeholder="e.g. English, Hindi" />
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100 dark:border-zinc-800 pt-4">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Health Info</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Medical Conditions</label>
+                  <input className={inputClass} value={form.medicalConditions} onChange={(e) => update("medicalConditions", e.target.value)} placeholder="e.g. Asthma" />
+                </div>
+                <div className="col-span-2">
+                  <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Allergies</label>
+                  <input className={inputClass} value={form.allergies} onChange={(e) => update("allergies", e.target.value)} placeholder="e.g. Peanuts" />
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100 dark:border-zinc-800 pt-4">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Emergency Contact</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Name</label>
+                  <input className={inputClass} value={form.emergencyContactName} onChange={(e) => update("emergencyContactName", e.target.value)} />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Phone</label>
+                  <input className={inputClass} value={form.emergencyContactPhone} onChange={(e) => update("emergencyContactPhone", e.target.value)} />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Relation</label>
+                  <input className={inputClass} value={form.emergencyContactRelation} onChange={(e) => update("emergencyContactRelation", e.target.value)} placeholder="e.g. Uncle" />
+                </div>
               </div>
             </div>
 
@@ -231,10 +326,10 @@ export function AddStudentModal({ open, onClose, sections, onCreated }: AddStude
               <button type="button" onClick={handleClose} className="h-9 rounded-lg border border-gray-200 dark:border-zinc-700 px-4 text-sm text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800">
                 Cancel
               </button>
-              <button type="submit" disabled={busy || sections.length === 0} className="flex h-9 items-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 px-4 text-sm font-medium text-white transition-colors">
+              <FancyButton type="submit" disabled={busy || sections.length === 0} size="sm">
                 {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 {sections.length === 0 ? "No sections available" : "Add Student"}
-              </button>
+              </FancyButton>
             </div>
           </form>
         )}

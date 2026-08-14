@@ -5,9 +5,10 @@ import {
   TrendingUp, TrendingDown, CreditCard, FileBarChart,
   Plus, Settings, ChevronRight, CheckCircle2,
   MapPin, AlertTriangle, UserCog,
-  Building2, Clock, ClipboardCheck,
+  Clock, ClipboardCheck,
 } from "lucide-react";
 import { supabaseAdmin } from "@/lib/supabase/service";
+import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
 
 // ── Greeting ─────────────────────────────────────────────────────────────────
 
@@ -190,7 +191,7 @@ function RecentActivity({ items }: { items: ActivityItem[] }) {
     <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5">
       <div className="mb-4 flex items-center justify-between">
         <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Recent Activity</p>
-        <Link href="/dashboard/audit-log" className="flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 hover:underline">
+        <Link href="/dashboard/audit-log" className="flex items-center gap-1 text-xs text-primary-600 dark:text-primary-400 hover:underline">
           View all <ChevronRight className="h-3 w-3" />
         </Link>
       </div>
@@ -275,7 +276,7 @@ function SubscriptionCard({
       <div className="space-y-3">
         <div>
           <p className="text-base font-bold text-gray-900 dark:text-zinc-50">{subscription.planName}</p>
-          <p className="text-xs text-indigo-500 dark:text-zinc-400">{formatCurrency(subscription.monthlyFee)}/mo</p>
+          <p className="text-xs text-primary-500 dark:text-zinc-400">{formatCurrency(subscription.monthlyFee)}/mo</p>
         </div>
 
         <div>
@@ -350,14 +351,21 @@ export async function SuperAdminView({ user }: { user: User }) {
   const name = (user.user_metadata?.full_name as string)?.split(" ")[0]
     || user.email?.split("@")[0]
     || "Owner";
-  const institution = (user.user_metadata?.institution_name as string) ?? null;
 
-  const { data: schoolRows } = await supabaseAdmin
-    .from("schools")
-    .select("id, name, city, state, principal_name")
-    .order("name");
+  const institutionId = await getCurrentInstitutionIdOrThrow();
 
-  const schoolIds = (schoolRows ?? []).map((s: any) => s.id);
+  const [{ data: institutionRow }, { data: schoolRows }] = await Promise.all([
+    supabaseAdmin.from("institutions").select("name").eq("id", institutionId).maybeSingle(),
+    supabaseAdmin
+      .from("schools")
+      .select("id, name, city, state, principal_name")
+      .eq("institution_id", institutionId)
+      .order("name"),
+  ]);
+
+  const institution = institutionRow?.name ?? null;
+
+  const schoolIds = (schoolRows ?? []).map((s) => s.id);
 
   const [
     { data: studentRows },
@@ -368,30 +376,28 @@ export async function SuperAdminView({ user }: { user: User }) {
   ] = await Promise.all([
     schoolIds.length
       ? supabaseAdmin.from("students").select("school_id, attendance_pct").in("school_id", schoolIds)
-      : Promise.resolve({ data: [] as any[] }),
+      : Promise.resolve({ data: [] as { school_id: string; attendance_pct: number | null }[] }),
 
     schoolIds.length
       ? supabaseAdmin.from("staff_members").select("school_id, type").in("school_id", schoolIds)
-      : Promise.resolve({ data: [] as any[] }),
+      : Promise.resolve({ data: [] as { school_id: string; type: string | null }[] }),
 
     schoolIds.length
       ? supabaseAdmin.from("fee_payments").select("school_id, student_id, month_str, amount_due, amount_paid").in("school_id", schoolIds)
-      : Promise.resolve({ data: [] as any[] }),
+      : Promise.resolve({ data: [] as { school_id: string; student_id: string; month_str: string; amount_due: number | null; amount_paid: number | null }[] }),
 
     schoolIds.length
       ? supabaseAdmin.from("audit_log").select("school_id, action, module, description, actor_name, created_at")
           .in("school_id", schoolIds).order("created_at", { ascending: false }).limit(5)
-      : Promise.resolve({ data: [] as any[] }),
+      : Promise.resolve({ data: [] as { school_id: string; action: string; module: string; description: string | null; actor_name: string | null; created_at: string }[] }),
 
-    schoolIds.length
-      ? supabaseAdmin.from("school_subscriptions").select("plan_name, status, schools_used, max_schools, monthly_fee, renews_on")
-          .eq("school_id", schoolIds[0]).maybeSingle()
-      : Promise.resolve({ data: null as any }),
+    supabaseAdmin.from("school_subscriptions").select("plan_name, status, schools_used, max_schools, monthly_fee, renews_on")
+      .eq("institution_id", institutionId).maybeSingle(),
   ]);
 
-  const students = (studentRows ?? []) as any[];
-  const staff = (staffRows ?? []) as any[];
-  const fees = (feeRows ?? []) as any[];
+  const students = (studentRows ?? []) as { school_id: string; attendance_pct: number | null }[];
+  const staff = (staffRows ?? []) as { school_id: string; type: string | null }[];
+  const fees = (feeRows ?? []) as { school_id: string; student_id: string; month_str: string; amount_due: number | null; amount_paid: number | null }[];
 
   // ── Per-school aggregation ──────────────────────────────────
   const byMonthPerSchool: Record<string, Record<string, { due: number; paid: number }>> = {};
@@ -402,7 +408,7 @@ export async function SuperAdminView({ user }: { user: User }) {
     byMonthPerSchool[f.school_id][f.month_str].paid += Number(f.amount_paid ?? 0);
   }
 
-  const schools: SchoolSummary[] = ((schoolRows ?? []) as any[]).map((sc) => {
+  const schools: SchoolSummary[] = (schoolRows ?? []).map((sc) => {
     const schoolStudents = students.filter((s) => s.school_id === sc.id);
     const schoolStaff = staff.filter((s) => s.school_id === sc.id);
     const avgAttendance = schoolStudents.length
@@ -464,23 +470,23 @@ export async function SuperAdminView({ user }: { user: User }) {
   ];
 
   // ── Recent activity ──────────────────────────────────────────
-  const schoolNameById = new Map(((schoolRows ?? []) as any[]).map((s) => [s.id, s.name]));
-  const activity: ActivityItem[] = ((auditRows ?? []) as any[]).map((a) => ({
+  const schoolNameById = new Map((schoolRows ?? []).map((s) => [s.id, s.name]));
+  const activity: ActivityItem[] = (auditRows ?? []).map((a) => ({
     icon: ACTION_ICON[a.action] ?? ClipboardCheck,
     color: MODULE_COLOR[a.module] ?? "text-gray-500 bg-gray-500/10",
-    title: a.description,
+    title: a.description ?? "",
     sub: `${schoolNameById.get(a.school_id) ?? "—"} · ${a.module}`,
     time: formatRelativeTime(a.created_at),
   }));
 
   const subscription = subRow
     ? {
-        planName: (subRow as any).plan_name,
-        status: (subRow as any).status,
-        schoolsUsed: (subRow as any).schools_used,
-        maxSchools: (subRow as any).max_schools,
-        monthlyFee: Number((subRow as any).monthly_fee),
-        renewsOn: (subRow as any).renews_on,
+        planName: subRow.plan_name,
+        status: subRow.status,
+        schoolsUsed: subRow.schools_used,
+        maxSchools: subRow.max_schools,
+        monthlyFee: Number(subRow.monthly_fee),
+        renewsOn: subRow.renews_on,
       }
     : null;
 
@@ -501,10 +507,6 @@ export async function SuperAdminView({ user }: { user: User }) {
             )}
             {formatDate()}
           </p>
-        </div>
-        <div className="flex items-center gap-1.5 rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-600 dark:text-violet-400">
-          <Building2 className="h-3.5 w-3.5" />
-          {schools.length} school{schools.length !== 1 ? "s" : ""}
         </div>
       </div>
 

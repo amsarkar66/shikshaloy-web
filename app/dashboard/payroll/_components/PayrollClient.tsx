@@ -7,6 +7,7 @@ import {
   ArrowLeft, Printer, BadgeDollarSign,
   FileText, X,
 } from "lucide-react";
+import { FancyButton } from "@/components/ui/fancy-button";
 import {
   STATUS_LABEL, STATUS_BADGE,
   formatCurrency, formatMonth, formatDate,
@@ -15,6 +16,7 @@ import {
   type PayrollStaff, type PayrollRecord, type PayrollStatus,
 } from "../_data/payroll";
 import { processSalary, processAllPending } from "../actions";
+import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow, TableTitleHeader } from "@/components/ui/data-table";
 
 // ── Month nav ─────────────────────────────────────────────────────────────────
 
@@ -34,7 +36,7 @@ function MonthNav({ months, index, onChange }: { months: string[]; index: number
       </button>
       <div className="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 h-8">
         <span className="text-sm font-semibold text-gray-900 dark:text-zinc-100">{monthStr ? formatMonth(monthStr) : "No data"}</span>
-        {isLast && monthStr && <span className="rounded-full bg-indigo-500 px-1.5 py-0.5 text-[10px] font-bold text-white">Latest</span>}
+        {isLast && monthStr && <span className="rounded-full bg-primary-500 px-1.5 py-0.5 text-[10px] font-bold text-white">Latest</span>}
       </div>
       <button
         onClick={() => onChange(index + 1)}
@@ -87,26 +89,26 @@ function PaySlip({ staff, record, onClose }: { staff: PayrollStaff; record: Payr
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 print:hidden">
-        <button onClick={onClose} className="flex items-center gap-1.5 text-sm font-medium text-gray-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+        <button onClick={onClose} className="flex items-center gap-1.5 text-sm font-medium text-gray-500 dark:text-zinc-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to Details
         </button>
-        <button onClick={() => window.print()} className="sm:ml-auto flex h-8 items-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 px-3 text-xs font-medium text-white transition-colors">
+        <FancyButton onClick={() => window.print()} size="xs" className="sm:ml-auto">
           <Printer className="h-3.5 w-3.5" /> Print Slip
-        </button>
+        </FancyButton>
       </div>
 
       <div className="rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm max-w-2xl mx-auto">
-        <div className="bg-indigo-600 px-8 py-6 flex items-center gap-4">
+        <div className="bg-primary-600 px-8 py-6 flex items-center gap-4">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/20">
             <FileText className="h-6 w-6 text-white" />
           </div>
           <div className="flex-1">
             <p className="text-lg font-extrabold text-white">Shikshaloy School</p>
-            <p className="text-indigo-200 text-xs mt-0.5">Salary Slip — {formatMonth(record.monthStr)}</p>
+            <p className="text-primary-200 text-xs mt-0.5">Salary Slip — {formatMonth(record.monthStr)}</p>
           </div>
           {record.slipNo && (
             <div className="text-right hidden sm:block">
-              <p className="text-indigo-200 text-[10px] uppercase tracking-widest font-semibold">Slip No.</p>
+              <p className="text-primary-200 text-[10px] uppercase tracking-widest font-semibold">Slip No.</p>
               <p className="text-white text-sm font-bold font-mono">{record.slipNo}</p>
             </div>
           )}
@@ -175,7 +177,7 @@ function PaySlip({ staff, record, onClose }: { staff: PayrollStaff; record: Payr
             </div>
           </div>
 
-          <div className="rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 p-5 flex flex-wrap gap-8 items-center">
+          <div className="rounded-xl bg-primary-50 dark:bg-primary-500/10 border border-primary-100 dark:border-primary-500/20 p-5 flex flex-wrap gap-8 items-center">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wider text-indigo-400 dark:text-indigo-500">Gross Earnings</p>
               <p className="text-xl font-extrabold text-gray-800 dark:text-zinc-200 mt-0.5">{formatCurrency(record.gross)}</p>
@@ -240,7 +242,7 @@ function StaffPayDetail({
   if (!record) {
     return (
       <div className="space-y-5">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-medium text-gray-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+        <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-medium text-gray-500 dark:text-zinc-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
           <ArrowLeft className="h-4 w-4" /> All Staff
         </button>
         <p className="text-sm text-gray-400 dark:text-zinc-500">No payroll record for this month.</p>
@@ -267,7 +269,7 @@ function StaffPayDetail({
   return (
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-medium text-gray-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors self-start">
+        <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-medium text-gray-500 dark:text-zinc-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors self-start">
           <ArrowLeft className="h-4 w-4" /> All Staff
         </button>
 
@@ -285,7 +287,7 @@ function StaffPayDetail({
           {record.status === "processed" && (
             <button
               onClick={() => { setSlipMonth(monthStr); setShowSlip(true); }}
-              className="flex h-8 items-center gap-1.5 rounded-lg border border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-500/10 px-3 text-xs font-medium text-indigo-700 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors"
+              className="flex h-8 items-center gap-1.5 rounded-lg border border-primary-300 dark:border-primary-700 bg-primary-50 dark:bg-primary-500/10 px-3 text-xs font-medium text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-500/20 transition-colors"
             >
               <Printer className="h-3.5 w-3.5" /> Print Pay Slip
             </button>
@@ -343,8 +345,8 @@ function StaffPayDetail({
 
         <div className="px-4 py-4 bg-indigo-50 dark:bg-indigo-500/5 border-t border-indigo-100 dark:border-indigo-500/20 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-indigo-400">Net Pay</p>
-            <p className="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400 mt-0.5">{formatCurrency(record.net)}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-primary-400">Net Pay</p>
+            <p className="text-2xl font-extrabold text-primary-600 dark:text-primary-400 mt-0.5">{formatCurrency(record.net)}</p>
           </div>
           {record.paidOn && (
             <div className="text-xs text-gray-500 dark:text-zinc-400 text-right">
@@ -355,44 +357,40 @@ function StaffPayDetail({
         </div>
       </div>
 
-      <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-100 dark:border-zinc-700/50">
-          <p className="text-sm font-semibold text-gray-900 dark:text-zinc-100">Payroll History</p>
-        </div>
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 dark:bg-zinc-800/80 border-b border-gray-100 dark:border-zinc-700/50">
-            <tr>
-              {["Month", "Gross", "Deductions", "Net Pay", "Status", "Slip"].map((h) => (
-                <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-zinc-700/50">
-            {history.map(({ monthStr: m, record: r }) => (
-              <tr key={m} className={`transition-colors hover:bg-gray-50 dark:hover:bg-zinc-700/20 ${m === monthStr ? "bg-indigo-50/50 dark:bg-indigo-500/5" : ""}`}>
-                <td className="px-4 py-3 text-sm font-medium text-gray-800 dark:text-zinc-200 whitespace-nowrap">
-                  {formatMonth(m)}{m === monthStr && <span className="ml-2 text-[10px] font-bold text-indigo-500">viewing</span>}
-                </td>
-                <td className="px-4 py-3 text-sm tabular-nums text-gray-600 dark:text-zinc-400">{formatCurrency(r.gross)}</td>
-                <td className="px-4 py-3 text-sm tabular-nums text-red-500 dark:text-red-400">-{formatCurrency(totalDeductions(r))}</td>
-                <td className="px-4 py-3 text-sm font-semibold tabular-nums text-indigo-600 dark:text-indigo-400">{formatCurrency(r.net)}</td>
-                <td className="px-4 py-3">
-                  <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[r.status]}`}>{STATUS_LABEL[r.status]}</span>
-                </td>
-                <td className="px-4 py-3">
-                  {r.status === "processed" ? (
-                    <button onClick={() => { setSlipMonth(m); setShowSlip(true); }} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-400 transition-colors">
-                      <Printer className="h-3 w-3" /> Print
-                    </button>
-                  ) : (
-                    <span className="text-xs text-gray-300 dark:text-zinc-600">—</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Table header={<TableTitleHeader title="Payroll History" />}>
+        <TableHead>
+          <Th position="first">Month</Th>
+          <Th>Gross</Th>
+          <Th>Deductions</Th>
+          <Th>Net Pay</Th>
+          <Th>Status</Th>
+          <Th position="last">Slip</Th>
+        </TableHead>
+        <TableBody>
+          {history.map(({ monthStr: m, record: r }) => (
+            <Tr key={m} className={m === monthStr ? "bg-indigo-50/50 dark:bg-indigo-500/5" : ""}>
+              <Td position="first" className="text-sm font-medium text-gray-800 dark:text-zinc-200 whitespace-nowrap">
+                {formatMonth(m)}{m === monthStr && <span className="ml-2 text-[10px] font-bold text-indigo-500">viewing</span>}
+              </Td>
+              <Td className="text-sm tabular-nums text-gray-600 dark:text-zinc-400">{formatCurrency(r.gross)}</Td>
+              <Td className="text-sm tabular-nums text-red-500 dark:text-red-400">-{formatCurrency(totalDeductions(r))}</Td>
+              <Td className="text-sm font-semibold tabular-nums text-indigo-600 dark:text-indigo-400">{formatCurrency(r.net)}</Td>
+              <Td>
+                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[r.status]}`}>{STATUS_LABEL[r.status]}</span>
+              </Td>
+              <Td position="last">
+                {r.status === "processed" ? (
+                  <button onClick={() => { setSlipMonth(m); setShowSlip(true); }} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:bg-primary-50 hover:text-primary-600 dark:hover:bg-primary-500/10 dark:hover:text-primary-400 transition-colors">
+                    <Printer className="h-3 w-3" /> Print
+                  </button>
+                ) : (
+                  <span className="text-xs text-gray-300 dark:text-zinc-600">—</span>
+                )}
+              </Td>
+            </Tr>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -440,18 +438,18 @@ function PayrollTable({
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-zinc-500 pointer-events-none" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, employee ID or department…" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, employee ID or department…" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
         </div>
         <div className="flex items-center gap-1">
           {(["all", "teaching", "non_teaching"] as const).map((t) => (
-            <button key={t} onClick={() => setType(t)} className={`h-9 rounded-lg px-3 text-sm font-medium capitalize transition-colors ${typeFilter === t ? "bg-indigo-500 text-white shadow-sm" : "border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
+            <button key={t} onClick={() => setType(t)} className={`h-9 rounded-lg px-3 text-sm font-medium capitalize transition-colors ${typeFilter === t ? "bg-primary-500 text-white shadow-sm" : "border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
               {t === "all" ? "All" : t === "teaching" ? "Teaching" : "Non-Teaching"}
             </button>
           ))}
         </div>
         <div className="flex items-center gap-1">
           {(["all", "processed", "pending", "on_hold"] as const).map((s) => (
-            <button key={s} onClick={() => setStatus(s)} className={`h-9 rounded-lg px-3 text-sm font-medium transition-colors ${statusFilter === s ? "bg-indigo-500 text-white shadow-sm" : "border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
+            <button key={s} onClick={() => setStatus(s)} className={`h-9 rounded-lg px-3 text-sm font-medium transition-colors ${statusFilter === s ? "bg-primary-500 text-white shadow-sm" : "border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
               {s === "all" ? "All Status" : STATUS_LABEL[s as PayrollStatus]}
             </button>
           ))}
@@ -466,54 +464,53 @@ function PayrollTable({
       <p className="text-xs text-gray-500 dark:text-zinc-500">
         Showing <span className="font-medium text-gray-700 dark:text-zinc-300">{filtered.length}</span> of{" "}
         <span className="font-medium text-gray-700 dark:text-zinc-300">{active.length}</span> staff
-        {hasFilter && <span className="ml-2 text-indigo-600 dark:text-indigo-400 font-medium">· Filters active</span>}
+        {hasFilter && <span className="ml-2 text-primary-600 dark:text-primary-400 font-medium">· Filters active</span>}
         <span className="ml-4">Total gross: <span className="font-medium text-gray-700 dark:text-zinc-300">{formatCurrency(totals.gross)}</span></span>
-        <span className="ml-3">Total net: <span className="font-medium text-indigo-600 dark:text-indigo-400">{formatCurrency(totals.net)}</span></span>
+        <span className="ml-3">Total net: <span className="font-medium text-primary-600 dark:text-primary-400">{formatCurrency(totals.net)}</span></span>
       </p>
 
-      <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="border-b border-gray-100 dark:border-zinc-700/50 bg-gray-50 dark:bg-zinc-800/80">
-              <tr>
-                {["Employee", "Type", "Gross", "Deductions", "Net Pay", "Status", "Pay Date", ""].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-zinc-700/50">
-              {filtered.length === 0 ? (
-                <tr><td colSpan={8} className="py-14 text-center text-sm text-gray-400 dark:text-zinc-500">No staff match this filter</td></tr>
-              ) : filtered.map(({ staff: s, record }) => (
-                <tr key={s.id} className={`hover:bg-gray-50 dark:hover:bg-zinc-700/20 transition-colors ${record.status === "on_hold" ? "opacity-60" : ""}`}>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${avatarColor(s.id)}`}>{initials(s.name)}</div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-zinc-100 whitespace-nowrap">{s.name}</p>
-                        <p className="text-xs text-gray-400 dark:text-zinc-500">{s.employeeId}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${deptColor(s.department)}`}>{s.department}</span>
-                  </td>
-                  <td className="px-4 py-3 text-sm font-medium text-gray-700 dark:text-zinc-300 tabular-nums">{formatCurrency(record.gross)}</td>
-                  <td className="px-4 py-3 text-sm tabular-nums text-red-500 dark:text-red-400">-{formatCurrency(totalDeductions(record))}</td>
-                  <td className="px-4 py-3 text-sm font-semibold tabular-nums text-indigo-600 dark:text-indigo-400">{formatCurrency(record.net)}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_BADGE[record.status]}`}>{STATUS_LABEL[record.status]}</span>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-500 dark:text-zinc-400 whitespace-nowrap">{record.paidOn ? formatDate(record.paidOn) : "—"}</td>
-                  <td className="px-4 py-3 text-right">
-                    <button onClick={() => onViewStaff(s.id)} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-400 transition-colors">View</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <Table>
+        <TableHead>
+          <Th position="first">Employee</Th>
+          <Th>Type</Th>
+          <Th>Gross</Th>
+          <Th>Deductions</Th>
+          <Th>Net Pay</Th>
+          <Th>Status</Th>
+          <Th>Pay Date</Th>
+          <Th position="last" align="right"></Th>
+        </TableHead>
+        <TableBody>
+          {filtered.length === 0 ? (
+            <TableEmptyRow colSpan={8} message="No staff match this filter" />
+          ) : filtered.map(({ staff: s, record }) => (
+            <Tr key={s.id} className={record.status === "on_hold" ? "opacity-60" : ""}>
+              <Td position="first">
+                <div className="flex items-center gap-2.5">
+                  <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${avatarColor(s.id)}`}>{initials(s.name)}</div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 dark:text-zinc-100 whitespace-nowrap">{s.name}</p>
+                    <p className="text-xs text-gray-400 dark:text-zinc-500">{s.employeeId}</p>
+                  </div>
+                </div>
+              </Td>
+              <Td>
+                <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${deptColor(s.department)}`}>{s.department}</span>
+              </Td>
+              <Td className="text-sm font-medium text-gray-700 dark:text-zinc-300 tabular-nums">{formatCurrency(record.gross)}</Td>
+              <Td className="text-sm tabular-nums text-red-500 dark:text-red-400">-{formatCurrency(totalDeductions(record))}</Td>
+              <Td className="text-sm font-semibold tabular-nums text-indigo-600 dark:text-indigo-400">{formatCurrency(record.net)}</Td>
+              <Td>
+                <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_BADGE[record.status]}`}>{STATUS_LABEL[record.status]}</span>
+              </Td>
+              <Td className="text-xs text-gray-500 dark:text-zinc-400 whitespace-nowrap">{record.paidOn ? formatDate(record.paidOn) : "—"}</Td>
+              <Td position="last" align="right">
+                <button onClick={() => onViewStaff(s.id)} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:bg-primary-50 hover:text-primary-600 dark:hover:bg-primary-500/10 dark:hover:text-primary-400 transition-colors">View</button>
+              </Td>
+            </Tr>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -573,9 +570,9 @@ export default function PayrollClient({
           <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
             <Download className="h-3.5 w-3.5" /> Export
           </button>
-          <button onClick={handleProcessAll} disabled={isPending} className="flex h-9 items-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 disabled:opacity-60 px-4 text-sm font-medium text-white shadow-sm transition-colors shrink-0">
+          <FancyButton onClick={handleProcessAll} disabled={isPending} size="sm" className="shrink-0">
             <BadgeDollarSign className="h-4 w-4" /> {isPending ? "Processing…" : "Process All"}
-          </button>
+          </FancyButton>
         </div>
       </div>
 

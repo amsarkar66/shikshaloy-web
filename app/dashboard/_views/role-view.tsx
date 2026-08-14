@@ -33,7 +33,7 @@ export function RoleView({ user }: { user: User }) {
   return (
     <div className="w-full px-6 py-8">
       {institution && (
-        <p className="mb-6 text-sm text-indigo-600 dark:text-zinc-400">{institution}</p>
+        <p className="mb-6 text-sm text-primary-600 dark:text-zinc-400">{institution}</p>
       )}
 
       <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 py-24 text-center">
@@ -41,7 +41,7 @@ export function RoleView({ user }: { user: User }) {
           🚧
         </div>
         <p className="text-base font-semibold text-gray-900 dark:text-zinc-50">{label} dashboard coming soon</p>
-        <p className="max-w-xs text-sm text-indigo-600 dark:text-zinc-400">
+        <p className="max-w-xs text-sm text-primary-600 dark:text-zinc-400">
           {subtitle}
         </p>
       </div>

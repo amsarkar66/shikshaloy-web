@@ -17,15 +17,18 @@ function SlotCell({ subject, name, teacher, room }: { subject: string; name: str
   );
 }
 
-export function StudentTimetableGrid({ tt, rowItems, classLabel }: { tt: ClassTimetable; rowItems: RowItem[]; classLabel: string }) {
+export function StudentTimetableGrid({ tt, rowItems, classLabel, title, action }: { tt: ClassTimetable; rowItems: RowItem[]; classLabel: string; title?: string; action?: React.ReactNode }) {
   const todayIdx = todayDayIndex();
   const hasAnySlot = Object.values(tt).some((day) => Object.keys(day).length > 0);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <CalendarDays className="h-4 w-4 text-indigo-500" />
-        <p className="text-sm font-semibold text-gray-800 dark:text-zinc-200">Class {classLabel} — Weekly Schedule</p>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <CalendarDays className="h-4 w-4 text-primary-500" />
+          <p className="text-sm font-semibold text-gray-800 dark:text-zinc-200">{title ?? `Class ${classLabel} — Weekly Schedule`}</p>
+        </div>
+        {action}
       </div>
 
       {!hasAnySlot ? (
@@ -41,10 +44,10 @@ export function StudentTimetableGrid({ tt, rowItems, classLabel }: { tt: ClassTi
                 <th className="w-16 py-3 px-3 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500 whitespace-nowrap">Period</th>
                 <th className="w-20 py-3 px-2 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500 whitespace-nowrap">Time</th>
                 {DAYS.map((day, i) => (
-                  <th key={day} className={`py-3 px-2 text-center text-xs font-semibold tracking-wide transition-colors ${i === todayIdx ? "text-indigo-600 dark:text-indigo-400" : "text-gray-600 dark:text-zinc-300"}`}>
+                  <th key={day} className={`py-3 px-2 text-center text-xs font-semibold tracking-wide transition-colors ${i === todayIdx ? "text-primary-600 dark:text-primary-400" : "text-gray-600 dark:text-zinc-300"}`}>
                     <span className="inline-flex items-center gap-1">
                       {day}
-                      {i === todayIdx && <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 inline-block" />}
+                      {i === todayIdx && <span className="h-1.5 w-1.5 rounded-full bg-primary-500 inline-block" />}
                     </span>
                   </th>
                 ))}
@@ -77,7 +80,7 @@ export function StudentTimetableGrid({ tt, rowItems, classLabel }: { tt: ClassTi
                     {DAYS.map((day, di) => {
                       const slot = tt[day]?.[p.num];
                       return (
-                        <td key={day} className={`py-1.5 px-1.5 align-top ${di === todayIdx ? "bg-indigo-50/40 dark:bg-indigo-500/5" : ""}`} style={{ minWidth: 110 }}>
+                        <td key={day} className={`py-1.5 px-1.5 align-top ${di === todayIdx ? "bg-primary-50/40 dark:bg-primary-500/5" : ""}`} style={{ minWidth: 110 }}>
                           {slot ? <SlotCell {...slot} /> : <div className="h-full min-h-[52px] rounded-md border border-dashed border-gray-200 dark:border-zinc-700/50" />}
                         </td>
                       );

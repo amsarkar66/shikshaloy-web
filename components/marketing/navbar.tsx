@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { FancyButton } from "@/components/ui/fancy-button";
 import { Menu, X, GraduationCap, LayoutDashboard, LogOut, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
@@ -63,24 +63,24 @@ function UserAvatar({ user }: { user: User }) {
         className="flex items-center gap-1.5 rounded-full focus:outline-none"
         aria-label="User menu"
       >
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-500 text-sm font-bold text-white shadow shadow-indigo-500/40 ring-2 ring-indigo-500/30 transition-all hover:ring-indigo-400/60">
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-b from-primary-400 to-primary-500 text-sm font-bold text-white shadow-[0_2px_0_0_var(--color-primary-700)] ring-2 ring-primary-100 transition-all hover:brightness-105">
           {initials}
         </div>
         <ChevronDown
-          className={`h-3.5 w-3.5 text-indigo-300 transition-transform ${open ? "rotate-180" : ""}`}
+          className={`h-3.5 w-3.5 text-zinc-500 transition-transform ${open ? "rotate-180" : ""}`}
         />
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-52 rounded-xl border border-white/10 bg-indigo-950 py-1.5 shadow-2xl">
+        <div className="absolute right-0 top-full mt-2 w-52 rounded-2xl border border-zinc-200 bg-white py-1.5 shadow-xl shadow-zinc-200/60">
           {/* User info */}
-          <div className="border-b border-white/10 px-3 pb-2.5 pt-1.5">
-            <p className="text-xs font-semibold text-white">
+          <div className="border-b border-zinc-100 px-3 pb-2.5 pt-1.5">
+            <p className="text-xs font-semibold text-zinc-900">
               {(user.user_metadata?.full_name as string) || "Account"}
             </p>
-            <p className="truncate text-[11px] text-indigo-400">{user.email}</p>
+            <p className="truncate text-[11px] text-zinc-500">{user.email}</p>
             {role && (
-              <span className="mt-1 inline-flex items-center rounded-full bg-indigo-500/15 px-1.5 py-0.5 text-[10px] font-medium capitalize text-indigo-300">
+              <span className="mt-1 inline-flex items-center rounded-full bg-primary-50 px-1.5 py-0.5 text-[10px] font-medium capitalize text-primary-700">
                 {role.replace("_", " ")}
               </span>
             )}
@@ -91,14 +91,14 @@ function UserAvatar({ user }: { user: User }) {
             <Link
               href={dashHref}
               onClick={() => setOpen(false)}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-indigo-200 transition-colors hover:bg-white/5 hover:text-white"
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
             >
               <LayoutDashboard className="h-4 w-4" />
               Go to dashboard
             </Link>
             <button
               onClick={handleSignOut}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-500 transition-colors hover:bg-red-50 hover:text-red-600"
             >
               <LogOut className="h-4 w-4" />
               Sign out
@@ -113,6 +113,7 @@ function UserAvatar({ user }: { user: User }) {
 export function Navbar() {
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
@@ -130,14 +131,27 @@ export function Navbar() {
     return () => subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
-    <header className="fixed top-0 z-50 w-full border-b border-white/10 bg-indigo-950/80 backdrop-blur-md">
+    <header
+      className={`fixed top-0 z-50 w-full transition-all duration-300 ${
+        scrolled
+          ? "border-b border-zinc-200 bg-white/85 backdrop-blur-md"
+          : "border-b border-transparent bg-white/40 backdrop-blur-sm"
+      }`}
+    >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500">
-            <GraduationCap className="h-5 w-5 text-white" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-b from-primary-400 to-primary-500 shadow-[0_2px_0_0_var(--color-primary-700)]">
+            <GraduationCap className="h-4.5 w-4.5 text-white" />
           </div>
-          <span className="text-xl font-bold text-white tracking-tight">
+          <span className="text-lg font-bold text-zinc-900 tracking-tight">
             Shikshaloy
           </span>
         </Link>
@@ -147,7 +161,7 @@ export function Navbar() {
             <Link
               key={l.href}
               href={l.href}
-              className="text-sm text-indigo-200 hover:text-white transition-colors"
+              className="text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors"
             >
               {l.label}
             </Link>
@@ -160,22 +174,21 @@ export function Navbar() {
             <UserAvatar user={user} />
           ) : (
             <>
-              <Link href="/login">
-                <Button variant="ghost" className="text-indigo-200 hover:text-white hover:bg-white/10">
-                  Sign In
-                </Button>
+              <Link
+                href="/login"
+                className="text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors px-3 py-2"
+              >
+                Sign In
               </Link>
-              <Link href="/signup">
-                <Button className="bg-indigo-500 hover:bg-indigo-400 text-white">
-                  Get Started Free
-                </Button>
-              </Link>
+              <FancyButton href="/signup" className="text-sm">
+                Get Started Free
+              </FancyButton>
             </>
           )}
         </div>
 
         <button
-          className="md:hidden text-white"
+          className="md:hidden text-zinc-900"
           onClick={() => setOpen(!open)}
         >
           {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -184,12 +197,12 @@ export function Navbar() {
 
       {/* Mobile menu */}
       {open && (
-        <div className="md:hidden bg-indigo-950 border-t border-white/10 px-4 py-4 space-y-3">
+        <div className="md:hidden bg-white border-t border-zinc-200 px-4 py-4 space-y-3">
           {links.map((l) => (
             <Link
               key={l.href}
               href={l.href}
-              className="block text-indigo-200 hover:text-white text-sm py-2"
+              className="block text-zinc-600 hover:text-zinc-900 text-sm py-2"
               onClick={() => setOpen(false)}
             >
               {l.label}
@@ -197,26 +210,20 @@ export function Navbar() {
           ))}
           <div className="pt-2 flex flex-col gap-2">
             {user ? (
-              <Link
-                href={getDashboardHref()}
-                onClick={() => setOpen(false)}
-              >
-                <Button className="w-full bg-indigo-500 hover:bg-indigo-400 text-white">
-                  Go to Dashboard
-                </Button>
-              </Link>
+              <FancyButton href={getDashboardHref()} className="w-full">
+                Go to Dashboard
+              </FancyButton>
             ) : (
               <>
-                <Link href="/login">
-                  <Button variant="ghost" className="w-full text-indigo-200 hover:text-white hover:bg-white/10">
-                    Sign In
-                  </Button>
+                <Link
+                  href="/login"
+                  className="w-full text-center rounded-full border border-zinc-200 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+                >
+                  Sign In
                 </Link>
-                <Link href="/signup">
-                  <Button className="w-full bg-indigo-500 hover:bg-indigo-400 text-white">
-                    Get Started Free
-                  </Button>
-                </Link>
+                <FancyButton href="/signup" className="w-full">
+                  Get Started Free
+                </FancyButton>
               </>
             )}
           </div>

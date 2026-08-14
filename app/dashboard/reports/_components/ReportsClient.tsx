@@ -1,18 +1,26 @@
 "use client";
 
 import { useState, useMemo, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   FileBarChart, GraduationCap, UserCheck, CreditCard,
   Users, Download, RefreshCw, Clock, Calendar,
   Search, X, FileText, FileSpreadsheet,
-  CheckCircle2, Repeat, Zap,
+  CheckCircle2, Repeat, Zap, Loader2,
 } from "lucide-react";
+import { FancyButton } from "@/components/ui/fancy-button";
+import { Table, TableHead, Th, TableBody, Tr, Td, TableEmptyRow } from "@/components/ui/data-table";
 import {
   CATEGORY_META, FORMAT_META,
   formatDate, formatDateTime,
   type Report, type ReportCategory, type ReportFormat, type RecentReport,
 } from "../_data/reports";
-import { generateReport } from "../actions";
+import { generateReport, downloadRecentReport } from "../actions";
+import type { ReportTable } from "../report-data";
+import { downloadCsv } from "../_lib/csv";
+
+const DEFAULT_FROM = "2026-04-01";
+const DEFAULT_TO = new Date().toISOString().slice(0, 10);
 
 // ── Category tabs ─────────────────────────────────────────────────────────────
 
@@ -82,19 +90,24 @@ function GenerateModal({
   onGenerated: () => void;
 }) {
   const [format, setFormat]     = useState<ReportFormat>(report.formats[0]);
-  const [dateFrom, setDateFrom] = useState("2026-04-01");
-  const [dateTo, setDateTo]     = useState(new Date().toISOString().slice(0, 10));
-  const [done, setDone]         = useState(false);
+  const [dateFrom, setDateFrom] = useState(DEFAULT_FROM);
+  const [dateTo, setDateTo]     = useState(DEFAULT_TO);
+  const [table, setTable]       = useState<ReportTable | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const catMeta = CATEGORY_META[report.category];
 
   function handleGenerate() {
     startTransition(async () => {
-      await generateReport({ reportId: report.id, reportName: report.name, category: report.category, format });
-      setDone(true);
+      const result = await generateReport({ reportId: report.id, reportName: report.name, category: report.category, format, dateFrom, dateTo });
+      setTable(result);
       onGenerated();
     });
+  }
+
+  function handleDownload() {
+    if (!table) return;
+    downloadCsv(report.name, table);
   }
 
   return (
@@ -121,14 +134,14 @@ function GenerateModal({
         </div>
 
         <div className="px-5 py-4 space-y-4">
-          {done ? (
+          {table ? (
             <div className="flex flex-col items-center gap-3 py-4">
               <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10">
                 <CheckCircle2 className="h-7 w-7 text-emerald-500" />
               </div>
               <p className="text-sm font-semibold text-gray-900 dark:text-zinc-100">Report Generated!</p>
               <p className="text-xs text-gray-400 dark:text-zinc-500 text-center">
-                Your {format.toUpperCase()} report is ready. It has been added to the recent reports list.
+                {table.rows.length} row{table.rows.length === 1 ? "" : "s"} of live data ready as CSV. It has been added to the recent reports list.
               </p>
               <div className="flex gap-2 w-full mt-2">
                 <button
@@ -137,9 +150,9 @@ function GenerateModal({
                 >
                   Close
                 </button>
-                <button className="flex flex-1 h-9 items-center justify-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-sm font-medium text-white transition-colors">
+                <FancyButton size="sm" className="flex-1" onClick={handleDownload}>
                   <Download className="h-3.5 w-3.5" /> Download
-                </button>
+                </FancyButton>
               </div>
             </div>
           ) : (
@@ -154,7 +167,7 @@ function GenerateModal({
                       onClick={() => setFormat(f)}
                       className={`flex-1 h-9 rounded-lg border text-xs font-semibold transition-colors ${
                         format === f
-                          ? "border-indigo-500 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
+                          ? "border-primary-500 bg-primary-500/10 text-primary-600 dark:text-primary-400"
                           : "border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 hover:border-gray-300 dark:hover:border-zinc-600"
                       }`}
                     >
@@ -162,6 +175,7 @@ function GenerateModal({
                     </button>
                   ))}
                 </div>
+                <p className="text-[11px] text-gray-400 dark:text-zinc-500">Downloads as a CSV file of live data regardless of the format tag.</p>
               </div>
 
               {/* Date range */}
@@ -174,7 +188,7 @@ function GenerateModal({
                     type="date"
                     value={dateFrom}
                     onChange={(e) => setDateFrom(e.target.value)}
-                    className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
+                    className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -185,7 +199,7 @@ function GenerateModal({
                     type="date"
                     value={dateTo}
                     onChange={(e) => setDateTo(e.target.value)}
-                    className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
+                    className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
                   />
                 </div>
               </div>
@@ -199,10 +213,11 @@ function GenerateModal({
                 >
                   Cancel
                 </button>
-                <button
+                <FancyButton
                   onClick={handleGenerate}
                   disabled={isPending}
-                  className="flex flex-1 h-9 items-center justify-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-sm font-medium text-white transition-colors disabled:opacity-70"
+                  size="sm"
+                  className="flex-1"
                 >
                   {isPending ? (
                     <>
@@ -213,7 +228,7 @@ function GenerateModal({
                       <Zap className="h-3.5 w-3.5" /> Generate
                     </>
                   )}
-                </button>
+                </FancyButton>
               </div>
             </>
           )}
@@ -225,7 +240,14 @@ function GenerateModal({
 
 // ── Report card ───────────────────────────────────────────────────────────────
 
-function ReportCard({ report, onGenerate }: { report: Report; onGenerate: (r: Report) => void }) {
+function ReportCard({
+  report, onGenerate, onQuickDownload, downloading,
+}: {
+  report: Report;
+  onGenerate: (r: Report) => void;
+  onQuickDownload: (r: Report) => void;
+  downloading: boolean;
+}) {
   const catMeta = CATEGORY_META[report.category];
   const CatIcon =
     report.category === "academic"   ? GraduationCap :
@@ -234,7 +256,7 @@ function ReportCard({ report, onGenerate }: { report: Report; onGenerate: (r: Re
     Users;
 
   return (
-    <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5 flex flex-col gap-3 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors">
+    <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5 flex flex-col gap-3 hover:border-primary-300 dark:hover:border-primary-700 transition-colors">
 
       {/* Top row */}
       <div className="flex items-start gap-3">
@@ -277,12 +299,17 @@ function ReportCard({ report, onGenerate }: { report: Report; onGenerate: (r: Re
           )}
         </div>
         <div className="flex items-center gap-1">
-          <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors">
-            <Download className="h-3.5 w-3.5" />
+          <button
+            onClick={() => onQuickDownload(report)}
+            disabled={downloading}
+            title="Quick download (default date range)"
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors disabled:opacity-50"
+          >
+            {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
           </button>
           <button
             onClick={() => onGenerate(report)}
-            className="flex h-7 items-center gap-1 rounded-lg bg-indigo-500 hover:bg-indigo-600 px-2.5 text-[11px] font-semibold text-white transition-colors"
+            className="flex h-7 items-center gap-1 rounded-lg bg-primary-500 hover:bg-primary-600 px-2.5 text-[11px] font-semibold text-white transition-colors"
           >
             <Zap className="h-3 w-3" /> Generate
           </button>
@@ -295,6 +322,9 @@ function ReportCard({ report, onGenerate }: { report: Report; onGenerate: (r: Re
 // ── Recent reports table ──────────────────────────────────────────────────────
 
 function RecentReports({ recentReports }: { recentReports: RecentReport[] }) {
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
   const catIcon = (cat: ReportCategory) => {
     const Icon =
       cat === "academic"   ? GraduationCap :
@@ -304,77 +334,99 @@ function RecentReports({ recentReports }: { recentReports: RecentReport[] }) {
     return Icon;
   };
 
+  function exportLog() {
+    downloadCsv("reports-log", {
+      columns: ["Report", "Category", "Format", "Generated At", "By", "Size (KB)"],
+      rows: recentReports.map((r) => [r.reportName, CATEGORY_META[r.category].label, r.format.toUpperCase(), formatDateTime(r.generatedAt), r.generatedBy, r.sizeKb]),
+    });
+  }
+
+  function downloadRow(r: RecentReport) {
+    setDownloadingId(r.id);
+    startTransition(async () => {
+      const result = await downloadRecentReport(r.id);
+      if (result) downloadCsv(result.reportName, result.table);
+      setDownloadingId(null);
+    });
+  }
+
   return (
-    <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-zinc-700/50">
-        <div>
-          <p className="text-sm font-semibold text-gray-900 dark:text-zinc-100">Recent Reports</p>
-          <p className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5">Last 8 generated reports</p>
+    <Table
+      header={
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-zinc-700/50">
+          <div>
+            <p className="text-sm font-semibold text-gray-900 dark:text-zinc-100">Recent Reports</p>
+            <p className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5">Last 8 generated reports</p>
+          </div>
+          <button
+            onClick={exportLog}
+            disabled={recentReports.length === 0}
+            className="flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors disabled:opacity-50"
+          >
+            <Download className="h-3.5 w-3.5" /> Export Log
+          </button>
         </div>
-        <button className="flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
-          <Download className="h-3.5 w-3.5" /> Export Log
-        </button>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-100 dark:border-zinc-700/50 bg-gray-50 dark:bg-zinc-800/80">
-              {["Report", "Category", "Format", "Generated At", "By", "Size", ""].map((h, i) => (
-                <th key={i} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 whitespace-nowrap">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-zinc-700/50">
-            {recentReports.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="py-16 text-center text-sm text-gray-400 dark:text-zinc-500">No reports generated yet</td>
-              </tr>
-            ) : recentReports.map((r) => {
-              const catMeta = CATEGORY_META[r.category];
-              const Icon    = catIcon(r.category);
-              return (
-                <tr key={r.id} className="hover:bg-gray-50 dark:hover:bg-zinc-700/20 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${catMeta.bg}`}>
-                        <Icon className={`h-3.5 w-3.5 ${catMeta.color}`} />
-                      </div>
-                      <span className="text-sm font-medium text-gray-800 dark:text-zinc-200 whitespace-nowrap">
-                        {r.reportName}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-[11px] font-semibold uppercase tracking-wide ${catMeta.color}`}>
-                      {catMeta.label}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <FormatBadge fmt={r.format} />
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-500 dark:text-zinc-400 whitespace-nowrap">
-                    {formatDateTime(r.generatedAt)}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-500 dark:text-zinc-400">
-                    {r.generatedBy}
-                  </td>
-                  <td className="px-4 py-3 text-xs tabular-nums text-gray-500 dark:text-zinc-400">
-                    {r.sizeKb} KB
-                  </td>
-                  <td className="px-4 py-3">
-                    <button className="inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors whitespace-nowrap">
-                      <Download className="h-3 w-3" /> Download
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
+      }
+    >
+      <TableHead>
+        <Th position="first">Report</Th>
+        <Th>Category</Th>
+        <Th>Format</Th>
+        <Th>Generated At</Th>
+        <Th>By</Th>
+        <Th>Size</Th>
+        <Th position="last"></Th>
+      </TableHead>
+      <TableBody>
+        {recentReports.length === 0 ? (
+          <TableEmptyRow colSpan={7} message="No reports generated yet" />
+        ) : recentReports.map((r) => {
+          const catMeta = CATEGORY_META[r.category];
+          const Icon    = catIcon(r.category);
+          const rowDownloading = isPending && downloadingId === r.id;
+          return (
+            <Tr key={r.id}>
+              <Td position="first">
+                <div className="flex items-center gap-2.5">
+                  <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${catMeta.bg}`}>
+                    <Icon className={`h-3.5 w-3.5 ${catMeta.color}`} />
+                  </div>
+                  <span className="text-sm font-medium text-gray-800 dark:text-zinc-200 whitespace-nowrap">
+                    {r.reportName}
+                  </span>
+                </div>
+              </Td>
+              <Td>
+                <span className={`text-[11px] font-semibold uppercase tracking-wide ${catMeta.color}`}>
+                  {catMeta.label}
+                </span>
+              </Td>
+              <Td>
+                <FormatBadge fmt={r.format} />
+              </Td>
+              <Td className="text-xs text-gray-500 dark:text-zinc-400 whitespace-nowrap">
+                {formatDateTime(r.generatedAt)}
+              </Td>
+              <Td className="text-xs text-gray-500 dark:text-zinc-400">
+                {r.generatedBy}
+              </Td>
+              <Td className="text-xs tabular-nums text-gray-500 dark:text-zinc-400">
+                {r.sizeKb} KB
+              </Td>
+              <Td position="last">
+                <button
+                  onClick={() => downloadRow(r)}
+                  disabled={rowDownloading}
+                  className="inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:text-primary-600 dark:hover:text-primary-400 hover:border-primary-300 dark:hover:border-primary-700 transition-colors whitespace-nowrap disabled:opacity-50"
+                >
+                  {rowDownloading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />} Download
+                </button>
+              </Td>
+            </Tr>
+          );
+        })}
+      </TableBody>
+    </Table>
   );
 }
 
@@ -386,9 +438,13 @@ export default function ReportsClient({
   reports: Report[];
   recentReports: RecentReport[];
 }) {
+  const router = useRouter();
   const [tab,     setTab]     = useState<Tab>("all");
   const [query,   setQuery]   = useState("");
   const [modal,   setModal]   = useState<Report | null>(null);
+  const [quickDownloadingId, setQuickDownloadingId] = useState<number | null>(null);
+  const [downloadingAll, setDownloadingAll] = useState(false);
+  const [, startTransition] = useTransition();
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
@@ -402,7 +458,34 @@ export default function ReportsClient({
   const hasFilter = query || tab !== "all";
 
   function refresh() {
-    window.location.reload();
+    router.refresh();
+  }
+
+  function quickDownload(report: Report) {
+    setQuickDownloadingId(report.id);
+    startTransition(async () => {
+      const table = await generateReport({
+        reportId: report.id, reportName: report.name, category: report.category,
+        format: report.formats[0], dateFrom: DEFAULT_FROM, dateTo: DEFAULT_TO,
+      });
+      downloadCsv(report.name, table);
+      setQuickDownloadingId(null);
+      refresh();
+    });
+  }
+
+  async function downloadAll() {
+    setDownloadingAll(true);
+    for (const report of filtered) {
+      const table = await generateReport({
+        reportId: report.id, reportName: report.name, category: report.category,
+        format: report.formats[0], dateFrom: DEFAULT_FROM, dateTo: DEFAULT_TO,
+      });
+      downloadCsv(report.name, table);
+      await new Promise((resolve) => setTimeout(resolve, 350));
+    }
+    setDownloadingAll(false);
+    refresh();
   }
 
   return (
@@ -420,9 +503,10 @@ export default function ReportsClient({
           <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
             <Repeat className="h-3.5 w-3.5" /> Schedules
           </button>
-          <button className="flex h-9 items-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 px-4 text-sm font-medium text-white shadow-sm transition-colors">
-            <Download className="h-4 w-4" /> Download All
-          </button>
+          <FancyButton size="sm" onClick={downloadAll} disabled={downloadingAll || filtered.length === 0}>
+            {downloadingAll ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            {downloadingAll ? "Downloading…" : "Download All"}
+          </FancyButton>
         </div>
       </div>
 
@@ -443,7 +527,7 @@ export default function ReportsClient({
                 onClick={() => { setTab(value); }}
                 className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap ${
                   tab === value
-                    ? "bg-indigo-500 text-white shadow-sm"
+                    ? "bg-primary-500 text-white shadow-sm"
                     : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"
                 }`}
               >
@@ -468,7 +552,7 @@ export default function ReportsClient({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search reports…"
-            className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-8 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-indigo-400 dark:focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+            className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-8 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 dark:focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
           />
           {query && (
             <button
@@ -490,7 +574,7 @@ export default function ReportsClient({
         {hasFilter && (
           <button
             onClick={() => { setTab("all"); setQuery(""); }}
-            className="text-xs text-indigo-600 dark:text-indigo-400 font-medium hover:underline flex items-center gap-1"
+            className="text-xs text-primary-600 dark:text-primary-400 font-medium hover:underline flex items-center gap-1"
           >
             <X className="h-3 w-3" /> Clear filters
           </button>
@@ -507,7 +591,13 @@ export default function ReportsClient({
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {filtered.map((r) => (
-            <ReportCard key={r.id} report={r} onGenerate={setModal} />
+            <ReportCard
+              key={r.id}
+              report={r}
+              onGenerate={setModal}
+              onQuickDownload={quickDownload}
+              downloading={quickDownloadingId === r.id}
+            />
           ))}
         </div>
       )}

@@ -1,6 +1,8 @@
-import { supabaseAdmin, DEMO_SCHOOL_ID } from "@/lib/supabase/service";
+import { supabaseAdmin } from "@/lib/supabase/service";
+import { randomPassword } from "@/lib/auth/random-password";
 
 export interface EnrollStudentInput {
+  schoolId: string;
   fullName: string;
   dob: string | null;
   gender: "Male" | "Female" | "Other" | null;
@@ -9,12 +11,23 @@ export interface EnrollStudentInput {
   sectionId?: string | null;
   sectionName?: string | null;
   rollNo?: string | null;
+  admissionNo?: string | null;
   phone?: string | null;
   address?: string | null;
   parentName?: string | null;
   parentPhone?: string | null;
   parentEmail?: string | null;
   photoUrl?: string | null;
+  bloodGroup?: string | null;
+  religion?: string | null;
+  caste?: string | null;
+  motherTongue?: string | null;
+  language?: string | null;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
+  emergencyContactRelation?: string | null;
+  medicalConditions?: string | null;
+  allergies?: string | null;
 }
 
 export interface ParentLogin {
@@ -39,14 +52,57 @@ function slugify(name: string) {
     .replace(/^\.+|\.+$/g, "") || "student";
 }
 
-function randomPassword() {
-  const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
-  let out = "";
-  for (let i = 0; i < 10; i++) out += chars[Math.floor(Math.random() * chars.length)];
-  return out;
+// Provisions a login for a student row that predates (or otherwise skipped)
+// the enrollment flow above, e.g. rows inserted directly via seed data.
+export async function createLoginForExistingStudent(
+  studentId: string,
+  schoolId: string
+): Promise<{ email: string; password: string }> {
+  const { data: student, error } = await supabaseAdmin
+    .from("students")
+    .select("id, full_name, profile_id")
+    .eq("id", studentId)
+    .eq("school_id", schoolId)
+    .single();
+
+  if (error || !student) throw new Error("Student not found");
+  if (student.profile_id) throw new Error("This student already has a login account");
+
+  const loginEmail = `${slugify(student.full_name)}.${Math.floor(1000 + Math.random() * 9000)}@students.shikshaloy.app`;
+  const loginPassword = randomPassword();
+
+  const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    email: loginEmail,
+    password: loginPassword,
+    email_confirm: true,
+    user_metadata: {
+      role: "student",
+      full_name: student.full_name,
+      school_id: schoolId,
+      status: "active",
+    },
+  });
+
+  if (authError || !authUser?.user) {
+    throw new Error(`Failed to create student login: ${authError?.message ?? "unknown error"}`);
+  }
+
+  const { error: updateError } = await supabaseAdmin
+    .from("students")
+    .update({ profile_id: authUser.user.id })
+    .eq("id", studentId);
+
+  if (updateError) {
+    await supabaseAdmin.auth.admin.deleteUser(authUser.user.id);
+    throw new Error(`Failed to link student login: ${updateError.message}`);
+  }
+
+  return { email: loginEmail, password: loginPassword };
 }
 
+
 async function ensureParentAccount(input: {
+  schoolId: string;
   parentName: string;
   parentEmail: string;
   parentPhone: string | null;
@@ -58,7 +114,7 @@ async function ensureParentAccount(input: {
   const { data: existingParent } = await supabaseAdmin
     .from("parents")
     .select("id, profile_id")
-    .eq("school_id", DEMO_SCHOOL_ID)
+    .eq("school_id", input.schoolId)
     .eq("email", input.parentEmail)
     .maybeSingle();
 
@@ -72,7 +128,7 @@ async function ensureParentAccount(input: {
       { headers: HEADERS }
     );
     const lookupData = await lookupRes.json();
-    const existingUser = lookupData?.users?.find((u: any) => u.email === input.parentEmail);
+    const existingUser = lookupData?.users?.find((u: { email: string; id: string }) => u.email === input.parentEmail);
 
     if (existingUser) {
       profileId = existingUser.id;
@@ -85,7 +141,7 @@ async function ensureParentAccount(input: {
         user_metadata: {
           role: "parent",
           full_name: input.parentName,
-          school_id: DEMO_SCHOOL_ID,
+          school_id: input.schoolId,
           status: "active",
         },
       });
@@ -101,7 +157,7 @@ async function ensureParentAccount(input: {
     const { data: newParent } = await supabaseAdmin
       .from("parents")
       .insert({
-        school_id: DEMO_SCHOOL_ID,
+        school_id: input.schoolId,
         profile_id: profileId,
         full_name: input.parentName,
         phone: input.parentPhone,
@@ -119,11 +175,11 @@ async function ensureParentAccount(input: {
   return { parentId, login };
 }
 
-async function findGrade(gradeLevel: number) {
+async function findGrade(schoolId: string, gradeLevel: number) {
   const { data: grade } = await supabaseAdmin
     .from("grades")
     .select("id")
-    .eq("school_id", DEMO_SCHOOL_ID)
+    .eq("school_id", schoolId)
     .eq("level", gradeLevel)
     .maybeSingle();
 
@@ -131,13 +187,13 @@ async function findGrade(gradeLevel: number) {
   return grade;
 }
 
-async function pickSection(gradeLevel: number, academicYearId: string, sectionName?: string | null) {
-  const grade = await findGrade(gradeLevel);
+async function pickSection(schoolId: string, gradeLevel: number, academicYearId: string, sectionName?: string | null) {
+  const grade = await findGrade(schoolId, gradeLevel);
 
   const { data: sections } = await supabaseAdmin
     .from("sections")
     .select("id, name, students ( id )")
-    .eq("school_id", DEMO_SCHOOL_ID)
+    .eq("school_id", schoolId)
     .eq("grade_id", grade.id)
     .eq("academic_year_id", academicYearId)
     .order("name");
@@ -145,12 +201,12 @@ async function pickSection(gradeLevel: number, academicYearId: string, sectionNa
   if (!sections || sections.length === 0) throw new Error(`No sections found for grade ${gradeLevel}`);
 
   if (sectionName) {
-    const match = sections.find((s: any) => s.name.toLowerCase() === sectionName.toLowerCase());
+    const match = sections.find((s) => s.name.toLowerCase() === sectionName.toLowerCase());
     if (match) return match as { id: string; name: string };
   }
 
   const bySize = [...sections].sort(
-    (a: any, b: any) => (a.students?.length ?? 0) - (b.students?.length ?? 0)
+    (a, b) => (a.students?.length ?? 0) - (b.students?.length ?? 0)
   );
   return bySize[0] as { id: string; name: string };
 }
@@ -158,7 +214,7 @@ async function pickSection(gradeLevel: number, academicYearId: string, sectionNa
 export async function enrollStudent(input: EnrollStudentInput): Promise<EnrollStudentResult> {
   const section = input.sectionId
     ? (await supabaseAdmin.from("sections").select("id, name").eq("id", input.sectionId).single()).data
-    : await pickSection(input.gradeLevel, input.academicYearId, input.sectionName);
+    : await pickSection(input.schoolId, input.gradeLevel, input.academicYearId, input.sectionName);
 
   if (!section) throw new Error("Could not resolve a section for this student");
 
@@ -183,7 +239,7 @@ export async function enrollStudent(input: EnrollStudentInput): Promise<EnrollSt
     user_metadata: {
       role: "student",
       full_name: input.fullName,
-      school_id: DEMO_SCHOOL_ID,
+      school_id: input.schoolId,
       status: "active",
     },
   });
@@ -195,9 +251,10 @@ export async function enrollStudent(input: EnrollStudentInput): Promise<EnrollSt
   const { data: studentRow, error: studentError } = await supabaseAdmin
     .from("students")
     .insert({
-      school_id: DEMO_SCHOOL_ID,
+      school_id: input.schoolId,
       profile_id: authUser.user.id,
       roll_no: rollNo,
+      admission_no: input.admissionNo ?? null,
       section_id: section.id,
       academic_year_id: input.academicYearId,
       full_name: input.fullName,
@@ -206,6 +263,16 @@ export async function enrollStudent(input: EnrollStudentInput): Promise<EnrollSt
       address: input.address ?? null,
       phone: input.phone ?? null,
       photo_url: input.photoUrl ?? null,
+      blood_group: input.bloodGroup ?? null,
+      religion: input.religion ?? null,
+      caste: input.caste ?? null,
+      mother_tongue: input.motherTongue ?? null,
+      language: input.language ?? null,
+      emergency_contact_name: input.emergencyContactName ?? null,
+      emergency_contact_phone: input.emergencyContactPhone ?? null,
+      emergency_contact_relation: input.emergencyContactRelation ?? null,
+      medical_conditions: input.medicalConditions ?? null,
+      allergies: input.allergies ?? null,
       attendance_pct: 0,
       fee_status: "overdue",
       status: "active",
@@ -219,6 +286,15 @@ export async function enrollStudent(input: EnrollStudentInput): Promise<EnrollSt
     throw new Error(`Failed to create student record: ${studentError?.message ?? "unknown error"}`);
   }
 
+  await supabaseAdmin.from("student_academic_history").insert({
+    school_id: input.schoolId,
+    student_id: studentRow.id,
+    academic_year_id: input.academicYearId,
+    section_id: section.id,
+    roll_no: rollNo,
+    outcome: "enrolled",
+  });
+
   let parentLogin: ParentLogin | null = null;
 
   if (input.parentName) {
@@ -226,6 +302,7 @@ export async function enrollStudent(input: EnrollStudentInput): Promise<EnrollSt
 
     if (input.parentEmail) {
       const result = await ensureParentAccount({
+        schoolId: input.schoolId,
         parentName: input.parentName,
         parentEmail: input.parentEmail,
         parentPhone: input.parentPhone ?? null,
@@ -236,7 +313,7 @@ export async function enrollStudent(input: EnrollStudentInput): Promise<EnrollSt
       const { data: newParent } = await supabaseAdmin
         .from("parents")
         .insert({
-          school_id: DEMO_SCHOOL_ID,
+          school_id: input.schoolId,
           full_name: input.parentName,
           phone: input.parentPhone ?? null,
           email: null,

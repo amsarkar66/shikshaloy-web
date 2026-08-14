@@ -3,8 +3,9 @@
 import { useMemo, useState, useTransition } from "react";
 import {
   FolderOpen, FileText, FileSpreadsheet, FileImage, File,
-  Search, Upload, Download, X, Trash2, Megaphone, ShieldCheck, ClipboardList, Bell,
+  Search, Upload, Download, X, Trash2, Megaphone, ShieldCheck, ClipboardList, Bell, ChevronDown,
 } from "lucide-react";
+import { FancyButton } from "@/components/ui/fancy-button";
 import {
   CATEGORIES, AUDIENCES, formatDate, formatSize,
   type SchoolDocument, type DocCategory, type DocAudience, type FileKind,
@@ -71,30 +72,36 @@ function UploadModal({
         <div className="space-y-3 p-5">
           <div className="space-y-1">
             <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">Title</label>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="e.g. Winter Break Circular" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20" />
+            <input value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="e.g. Winter Break Circular" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">Category</label>
-              <select value={category} onChange={(e) => setCategory(e.target.value as DocCategory)} className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20">
-                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <div className="relative">
+                <select value={category} onChange={(e) => setCategory(e.target.value as DocCategory)} className="h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-2 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+                  {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+              </div>
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">Audience</label>
-              <select value={audience} onChange={(e) => setAudience(e.target.value as DocAudience)} className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20">
-                {AUDIENCES.map((a) => <option key={a} value={a}>{a}</option>)}
-              </select>
+              <div className="relative">
+                <select value={audience} onChange={(e) => setAudience(e.target.value as DocAudience)} className="h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-2 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+                  {AUDIENCES.map((a) => <option key={a} value={a}>{a}</option>)}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+              </div>
             </div>
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">File</label>
-            <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="w-full text-sm text-gray-600 dark:text-zinc-400 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-500 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-indigo-600" />
+            <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="w-full text-sm text-gray-600 dark:text-zinc-400 file:mr-3 file:rounded-lg file:border-0 file:bg-primary-500 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-primary-600" />
           </div>
         </div>
         <div className="flex justify-end gap-2 border-t border-gray-200 dark:border-zinc-800 px-5 py-4">
           <button type="button" onClick={onClose} className="h-9 rounded-lg border border-gray-200 dark:border-zinc-700 px-4 text-sm text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800">Cancel</button>
-          <button type="submit" disabled={isPending} className="flex h-9 items-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 px-4 text-sm font-medium text-white transition-colors disabled:opacity-50"><Upload className="h-4 w-4" /> {isPending ? "Uploading…" : "Upload"}</button>
+          <FancyButton type="submit" disabled={isPending} size="sm"><Upload className="h-4 w-4" /> {isPending ? "Uploading…" : "Upload"}</FancyButton>
         </div>
       </form>
     </div>
@@ -130,9 +137,9 @@ export default function DocumentsClient({ docs }: { docs: SchoolDocument[] }) {
           <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Documents &amp; Circulars</h1>
           <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Central repository for circulars, policies and forms.</p>
         </div>
-        <button onClick={() => setUploadOpen(true)} className="flex h-9 items-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 px-4 text-sm font-medium text-white transition-colors shadow-sm sm:ml-auto">
+        <FancyButton onClick={() => setUploadOpen(true)} size="sm" className="sm:ml-auto">
           <Upload className="h-4 w-4" /> Upload
-        </button>
+        </FancyButton>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-5">
@@ -141,7 +148,7 @@ export default function DocumentsClient({ docs }: { docs: SchoolDocument[] }) {
           <button
             onClick={() => setCategory("all")}
             className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-              category === "all" ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400" : "text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-700/40"
+              category === "all" ? "bg-primary-500/10 text-primary-600 dark:text-primary-400" : "text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-700/40"
             }`}
           >
             <FolderOpen className="h-4 w-4" /> All Documents
@@ -155,7 +162,7 @@ export default function DocumentsClient({ docs }: { docs: SchoolDocument[] }) {
                 key={c}
                 onClick={() => setCategory(c)}
                 className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                  category === c ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400" : "text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-700/40"
+                  category === c ? "bg-primary-500/10 text-primary-600 dark:text-primary-400" : "text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-700/40"
                 }`}
               >
                 <Icon className="h-4 w-4" /> {c}s
@@ -173,7 +180,7 @@ export default function DocumentsClient({ docs }: { docs: SchoolDocument[] }) {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search documents…"
-              className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
+              className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
             />
           </div>
 
@@ -188,7 +195,7 @@ export default function DocumentsClient({ docs }: { docs: SchoolDocument[] }) {
                 const FileIcon = FILE_ICON[d.fileKind];
                 return (
                   <div key={d.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-zinc-700/30 transition-colors">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-500/10 text-primary-600 dark:text-primary-400">
                       <FileIcon className="h-4.5 w-4.5" />
                     </div>
                     <div className="min-w-0 flex-1">

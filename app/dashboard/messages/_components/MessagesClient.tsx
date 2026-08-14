@@ -4,8 +4,9 @@ import { useState, useRef, useEffect, useMemo, useTransition } from "react";
 import {
   MessageSquare, Search, Plus, X, Send,
   CheckCheck, MoreVertical, Phone, Info,
-  Circle, ArrowLeft,
+  Circle, ArrowLeft, ChevronDown,
 } from "lucide-react";
+import { FancyButton } from "@/components/ui/fancy-button";
 import {
   ROLE_BADGE, ROLE_LABEL, ROLE_AVATAR,
   formatTime, formatRelativeDate, getInitials,
@@ -24,16 +25,16 @@ function Avatar({ name, role, size = "md" }: { name: string; role: ContactRole; 
 
 function ConvItem({ conv, selected, onClick }: { conv: Conversation; selected: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} className={`w-full flex items-start gap-3 px-3 py-3 transition-colors text-left ${selected ? "bg-indigo-50 dark:bg-indigo-500/10" : "hover:bg-gray-50 dark:hover:bg-zinc-800/60"}`}>
+    <button onClick={onClick} className={`w-full flex items-start gap-3 px-3 py-3 transition-colors text-left ${selected ? "bg-primary-50 dark:bg-primary-500/10" : "hover:bg-gray-50 dark:hover:bg-zinc-800/60"}`}>
       <Avatar name={conv.contact.name} role={conv.contact.role} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2 mb-0.5">
-          <span className={`truncate text-sm font-semibold ${selected ? "text-indigo-700 dark:text-indigo-300" : conv.unread > 0 ? "text-gray-900 dark:text-zinc-50" : "text-gray-700 dark:text-zinc-300"}`}>{conv.contact.name}</span>
+          <span className={`truncate text-sm font-semibold ${selected ? "text-primary-700 dark:text-primary-300" : conv.unread > 0 ? "text-gray-900 dark:text-zinc-50" : "text-gray-700 dark:text-zinc-300"}`}>{conv.contact.name}</span>
           <span className="shrink-0 text-[10px] text-gray-400 dark:text-zinc-500 whitespace-nowrap">{formatRelativeDate(conv.lastTime)}</span>
         </div>
         <div className="flex items-center justify-between gap-2">
           <p className={`truncate text-xs ${conv.unread > 0 ? "text-gray-800 dark:text-zinc-200 font-medium" : "text-gray-500 dark:text-zinc-500"}`}>{conv.lastMessage || "No messages yet"}</p>
-          {conv.unread > 0 && <span className="shrink-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-indigo-500 px-1 text-[10px] font-bold text-white">{conv.unread}</span>}
+          {conv.unread > 0 && <span className="shrink-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary-500 px-1 text-[10px] font-bold text-white">{conv.unread}</span>}
         </div>
         <span className={`mt-1 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${ROLE_BADGE[conv.contact.role]}`}>{ROLE_LABEL[conv.contact.role]}</span>
       </div>
@@ -69,10 +70,10 @@ function Bubble({ msg, convName, convRole }: { msg: MessageEntry; convName: stri
     <div className={`flex gap-2 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
       {!isMe && <Avatar name={convName} role={convRole} size="sm" />}
       <div className={`max-w-[72%] flex flex-col gap-1 ${isMe ? "items-end" : "items-start"}`}>
-        <div className={`rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${isMe ? "bg-indigo-500 text-white rounded-tr-sm" : "bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-900 dark:text-zinc-100 rounded-tl-sm"}`}>{msg.text}</div>
+        <div className={`rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${isMe ? "bg-primary-500 text-white rounded-tr-sm" : "bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-900 dark:text-zinc-100 rounded-tl-sm"}`}>{msg.text}</div>
         <div className={`flex items-center gap-1 text-[10px] text-gray-400 dark:text-zinc-500 ${isMe ? "flex-row-reverse" : ""}`}>
           <span>{formatTime(msg.time)}</span>
-          {isMe && <CheckCheck className="h-3 w-3 text-indigo-400" />}
+          {isMe && <CheckCheck className="h-3 w-3 text-primary-400" />}
         </div>
       </div>
     </div>
@@ -117,10 +118,10 @@ function MessageThread({ conv, onBack, onSent }: { conv: Conversation; onBack: (
             onKeyDown={handleKey}
             placeholder={`Message ${conv.contact.name}…`}
             rows={1}
-            className="flex-1 resize-none rounded-xl border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 px-4 py-2.5 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-indigo-400 dark:focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 max-h-28 overflow-y-auto"
+            className="flex-1 resize-none rounded-xl border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 px-4 py-2.5 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 dark:focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 max-h-28 overflow-y-auto"
             style={{ minHeight: 40 }}
           />
-          <button onClick={handleSend} disabled={!reply.trim() || isPending} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed">
+          <button onClick={handleSend} disabled={!reply.trim() || isPending} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-500 hover:bg-primary-600 text-white transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed">
             <Send className="h-4 w-4" />
           </button>
         </div>
@@ -134,14 +135,14 @@ function EmptyState({ totalConvs, unread, onCompose }: { totalConvs: number; unr
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-8 px-6">
       <div className="flex flex-col items-center gap-3 text-center">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-500/10"><MessageSquare className="h-8 w-8 text-indigo-500" /></div>
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-500/10"><MessageSquare className="h-8 w-8 text-primary-500" /></div>
         <div>
           <p className="text-base font-semibold text-gray-900 dark:text-zinc-50">Your messages</p>
           <p className="mt-1 text-sm text-gray-500 dark:text-zinc-400">Select a conversation to start reading, or compose a new message.</p>
         </div>
-        <button onClick={onCompose} className="flex h-9 items-center gap-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 px-4 text-sm font-medium text-white transition-colors shadow-sm">
+        <FancyButton onClick={onCompose} size="sm">
           <Plus className="h-4 w-4" /> Compose
-        </button>
+        </FancyButton>
       </div>
       <div className="grid grid-cols-2 gap-3 w-full max-w-xs">
         {[
@@ -186,21 +187,24 @@ function ComposeModal({ contacts, onClose, onSent }: { contacts: Contact[]; onCl
             {contacts.length === 0 ? (
               <p className="text-xs text-gray-400 dark:text-zinc-500">No contacts available yet — accounts need to be set up for messaging.</p>
             ) : (
-              <select value={to} onChange={(e) => setTo(e.target.value)} className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20">
-                <option value="">Select recipient…</option>
-                {contacts.map((c) => <option key={c.profileId} value={c.profileId}>{c.name} ({ROLE_LABEL[c.role]})</option>)}
-              </select>
+              <div className="relative">
+                <select value={to} onChange={(e) => setTo(e.target.value)} className="h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+                  <option value="">Select recipient…</option>
+                  {contacts.map((c) => <option key={c.profileId} value={c.profileId}>{c.name} ({ROLE_LABEL[c.role]})</option>)}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+              </div>
             )}
           </div>
           <div>
             <label className="text-xs font-medium text-gray-500 dark:text-zinc-400 block mb-1.5">Message</label>
-            <textarea rows={5} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Write your message…" className="w-full resize-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2.5 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20" />
+            <textarea rows={5} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Write your message…" className="w-full resize-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2.5 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
           </div>
         </div>
         <div className="flex items-center gap-2 border-t border-gray-100 dark:border-zinc-800 px-5 py-4">
-          <button onClick={handleSend} disabled={!to || !body.trim() || isPending} className="flex h-9 items-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 px-4 text-sm font-medium text-white transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed">
+          <FancyButton onClick={handleSend} disabled={!to || !body.trim() || isPending} size="sm">
             <Send className="h-3.5 w-3.5" /> {isPending ? "Sending…" : "Send"}
-          </button>
+          </FancyButton>
           <button onClick={onClose} className="flex h-9 items-center px-3 text-sm font-medium text-gray-500 dark:text-zinc-400 hover:text-gray-800 dark:hover:text-zinc-200 transition-colors">Cancel</button>
         </div>
       </div>
@@ -265,21 +269,21 @@ export default function MessagesClient({
         <div className="flex shrink-0 items-center justify-between border-b border-gray-100 dark:border-zinc-800 px-4 py-4">
           <div>
             <h1 className="text-base font-bold text-gray-900 dark:text-zinc-50">Messages</h1>
-            <p className="mt-0.5 text-xs text-gray-500 dark:text-zinc-400">{totalUnread > 0 ? <span className="text-indigo-600 dark:text-indigo-400 font-medium">{totalUnread} unread</span> : "All caught up"}</p>
+            <p className="mt-0.5 text-xs text-gray-500 dark:text-zinc-400">{totalUnread > 0 ? <span className="text-primary-600 dark:text-primary-400 font-medium">{totalUnread} unread</span> : "All caught up"}</p>
           </div>
-          <button onClick={() => setComposing(true)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white transition-colors shadow-sm"><Plus className="h-4 w-4" /></button>
+          <button onClick={() => setComposing(true)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-500 hover:bg-primary-600 text-white transition-colors shadow-sm"><Plus className="h-4 w-4" /></button>
         </div>
         <div className="shrink-0 px-3 pt-3 pb-1">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400 dark:text-zinc-500" />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search messages…" className="h-8 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 pl-8 pr-3 text-xs text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-indigo-400 dark:focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20" />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search messages…" className="h-8 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 pl-8 pr-3 text-xs text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 dark:focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" />
           </div>
         </div>
         <div className="shrink-0 flex items-center gap-0.5 overflow-x-auto px-3 pt-2 pb-1.5">
           {TABS.map((t) => (
-            <button key={t.value} onClick={() => setTab(t.value)} className={`flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors ${tab === t.value ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400" : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 hover:bg-gray-100 dark:hover:bg-zinc-800"}`}>
+            <button key={t.value} onClick={() => setTab(t.value)} className={`flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors ${tab === t.value ? "bg-primary-500/10 text-primary-600 dark:text-primary-400" : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 hover:bg-gray-100 dark:hover:bg-zinc-800"}`}>
               {t.label}
-              {t.value === "unread" && totalUnread > 0 && <span className="rounded-full bg-indigo-500 px-1 text-[9px] font-bold text-white leading-tight py-0.5">{totalUnread}</span>}
+              {t.value === "unread" && totalUnread > 0 && <span className="rounded-full bg-primary-500 px-1 text-[9px] font-bold text-white leading-tight py-0.5">{totalUnread}</span>}
             </button>
           ))}
         </div>

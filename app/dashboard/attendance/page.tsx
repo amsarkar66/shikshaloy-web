@@ -1,12 +1,28 @@
-import { createClient } from "@/lib/supabase/server";
-import { supabaseAdmin, DEMO_SCHOOL_ID, DEMO_AY_ID } from "@/lib/supabase/service";
+import { getUser } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/service";
+import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 import { getStudentContext } from "@/lib/students/context";
+import { getTeacherContext } from "@/lib/teachers/context";
+import { getDriverContext } from "@/lib/drivers/context";
 import AttendanceClient from "./_components/AttendanceClient";
 import type {
   AttendanceSec, AttendanceStudent, AttendanceStaff,
   AttendanceStatus, StaffAttendanceStatus,
 } from "./_components/AttendanceClient";
+import DriverAttendanceClient, { type TripStatus } from "./_components/DriverAttendanceClient";
 import { CheckCircle2, XCircle, Clock as ClockIcon, TrendingUp } from "lucide-react";
+
+interface SectionAttendanceRow {
+  id: string;
+  name: string | null;
+  room: string | null;
+  capacity: number | null;
+  avg_attendance: number | null;
+  status: string | null;
+  grades: { level: number | null } | null;
+  profiles: { full_name: string | null } | null;
+}
 
 const STATUS_BADGE: Record<string, string> = {
   present: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
@@ -87,16 +103,133 @@ async function StudentAttendance({ userId }: { userId: string }) {
   );
 }
 
+async function TeacherAttendance({ userId }: { userId: string }) {
+  const teacher = await getTeacherContext(userId);
+
+  if (!teacher || teacher.sectionIds.length === 0) {
+    return (
+      <div className="w-full px-6 py-8">
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 py-24 text-center">
+          <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">No classes assigned yet</p>
+        </div>
+      </div>
+    );
+  }
+
+  const today = new Date().toISOString().split("T")[0];
+
+  const [{ data: sectionRows }, { data: studentRows }, { data: studentAttRows }] = await Promise.all([
+    supabaseAdmin
+      .from("sections")
+      .select("id, name, room, capacity, avg_attendance, status, grades ( level ), profiles ( full_name )")
+      .in("id", teacher.sectionIds)
+      .order("name"),
+
+    supabaseAdmin
+      .from("students")
+      .select("id, full_name, roll_no, section_id, attendance_pct")
+      .in("section_id", teacher.sectionIds)
+      .order("roll_no"),
+
+    supabaseAdmin
+      .from("student_attendance")
+      .select("student_id, status")
+      .in("section_id", teacher.sectionIds)
+      .eq("date", today),
+  ]);
+
+  const enrolledCount: Record<string, number> = {};
+  for (const st of studentRows ?? []) {
+    if (st.section_id) enrolledCount[st.section_id] = (enrolledCount[st.section_id] ?? 0) + 1;
+  }
+
+  const sections: AttendanceSec[] = ((sectionRows ?? []) as unknown as SectionAttendanceRow[]).map((s) => ({
+    id:       s.id,
+    classNum: String(s.grades?.level ?? "?"),
+    section:  s.name ?? "",
+    teacher:  s.profiles?.full_name ?? "",
+    room:     s.room ?? "",
+    enrolled: enrolledCount[s.id] ?? 0,
+  })).sort((a, b) => +a.classNum - +b.classNum || a.section.localeCompare(b.section));
+
+  const studentsBySection: Record<string, AttendanceStudent[]> = {};
+  for (const st of studentRows ?? []) {
+    if (!st.section_id) continue;
+    if (!studentsBySection[st.section_id]) studentsBySection[st.section_id] = [];
+    studentsBySection[st.section_id].push({
+      id:         st.id,
+      name:       st.full_name ?? "Unknown",
+      rollNo:     st.roll_no ?? "",
+      attendance: Math.round(Number(st.attendance_pct ?? 0)),
+    });
+  }
+
+  const todayAttendance: Record<string, AttendanceStatus> = {};
+  for (const r of studentAttRows ?? []) {
+    todayAttendance[r.student_id] = r.status as AttendanceStatus;
+  }
+
+  return (
+    <AttendanceClient
+      initialSections={sections}
+      initialStudentsBySection={studentsBySection}
+      initialStaff={[]}
+      todayAttendance={todayAttendance}
+      todayStaffAttendance={{}}
+      allowStaffTab={false}
+    />
+  );
+}
+
+async function DriverAttendance({ userId }: { userId: string }) {
+  const driver = await getDriverContext(userId);
+
+  if (!driver || driver.routes.length === 0) {
+    return (
+      <div className="w-full px-6 py-8">
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 py-24 text-center">
+          <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">No route assigned yet</p>
+        </div>
+      </div>
+    );
+  }
+
+  const today = new Date().toISOString().split("T")[0];
+  const routeIds = driver.routes.map((r) => r.id);
+
+  const { data: attRows } = await supabaseAdmin
+    .from("transport_attendance")
+    .select("student_id, trip, status")
+    .in("route_id", routeIds)
+    .eq("date", today);
+
+  const todayAttendance: Record<string, TripStatus> = {};
+  for (const r of attRows ?? []) {
+    todayAttendance[`${r.student_id}:${r.trip}`] = r.status as TripStatus;
+  }
+
+  return <DriverAttendanceClient routes={driver.routes} todayAttendance={todayAttendance} date={today} />;
+}
+
 export default async function AttendancePage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await getUser();
   const role = user?.user_metadata?.role as string | undefined;
 
   if (role === "student" && user) {
     return <StudentAttendance userId={user.id} />;
   }
 
+  if (role === "teacher" && user) {
+    return <TeacherAttendance userId={user.id} />;
+  }
+
+  if (role === "driver" && user) {
+    return <DriverAttendance userId={user.id} />;
+  }
+
   const today = new Date().toISOString().split("T")[0];
+  const academicYearId = await getCurrentAcademicYearId();
+  const schoolId = await getCurrentSchoolIdOrThrow();
 
   const [
     { data: sectionRows },
@@ -108,33 +241,33 @@ export default async function AttendancePage() {
     supabaseAdmin
       .from("sections")
       .select("id, name, room, capacity, avg_attendance, status, grades ( level ), profiles ( full_name )")
-      .eq("school_id", DEMO_SCHOOL_ID)
-      .eq("academic_year_id", DEMO_AY_ID)
+      .eq("school_id", schoolId)
+      .eq("academic_year_id", academicYearId)
       .eq("status", "active")
       .order("name"),
 
     supabaseAdmin
       .from("students")
       .select("id, full_name, roll_no, section_id, attendance_pct")
-      .eq("school_id", DEMO_SCHOOL_ID)
+      .eq("school_id", schoolId)
       .order("roll_no"),
 
     supabaseAdmin
       .from("staff_members")
       .select("id, full_name, designation, department, employee_id, type, status")
-      .eq("school_id", DEMO_SCHOOL_ID)
+      .eq("school_id", schoolId)
       .neq("status", "inactive"),
 
     supabaseAdmin
       .from("student_attendance")
       .select("student_id, status")
-      .eq("school_id", DEMO_SCHOOL_ID)
+      .eq("school_id", schoolId)
       .eq("date", today),
 
     supabaseAdmin
       .from("staff_attendance")
       .select("staff_id, status")
-      .eq("school_id", DEMO_SCHOOL_ID)
+      .eq("school_id", schoolId)
       .eq("date", today),
   ]);
 
@@ -144,7 +277,7 @@ export default async function AttendancePage() {
     if (st.section_id) enrolledCount[st.section_id] = (enrolledCount[st.section_id] ?? 0) + 1;
   }
 
-  const sections: AttendanceSec[] = (sectionRows ?? []).map((s: any) => ({
+  const sections: AttendanceSec[] = ((sectionRows ?? []) as unknown as SectionAttendanceRow[]).map((s) => ({
     id:       s.id,
     classNum: String(s.grades?.level ?? "?"),
     section:  s.name ?? "",
@@ -166,7 +299,7 @@ export default async function AttendancePage() {
     });
   }
 
-  const staff: AttendanceStaff[] = (staffRows ?? []).map((s: any) => ({
+  const staff: AttendanceStaff[] = (staffRows ?? []).map((s) => ({
     id:          s.id,
     name:        s.full_name ?? "",
     designation: s.designation ?? "",

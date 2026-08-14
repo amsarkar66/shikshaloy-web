@@ -1,31 +1,70 @@
-import { supabaseAdmin, DEMO_SCHOOL_ID, DEMO_AY_ID } from "@/lib/supabase/service";
+import { supabaseAdmin } from "@/lib/supabase/service";
+import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 import ExamsClient from "./_components/ExamsClient";
 import {
   getGrade, PASS_MARKS,
   type Exam, type StudentExamResult, type SectionExamStats,
 } from "./_data/exams";
 
+interface ExamRow {
+  id: string;
+  name: string | null;
+  type: string | null;
+  status: string | null;
+  start_date: string;
+  end_date: string;
+  academic_years: { name: string | null } | null;
+}
+
+interface ExamSectionRow {
+  id: string;
+  name: string | null;
+  grades: { level: number | null } | null;
+  profiles: { full_name: string | null } | null;
+}
+
+interface ExamStudentRow {
+  id: string;
+  section_id: string | null;
+}
+
+interface ExamResultRow {
+  exam_id: string;
+  student_id: string;
+  subject_id: string;
+  marks_obtained: number | null;
+  max_marks: number | null;
+  grade: string | null;
+  is_absent: boolean | null;
+  subjects: { name: string | null } | null;
+  students: { full_name: string | null; roll_no: string | null; attendance_pct: number | null; section_id: string | null } | null;
+}
+
 export default async function ExamsPage() {
+  const schoolId = await getCurrentSchoolIdOrThrow();
+  const academicYearId = await getCurrentAcademicYearId();
+
   const [{ data: examRows }, { data: sectionRows }, { data: studentRows }] = await Promise.all([
     supabaseAdmin
       .from("exams")
       .select("id, name, type, status, start_date, end_date, academic_years ( name )")
-      .eq("school_id", DEMO_SCHOOL_ID)
+      .eq("school_id", schoolId)
       .order("start_date"),
 
     supabaseAdmin
       .from("sections")
       .select("id, name, grades ( level ), profiles ( full_name )")
-      .eq("school_id", DEMO_SCHOOL_ID)
-      .eq("academic_year_id", DEMO_AY_ID),
+      .eq("school_id", schoolId)
+      .eq("academic_year_id", academicYearId),
 
     supabaseAdmin
       .from("students")
       .select("id, section_id")
-      .eq("school_id", DEMO_SCHOOL_ID),
+      .eq("school_id", schoolId),
   ]);
 
-  const examIds = (examRows ?? []).map((e: any) => e.id);
+  const examIds = ((examRows ?? []) as unknown as ExamRow[]).map((e) => e.id);
 
   const { data: resultRows } = examIds.length
     ? await supabaseAdmin
@@ -35,25 +74,25 @@ export default async function ExamsPage() {
           subjects ( name ),
           students ( full_name, roll_no, attendance_pct, section_id )
         `)
-        .eq("school_id", DEMO_SCHOOL_ID)
+        .eq("school_id", schoolId)
         .in("exam_id", examIds)
-    : { data: [] as any[] };
+    : { data: [] as ExamResultRow[] };
 
   // ── Section lookups ─────────────────────────────────────────────────────────
   const sectionLabel: Record<string, string> = {};
   const sectionTeacher: Record<string, string> = {};
-  for (const s of (sectionRows ?? []) as any[]) {
+  for (const s of (sectionRows ?? []) as unknown as ExamSectionRow[]) {
     sectionLabel[s.id] = `${s.grades?.level ?? "?"}-${s.name ?? ""}`;
     sectionTeacher[s.id] = s.profiles?.full_name ?? "—";
   }
   const enrolledBySection: Record<string, number> = {};
-  for (const st of (studentRows ?? []) as any[]) {
+  for (const st of (studentRows ?? []) as unknown as ExamStudentRow[]) {
     if (st.section_id) enrolledBySection[st.section_id] = (enrolledBySection[st.section_id] ?? 0) + 1;
   }
 
   // ── Group exam_results by exam ───────────────────────────────────────────────
-  const rowsByExam: Record<string, any[]> = {};
-  for (const r of (resultRows ?? []) as any[]) {
+  const rowsByExam: Record<string, ExamResultRow[]> = {};
+  for (const r of (resultRows ?? []) as unknown as ExamResultRow[]) {
     (rowsByExam[r.exam_id] ??= []).push(r);
   }
 
@@ -61,12 +100,12 @@ export default async function ExamsPage() {
   const studentResultsByExam: Record<string, StudentExamResult[]> = {};
   const sectionStatsByExam: Record<string, SectionExamStats[]> = {};
 
-  for (const e of (examRows ?? []) as any[]) {
+  for (const e of (examRows ?? []) as unknown as ExamRow[]) {
     const rows = rowsByExam[e.id] ?? [];
-    const subjectNames = Array.from(new Set(rows.map((r) => r.subjects?.name).filter(Boolean))).sort();
+    const subjectNames = Array.from(new Set(rows.map((r) => r.subjects?.name).filter((n): n is string => !!n))).sort();
 
     // Group by student
-    const byStudent = new Map<string, any[]>();
+    const byStudent = new Map<string, ExamResultRow[]>();
     for (const r of rows) {
       (byStudent.get(r.student_id) ?? byStudent.set(r.student_id, []).get(r.student_id)!).push(r);
     }
@@ -85,7 +124,7 @@ export default async function ExamsPage() {
         studentId,
         name: student?.full_name ?? "Unknown",
         rollNo: student?.roll_no ?? "",
-        sectionId: sectionLabel[student?.section_id] ?? "—",
+        sectionId: sectionLabel[student?.section_id ?? ""] ?? "—",
         attendance: Math.round(Number(student?.attendance_pct ?? 0)),
         scores,
         total,
@@ -128,8 +167,8 @@ export default async function ExamsPage() {
     exams.push({
       id: e.id,
       name: e.name ?? "",
-      type: e.type ?? "unit_test",
-      status: e.status ?? "upcoming",
+      type: (e.type ?? "unit_test") as Exam["type"],
+      status: (e.status ?? "upcoming") as Exam["status"],
       startDate: e.start_date,
       endDate: e.end_date,
       academicYear: e.academic_years?.name ?? "—",

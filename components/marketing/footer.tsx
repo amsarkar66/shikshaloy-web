@@ -10,13 +10,13 @@ const links = {
 
 export function Footer() {
   return (
-    <footer className="bg-slate-900 text-slate-400">
+    <footer className="bg-primary-950 text-primary-300 border-t border-white/5">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center gap-2 mb-4">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500">
-                <GraduationCap className="h-5 w-5 text-white" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-b from-primary-400 to-primary-500 shadow-[0_2px_0_0_var(--color-primary-700)]">
+                <GraduationCap className="h-4.5 w-4.5 text-white" />
               </div>
               <span className="text-white font-bold text-lg">Shikshaloy</span>
             </Link>
@@ -44,7 +44,7 @@ export function Footer() {
           ))}
         </div>
 
-        <div className="mt-12 pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="mt-12 pt-8 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-sm">
             © {new Date().getFullYear()} Shikshaloy. All rights reserved.
           </p>

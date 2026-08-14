@@ -208,9 +208,9 @@ function SubjectTable({ data }: { data: SubjectPerf[] }) {
             <div className="flex items-center gap-2">
               <span className="text-[10px] text-gray-400 dark:text-zinc-500 w-16">Avg score</span>
               <div className="flex-1 h-1.5 rounded-full bg-gray-100 dark:bg-zinc-700">
-                <div className="h-1.5 rounded-full bg-indigo-400" style={{ width: `${s.avg}%` }} />
+                <div className="h-1.5 rounded-full bg-primary-400" style={{ width: `${s.avg}%` }} />
               </div>
-              <span className="w-8 text-right text-xs font-semibold text-indigo-600 dark:text-indigo-400 tabular-nums">{s.avg}</span>
+              <span className="w-8 text-right text-xs font-semibold text-primary-600 dark:text-primary-400 tabular-nums">{s.avg}</span>
             </div>
           </div>
         </div>
@@ -269,7 +269,7 @@ export default function AnalyticsClient({
           value={`${kpi.feeCollectionRate}%`}
           sub="Paid vs due, this year"
           icon={IndianRupee}
-          accent="text-indigo-500 bg-indigo-500/10"
+          accent="text-primary-500 bg-primary-500/10"
         />
         <KpiCard
           label="Overall Pass Rate"
@@ -292,7 +292,7 @@ export default function AnalyticsClient({
               <span className="h-2.5 w-2.5 rounded-sm bg-gray-200 dark:bg-zinc-700" /> Due
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-sm bg-indigo-500" /> Collected
+              <span className="h-2.5 w-2.5 rounded-sm bg-primary-500" /> Collected
             </span>
           </div>
         </div>

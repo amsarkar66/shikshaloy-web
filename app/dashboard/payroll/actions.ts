@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { supabaseAdmin, DEMO_SCHOOL_ID } from "@/lib/supabase/service";
+import { supabaseAdmin } from "@/lib/supabase/service";
+import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 
 async function assertAuthorized() {
   const supabase = await createClient();
@@ -26,6 +27,7 @@ export async function processSalary(
   payMode: "bank_transfer" | "cheque"
 ) {
   await assertAuthorized();
+  const schoolId = await getCurrentSchoolIdOrThrow();
 
   const { error } = await supabaseAdmin
     .from("payroll_records")
@@ -35,7 +37,7 @@ export async function processSalary(
       pay_mode: payMode,
       slip_no: generateSlipNo(monthStr),
     })
-    .eq("school_id", DEMO_SCHOOL_ID)
+    .eq("school_id", schoolId)
     .eq("staff_id", staffId)
     .eq("month_str", monthStr)
     .is("slip_no", null);
@@ -46,6 +48,7 @@ export async function processSalary(
 
 export async function processAllPending(monthStr: string) {
   await assertAuthorized();
+  const schoolId = await getCurrentSchoolIdOrThrow();
 
   const paidOn = new Date().toISOString().slice(0, 10);
   const { error } = await supabaseAdmin
@@ -56,7 +59,7 @@ export async function processAllPending(monthStr: string) {
       pay_mode: "bank_transfer",
       slip_no: generateSlipNo(monthStr),
     })
-    .eq("school_id", DEMO_SCHOOL_ID)
+    .eq("school_id", schoolId)
     .eq("month_str", monthStr)
     .eq("status", "pending");
 

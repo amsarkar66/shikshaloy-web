@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import {
   ClipboardCheck, Trophy, Users, BarChart3,
   CalendarDays, BookOpen, Download,
-  ArrowLeft, ChevronRight, CheckCircle2, Clock, Eye,
+  ArrowLeft, ChevronRight, ChevronDown, CheckCircle2, Clock, Eye,
   Printer, GraduationCap, Award,
 } from "lucide-react";
 import {
@@ -12,6 +12,8 @@ import {
   gradeStyle, scoreColor, formatDate, formatDateShort,
   type Exam, type ExamType, type ExamStatus, type StudentExamResult, type SectionExamStats,
 } from "../_data/exams";
+import { FancyButton } from "@/components/ui/fancy-button";
+import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
 
 const TYPE_LABEL: Record<ExamType, string> = {
   unit_test: "Unit Test",
@@ -74,7 +76,7 @@ function ExamCard({ exam, onViewResults }: { exam: Exam; onViewResults: (id: str
   const isUpcoming = exam.status === "upcoming" || exam.status === "ongoing";
 
   return (
-    <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5 flex flex-col gap-4 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors">
+    <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5 flex flex-col gap-4 hover:border-primary-300 dark:hover:border-primary-700 transition-colors">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${TYPE_STYLE[exam.type]}`}>{TYPE_LABEL[exam.type]}</span>
         <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLE[exam.status]}`}>{STATUS_LABEL[exam.status]}</span>
@@ -99,9 +101,9 @@ function ExamCard({ exam, onViewResults }: { exam: Exam; onViewResults: (id: str
       </div>
       <div className="flex items-center gap-2 pt-1 border-t border-gray-100 dark:border-zinc-700/50">
         {isPublished ? (
-          <button onClick={() => onViewResults(exam.id)} className="flex flex-1 items-center justify-center gap-1.5 h-8 rounded-lg bg-indigo-500 hover:bg-indigo-600 px-3 text-xs font-medium text-white transition-colors">
+          <FancyButton onClick={() => onViewResults(exam.id)} size="xs" className="flex-1">
             <Trophy className="h-3.5 w-3.5" /> View Results
-          </button>
+          </FancyButton>
         ) : (
           <span className="flex-1 text-xs text-gray-400 dark:text-zinc-500">{isUpcoming ? `Starts ${formatDateShort(exam.startDate)}` : "Awaiting publication"}</span>
         )}
@@ -148,49 +150,52 @@ function SectionOverviewTable({ exam, sectionStats, onViewSection }: { exam: Exa
   function rateText(rate: number) { return rate >= 90 ? "text-emerald-600 dark:text-emerald-400" : rate >= 75 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"; }
 
   return (
-    <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
-      <div className="px-4 py-3 border-b border-gray-100 dark:border-zinc-700/50">
-        <p className="text-sm font-semibold text-gray-900 dark:text-zinc-100">Section Results Overview</p>
-        <p className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5">{sectionStats.length} section{sectionStats.length === 1 ? "" : "s"} with results · {exam.subjects.length} subjects × {MAX_MARKS} marks each</p>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="border-b border-gray-100 dark:border-zinc-700/50 bg-gray-50 dark:bg-zinc-800/80">
-            <tr>
-              {["Section", "Class Teacher", "Appeared", "Passed", "Pass %", "Avg Score", "Highest", "Lowest", ""].map((h, i) => (
-                <th key={i} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 whitespace-nowrap">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-zinc-700/50">
-            {sectionStats.length === 0 ? (
-              <tr><td colSpan={9} className="py-14 text-center text-sm text-gray-400 dark:text-zinc-500">No results recorded for any section yet.</td></tr>
-            ) : sectionStats.map((r) => (
-              <tr key={r.sectionId} className="hover:bg-gray-50 dark:hover:bg-zinc-700/20 transition-colors">
-                <td className="px-4 py-3"><div className="flex h-7 w-12 items-center justify-center rounded-lg bg-indigo-500/10"><span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400">{r.sectionId}</span></div></td>
-                <td className="px-4 py-3 text-xs text-gray-600 dark:text-zinc-400 whitespace-nowrap">{r.teacher}</td>
-                <td className="px-4 py-3 text-sm font-medium text-gray-700 dark:text-zinc-300">{r.appeared}</td>
-                <td className="px-4 py-3 text-sm font-medium text-gray-700 dark:text-zinc-300">{r.passed}</td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-14 h-1.5 rounded-full bg-gray-100 dark:bg-zinc-700"><div className={`h-1.5 rounded-full ${rateBar(r.passRate)}`} style={{ width: `${r.passRate}%` }} /></div>
-                    <span className={`text-xs font-semibold tabular-nums ${rateText(r.passRate)}`}>{r.passRate}%</span>
-                  </div>
-                </td>
-                <td className="px-4 py-3"><span className={`text-sm font-semibold tabular-nums ${scoreColor(r.avgScore)}`}>{r.avgScore}%</span></td>
-                <td className="px-4 py-3 text-xs font-medium tabular-nums text-emerald-600 dark:text-emerald-400">{r.highest}%</td>
-                <td className="px-4 py-3 text-xs font-medium tabular-nums text-red-500 dark:text-red-400">{r.lowest}%</td>
-                <td className="px-4 py-3">
-                  <button onClick={() => onViewSection(r.sectionId)} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-400 transition-colors whitespace-nowrap">
-                    Students <ChevronRight className="h-3 w-3" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <Table
+      header={
+        <div className="px-4 py-3 border-b border-gray-100 dark:border-zinc-700/50">
+          <p className="text-sm font-semibold text-gray-900 dark:text-zinc-100">Section Results Overview</p>
+          <p className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5">{sectionStats.length} section{sectionStats.length === 1 ? "" : "s"} with results · {exam.subjects.length} subjects × {MAX_MARKS} marks each</p>
+        </div>
+      }
+    >
+      <TableHead>
+        <Th position="first">Section</Th>
+        <Th>Class Teacher</Th>
+        <Th>Appeared</Th>
+        <Th>Passed</Th>
+        <Th>Pass %</Th>
+        <Th>Avg Score</Th>
+        <Th>Highest</Th>
+        <Th>Lowest</Th>
+        <Th position="last"></Th>
+      </TableHead>
+      <TableBody>
+        {sectionStats.length === 0 ? (
+          <TableEmptyRow colSpan={9} message="No results recorded for any section yet." />
+        ) : sectionStats.map((r) => (
+          <Tr key={r.sectionId}>
+            <Td position="first"><div className="flex h-7 w-12 items-center justify-center rounded-lg bg-primary-500/10"><span className="text-[11px] font-bold text-primary-600 dark:text-primary-400">{r.sectionId}</span></div></Td>
+            <Td className="text-xs text-gray-600 dark:text-zinc-400 whitespace-nowrap">{r.teacher}</Td>
+            <Td className="text-sm font-medium text-gray-700 dark:text-zinc-300">{r.appeared}</Td>
+            <Td className="text-sm font-medium text-gray-700 dark:text-zinc-300">{r.passed}</Td>
+            <Td>
+              <div className="flex items-center gap-2">
+                <div className="w-14 h-1.5 rounded-full bg-gray-100 dark:bg-zinc-700"><div className={`h-1.5 rounded-full ${rateBar(r.passRate)}`} style={{ width: `${r.passRate}%` }} /></div>
+                <span className={`text-xs font-semibold tabular-nums ${rateText(r.passRate)}`}>{r.passRate}%</span>
+              </div>
+            </Td>
+            <Td><span className={`text-sm font-semibold tabular-nums ${scoreColor(r.avgScore)}`}>{r.avgScore}%</span></Td>
+            <Td className="text-xs font-medium tabular-nums text-emerald-600 dark:text-emerald-400">{r.highest}%</Td>
+            <Td className="text-xs font-medium tabular-nums text-red-500 dark:text-red-400">{r.lowest}%</Td>
+            <Td position="last">
+              <button onClick={() => onViewSection(r.sectionId)} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-400 transition-colors whitespace-nowrap">
+                Students <ChevronRight className="h-3 w-3" />
+              </button>
+            </Td>
+          </Tr>
+        ))}
+      </TableBody>
+    </Table>
   );
 }
 
@@ -214,25 +219,25 @@ function GradeCard({ result, exam, onClose }: { result: StudentExamResult; exam:
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap print:hidden">
-        <button onClick={onClose} className="flex items-center gap-1.5 text-sm font-medium text-gray-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+        <button onClick={onClose} className="flex items-center gap-1.5 text-sm font-medium text-gray-500 dark:text-zinc-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to Results
         </button>
-        <button onClick={() => window.print()} className="sm:ml-auto flex h-8 items-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 px-3 text-xs font-medium text-white transition-colors">
+        <FancyButton onClick={() => window.print()} size="xs" className="sm:ml-auto">
           <Printer className="h-3.5 w-3.5" /> Print Grade Card
-        </button>
+        </FancyButton>
       </div>
 
       <div className="rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm print:shadow-none print:border-black">
-        <div className="bg-indigo-600 px-8 py-6 flex items-center gap-4">
+        <div className="bg-primary-600 px-8 py-6 flex items-center gap-4">
           <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white/20"><GraduationCap className="h-7 w-7 text-white" /></div>
           <div className="flex-1">
             <p className="text-xl font-extrabold text-white tracking-tight">Shikshaloy School</p>
-            <p className="text-indigo-200 text-xs mt-0.5">Student Report Card · {exam.academicYear}</p>
+            <p className="text-primary-200 text-xs mt-0.5">Student Report Card · {exam.academicYear}</p>
           </div>
           <div className="text-right hidden sm:block">
-            <p className="text-indigo-200 text-[10px] uppercase tracking-widest font-semibold">Examination</p>
+            <p className="text-primary-200 text-[10px] uppercase tracking-widest font-semibold">Examination</p>
             <p className="text-white text-sm font-bold">{exam.name}</p>
-            <p className="text-indigo-200 text-xs">{formatDate(exam.startDate)} – {formatDate(exam.endDate)}</p>
+            <p className="text-primary-200 text-xs">{formatDate(exam.startDate)} – {formatDate(exam.endDate)}</p>
           </div>
         </div>
 
@@ -334,12 +339,12 @@ function SectionResultDetail({
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-medium text-gray-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors self-start">
+        <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-medium text-gray-500 dark:text-zinc-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors self-start">
           <ArrowLeft className="h-4 w-4" /> All Sections
         </button>
         <div className="sm:ml-2">
           <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500"><span className="text-[10px] font-bold text-white">{sectionId}</span></div>
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary-500"><span className="text-[10px] font-bold text-white">{sectionId}</span></div>
             <p className="text-sm font-bold text-gray-900 dark:text-zinc-100">Class {sectionId} — {exam.name}</p>
           </div>
           <p className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5 ml-9">{sectionStats.teacher} · Showing {sorted.length} of {sectionStats.enrolled} enrolled students</p>
@@ -353,50 +358,44 @@ function SectionResultDetail({
         <span className="text-[10px] text-gray-400 dark:text-zinc-500 ml-1">· Pass: {PASS_MARKS}/{MAX_MARKS} per subject · Click a student for Grade Card</span>
       </div>
 
-      <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="border-b border-gray-100 dark:border-zinc-700/50 bg-gray-50 dark:bg-zinc-800/80">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 w-10">#</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Student</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Roll No</th>
-                {exam.subjects.map((sub) => (
-                  <th key={sub} className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 whitespace-nowrap">{sub.split(" ")[0]}</th>
-                ))}
-                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Total</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">%</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Grade</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Card</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-zinc-700/50">
-              {sorted.length === 0 ? (
-                <tr><td colSpan={5 + exam.subjects.length} className="py-14 text-center text-sm text-gray-400 dark:text-zinc-500">No student records available for this section</td></tr>
-              ) : sorted.map((r) => (
-                <tr key={r.studentId} className={`hover:bg-gray-50 dark:hover:bg-zinc-700/20 transition-colors ${!r.passed ? "bg-red-50/40 dark:bg-red-500/5" : ""}`}>
-                  <td className="px-4 py-3"><span className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold ${r.rank === 1 ? "bg-amber-400 text-white" : r.rank === 2 ? "bg-gray-400 dark:bg-zinc-500 text-white" : r.rank === 3 ? "bg-amber-700 text-white" : "text-gray-400 dark:text-zinc-500"}`}>{r.rank}</span></td>
-                  <td className="px-4 py-3"><p className="font-medium text-gray-900 dark:text-zinc-100 whitespace-nowrap">{r.name}</p></td>
-                  <td className="px-4 py-3 font-mono text-xs text-gray-400 dark:text-zinc-500">{r.rollNo}</td>
-                  {r.scores.map((score, i) => (
-                    <td key={i} className="px-4 py-3 text-center">
-                      <span className={`text-sm font-semibold tabular-nums ${score < PASS_MARKS ? "text-red-600 dark:text-red-400" : scoreColor(score)}`}>{score}{score < PASS_MARKS && <span className="text-[9px] ml-0.5">✗</span>}</span>
-                    </td>
-                  ))}
-                  <td className="px-4 py-3 text-center"><span className="text-sm font-bold text-gray-900 dark:text-zinc-100 tabular-nums">{r.total}<span className="text-xs font-normal text-gray-400">/{r.maxTotal}</span></span></td>
-                  <td className="px-4 py-3 text-center"><span className={`text-sm font-bold tabular-nums ${scoreColor(r.pct)}`}>{r.pct}%</span></td>
-                  <td className="px-4 py-3 text-center"><span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-bold ${gradeStyle(r.grade)}`}>{r.grade}</span></td>
-                  <td className="px-4 py-3 text-right">
-                    <button onClick={() => setViewCard(r)} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-400 transition-colors whitespace-nowrap">
-                      <Printer className="h-3 w-3" /> Card
-                    </button>
-                  </td>
-                </tr>
+      <Table>
+        <TableHead>
+          <Th position="first">#</Th>
+          <Th>Student</Th>
+          <Th>Roll No</Th>
+          {exam.subjects.map((sub) => (
+            <Th key={sub} align="center">{sub.split(" ")[0]}</Th>
+          ))}
+          <Th align="center">Total</Th>
+          <Th align="center">%</Th>
+          <Th align="center">Grade</Th>
+          <Th position="last" align="right">Card</Th>
+        </TableHead>
+        <TableBody>
+          {sorted.length === 0 ? (
+            <TableEmptyRow colSpan={5 + exam.subjects.length} message="No student records available for this section" />
+          ) : sorted.map((r) => (
+            <Tr key={r.studentId} className={!r.passed ? "bg-red-50/40 dark:bg-red-500/5" : ""}>
+              <Td position="first"><span className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold ${r.rank === 1 ? "bg-amber-400 text-white" : r.rank === 2 ? "bg-gray-400 dark:bg-zinc-500 text-white" : r.rank === 3 ? "bg-amber-700 text-white" : "text-gray-400 dark:text-zinc-500"}`}>{r.rank}</span></Td>
+              <Td><p className="font-medium text-gray-900 dark:text-zinc-100 whitespace-nowrap">{r.name}</p></Td>
+              <Td className="font-mono text-xs text-gray-400 dark:text-zinc-500">{r.rollNo}</Td>
+              {r.scores.map((score, i) => (
+                <Td key={i} align="center">
+                  <span className={`text-sm font-semibold tabular-nums ${score < PASS_MARKS ? "text-red-600 dark:text-red-400" : scoreColor(score)}`}>{score}{score < PASS_MARKS && <span className="text-[9px] ml-0.5">✗</span>}</span>
+                </Td>
               ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+              <Td align="center"><span className="text-sm font-bold text-gray-900 dark:text-zinc-100 tabular-nums">{r.total}<span className="text-xs font-normal text-gray-400">/{r.maxTotal}</span></span></Td>
+              <Td align="center"><span className={`text-sm font-bold tabular-nums ${scoreColor(r.pct)}`}>{r.pct}%</span></Td>
+              <Td align="center"><span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-bold ${gradeStyle(r.grade)}`}>{r.grade}</span></Td>
+              <Td position="last" align="right">
+                <button onClick={() => setViewCard(r)} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:bg-primary-50 hover:text-primary-600 dark:hover:bg-primary-500/10 dark:hover:text-primary-400 transition-colors whitespace-nowrap">
+                  <Printer className="h-3 w-3" /> Card
+                </button>
+              </Td>
+            </Tr>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -488,9 +487,12 @@ export default function ExamsClient({
         </div>
         <div className="sm:ml-auto flex items-center gap-2">
           {academicYears.length > 0 && (
-            <select value={yearFilter} onChange={(e) => { setYearFilter(e.target.value); setStatusFilter("all"); }} className="h-9 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20">
-              {academicYears.map((y) => <option key={y} value={y}>{y}</option>)}
-            </select>
+            <div className="relative">
+              <select value={yearFilter} onChange={(e) => { setYearFilter(e.target.value); setStatusFilter("all"); }} className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+                {academicYears.map((y) => <option key={y} value={y}>{y}</option>)}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+            </div>
           )}
           <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5" /> Export</button>
         </div>
@@ -498,7 +500,7 @@ export default function ExamsClient({
 
       <div className="flex rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-0.5 w-fit">
         {(["exams", "results"] as Tab[]).map((t) => (
-          <button key={t} onClick={() => setTab(t)} className={`flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${tab === t ? "bg-indigo-500 text-white shadow-sm" : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
+          <button key={t} onClick={() => setTab(t)} className={`flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${tab === t ? "bg-primary-500 text-white shadow-sm" : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
             {t === "exams" ? <ClipboardCheck className="h-3.5 w-3.5" /> : <Trophy className="h-3.5 w-3.5" />}
             {t === "exams" ? "Exams" : "Results"}
           </button>
@@ -512,7 +514,7 @@ export default function ExamsClient({
             {STATUS_FILTER_OPTIONS.map((f) => {
               const count = f.value === "all" ? yearExams.length : yearExams.filter((e) => e.status === f.value).length;
               return (
-                <button key={f.value} onClick={() => setStatusFilter(f.value)} className={`flex items-center gap-1.5 h-8 rounded-lg px-3 text-xs font-medium transition-colors ${statusFilter === f.value ? "bg-indigo-500 text-white shadow-sm" : "border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
+                <button key={f.value} onClick={() => setStatusFilter(f.value)} className={`flex items-center gap-1.5 h-8 rounded-lg px-3 text-xs font-medium transition-colors ${statusFilter === f.value ? "bg-primary-500 text-white shadow-sm" : "border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
                   {f.label}
                   <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${statusFilter === f.value ? "bg-white/20 text-white" : "bg-gray-100 dark:bg-zinc-700 text-gray-500 dark:text-zinc-400"}`}>{count}</span>
                 </button>
@@ -542,7 +544,7 @@ export default function ExamsClient({
                 <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${TYPE_STYLE[selectedExam.type]}`}>{TYPE_LABEL[selectedExam.type]}</span>
                 <p className="text-sm font-bold text-gray-900 dark:text-zinc-100">{selectedExam.name}</p>
                 <span className="text-xs text-gray-400 dark:text-zinc-500">{selectedExam.academicYear} · {formatDate(selectedExam.startDate)} – {formatDate(selectedExam.endDate)}</span>
-                <button onClick={() => { setSelectedExamId(null); setSelectedSection(null); }} className="sm:ml-auto text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline">Change Exam</button>
+                <button onClick={() => { setSelectedExamId(null); setSelectedSection(null); }} className="sm:ml-auto text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline">Change Exam</button>
               </div>
 
               <ResultStatsRow sectionStats={sectionStatsByExam[selectedExam.id] ?? []} />

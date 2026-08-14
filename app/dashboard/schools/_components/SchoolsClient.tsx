@@ -1,16 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import {
   Landmark, MapPin, GraduationCap, Briefcase,
   BadgeCheck, Clock, XCircle, Plus, Search,
-  ChevronRight, Building2, Phone, Globe,
+  Building2, Phone, Globe,
   TrendingUp, Users,
-  SlidersHorizontal, MoreHorizontal,
+  MoreHorizontal,
   Edit2, Eye, Trash2, UserCog,
+  Check, ArrowUp, ArrowDown, ArrowUpDown,
+  LayoutGrid, List,
 } from "lucide-react";
 import { STATUS_BADGE, formatLakh, type School, type SchoolStatus } from "../_data/schools";
+import { Table, TableHead, TableBody, Th, Td, Tr, TableTitleHeader } from "@/components/ui/data-table";
 
 // ── Stat bar ──────────────────────────────────────────────────────────────────
 
@@ -102,9 +105,7 @@ function SchoolCard({ school, onMenu, menuOpen }: { school: School; onMenu: (id:
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <StatusBadge status={school.status} />
-          <button onClick={() => onMenu(school.id)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors">
-            <MoreHorizontal className="h-4 w-4" />
-          </button>
+          <SchoolActionsMenu schoolId={school.id} open={menuOpen} onToggle={() => onMenu(school.id)} />
         </div>
       </div>
 
@@ -142,80 +143,261 @@ function SchoolCard({ school, onMenu, menuOpen }: { school: School; onMenu: (id:
         <MiniBar label="Attendance (avg)" value={`${school.attendancePct}%`} pct={school.attendancePct} colorClass={attendanceColor} />
         <MiniBar label="Fee collection (latest month)" value={`${school.feePct}%`} pct={school.feePct} colorClass={feeColor} />
       </div>
-
-      <div className="flex items-center justify-between pt-1 border-t border-gray-100 dark:border-zinc-700/50">
-        <div>
-          <p className="text-xs text-gray-500 dark:text-zinc-400">Monthly revenue</p>
-          <p className="text-sm font-bold text-gray-900 dark:text-zinc-50">{formatLakh(school.monthlyRevenue)}</p>
-        </div>
-        <button className="flex items-center gap-1 rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-600 dark:text-violet-400 hover:bg-violet-500/20 transition-colors">
-          Manage <ChevronRight className="h-3 w-3" />
-        </button>
-      </div>
-
-      {menuOpen && <ContextMenu onClose={() => onMenu(school.id)} />}
     </div>
   );
 }
 
-function ContextMenu({ onClose }: { onClose: () => void }) {
+function SchoolActionsMenu({ schoolId, open, onToggle }: { schoolId: string; open: boolean; onToggle: () => void }) {
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
   const actions = [
-    { icon: Eye,     label: "View details",  cls: "text-gray-700 dark:text-zinc-300" },
-    { icon: Edit2,   label: "Edit school",   cls: "text-gray-700 dark:text-zinc-300" },
     { icon: UserCog, label: "Manage admins", cls: "text-gray-700 dark:text-zinc-300" },
     { icon: Trash2,  label: "Remove school", cls: "text-red-600 dark:text-red-400"   },
   ];
+
+  function handleToggle() {
+    if (!open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+    }
+    onToggle();
+  }
+
   return (
-    <>
-      <div className="fixed inset-0 z-10" onClick={onClose} />
-      <div className="absolute right-5 top-14 z-20 w-44 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg shadow-black/10 py-1">
-        {actions.map((a) => (
-          <button key={a.label} onClick={onClose} className={`flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors ${a.cls}`}>
-            <a.icon className="h-3.5 w-3.5 shrink-0" />
-            {a.label}
-          </button>
-        ))}
-      </div>
-    </>
+    <div className="relative">
+      <button ref={btnRef} onClick={handleToggle} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors">
+        <MoreHorizontal className="h-4 w-4" />
+      </button>
+      {open && pos && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={onToggle} />
+          <div
+            className="fixed z-20 w-44 overflow-hidden rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg shadow-black/10 py-1"
+            style={{ top: pos.top, right: pos.right }}
+          >
+            <Link href={`/dashboard/schools/${schoolId}`} onClick={onToggle} className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors">
+              <Eye className="h-3.5 w-3.5 shrink-0" />
+              View details
+            </Link>
+            <Link href={`/dashboard/schools/${schoolId}/edit`} onClick={onToggle} className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors">
+              <Edit2 className="h-3.5 w-3.5 shrink-0" />
+              Edit school
+            </Link>
+            {actions.map((a) => (
+              <button key={a.label} onClick={onToggle} className={`flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors ${a.cls}`}>
+                <a.icon className="h-3.5 w-3.5 shrink-0" />
+                {a.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
-function CompareTable({ schools }: { schools: School[] }) {
+function TableRowActions({ schoolId, open, onToggle }: { schoolId: string; open: boolean; onToggle: () => void }) {
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+  const actions = [
+    { icon: UserCog, label: "Manage admins", cls: "text-gray-700 dark:text-zinc-300" },
+    { icon: Trash2,  label: "Remove school", cls: "text-red-600 dark:text-red-400"   },
+  ];
+
+  function handleToggle() {
+    if (!open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+    }
+    onToggle();
+  }
+
+  return (
+    <div className="flex items-center justify-end gap-1">
+      <Link
+        href={`/dashboard/schools/${schoolId}`}
+        title="View school"
+        className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"
+      >
+        <Eye className="h-3.5 w-3.5" />
+      </Link>
+      <button
+        ref={btnRef}
+        onClick={handleToggle}
+        title="More actions"
+        className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"
+      >
+        <MoreHorizontal className="h-3.5 w-3.5" />
+      </button>
+
+      {open && pos && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={onToggle} />
+          <div
+            style={{ top: pos.top, right: pos.right }}
+            className="fixed z-20 w-44 overflow-hidden rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg shadow-black/10 py-1"
+          >
+            <Link href={`/dashboard/schools/${schoolId}/edit`} onClick={onToggle} className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors">
+              <Edit2 className="h-3.5 w-3.5 shrink-0" />
+              Edit school
+            </Link>
+            {actions.map((a) => (
+              <button key={a.label} onClick={onToggle} className={`flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors ${a.cls}`}>
+                <a.icon className="h-3.5 w-3.5 shrink-0" />
+                {a.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── View toggle ──────────────────────────────────────────────────────────────
+
+function ViewToggle({ view, onChange }: { view: "grid" | "list"; onChange: (v: "grid" | "list") => void }) {
+  return (
+    <div className="flex items-center gap-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-1">
+      <button
+        onClick={() => onChange("grid")}
+        aria-label="Grid view"
+        aria-pressed={view === "grid"}
+        className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors ${view === "grid" ? "bg-violet-500/10 text-violet-600 dark:text-violet-400" : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}
+      >
+        <LayoutGrid className="h-3.5 w-3.5" />
+      </button>
+      <button
+        onClick={() => onChange("list")}
+        aria-label="List view"
+        aria-pressed={view === "list"}
+        className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors ${view === "list" ? "bg-violet-500/10 text-violet-600 dark:text-violet-400" : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}
+      >
+        <List className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
+
+function SchoolsTable({
+  schools, title, openMenu, onMenu,
+}: {
+  schools: School[]; title?: string; openMenu: string | null; onMenu: (id: string) => void;
+}) {
   if (schools.length === 0) return null;
   return (
-    <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
-      <div className="px-5 py-4 border-b border-gray-100 dark:border-zinc-700/50">
-        <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">School comparison</p>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-gray-100 dark:border-zinc-800">
-              {["School", "Type", "Students", "Staff", "Attendance", "Fee %", "Revenue", "Status"].map((h) => (
-                <th key={h} className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-violet-500 dark:text-zinc-500 whitespace-nowrap">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {schools.map((s, i) => {
-              const attendanceColor = s.attendancePct >= 95 ? "text-emerald-600 dark:text-emerald-400" : s.attendancePct >= 90 ? "text-blue-600 dark:text-blue-400" : "text-amber-600 dark:text-amber-400";
-              const feeColor = s.feePct >= 85 ? "text-emerald-600 dark:text-emerald-400" : s.feePct >= 75 ? "text-blue-600 dark:text-blue-400" : "text-amber-600 dark:text-amber-400";
-              return (
-                <tr key={s.id} className={`transition-colors hover:bg-gray-50 dark:hover:bg-zinc-700/30 ${i < schools.length - 1 ? "border-b border-gray-100 dark:border-zinc-800" : ""}`}>
-                  <td className="px-4 py-3"><p className="font-medium text-gray-900 dark:text-zinc-50 whitespace-nowrap">{s.name}</p><p className="text-[11px] text-gray-500 dark:text-zinc-500">{s.city}</p></td>
-                  <td className="px-4 py-3"><TypeBadge type={s.institutionType} /></td>
-                  <td className="px-4 py-3 font-medium text-gray-700 dark:text-zinc-300">{s.students.toLocaleString()}</td>
-                  <td className="px-4 py-3 font-medium text-gray-700 dark:text-zinc-300">{s.staff}</td>
-                  <td className={`px-4 py-3 font-semibold ${attendanceColor}`}>{s.attendancePct}%</td>
-                  <td className={`px-4 py-3 font-semibold ${feeColor}`}>{s.feePct}%</td>
-                  <td className="px-4 py-3 font-medium text-gray-700 dark:text-zinc-300 whitespace-nowrap">{formatLakh(s.monthlyRevenue)}</td>
-                  <td className="px-4 py-3"><StatusBadge status={s.status} /></td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+    <Table header={title ? <TableTitleHeader title={title} /> : undefined}>
+      <TableHead>
+        <Th position="first">School</Th>
+        <Th>Type</Th>
+        <Th>Principal</Th>
+        <Th>Students</Th>
+        <Th>Staff</Th>
+        <Th>Attendance</Th>
+        <Th>Fee %</Th>
+        <Th>Revenue</Th>
+        <Th>Status</Th>
+        <Th position="last" align="right">Actions</Th>
+      </TableHead>
+      <TableBody>
+        {schools.map((s) => {
+          const attendanceColor = s.attendancePct >= 95 ? "text-emerald-600 dark:text-emerald-400" : s.attendancePct >= 90 ? "text-blue-600 dark:text-blue-400" : "text-amber-600 dark:text-amber-400";
+          const feeColor = s.feePct >= 85 ? "text-emerald-600 dark:text-emerald-400" : s.feePct >= 75 ? "text-blue-600 dark:text-blue-400" : "text-amber-600 dark:text-amber-400";
+          return (
+            <Tr key={s.id}>
+              <Td position="first">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500">
+                    <Landmark className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-900 dark:text-zinc-100 leading-tight whitespace-nowrap">{s.name}</p>
+                    <p className="flex items-center gap-1 text-xs text-gray-400 dark:text-zinc-500"><MapPin className="h-3 w-3 shrink-0 text-violet-400" />{s.city}</p>
+                  </div>
+                </div>
+              </Td>
+              <Td><TypeBadge type={s.institutionType} /></Td>
+              <Td>
+                <p className="text-sm font-medium text-gray-800 dark:text-zinc-200 whitespace-nowrap">{s.principalName ?? "Not set"}</p>
+                <p className="text-xs text-gray-400 dark:text-zinc-500 truncate max-w-[180px]">{s.principalEmail ?? "—"}</p>
+              </Td>
+              <Td className="text-sm text-gray-700 dark:text-zinc-300">{s.students.toLocaleString()}</Td>
+              <Td className="text-sm text-gray-700 dark:text-zinc-300">{s.staff}</Td>
+              <Td className={`text-sm font-semibold ${attendanceColor}`}>{s.attendancePct}%</Td>
+              <Td className={`text-sm font-semibold ${feeColor}`}>{s.feePct}%</Td>
+              <Td className="text-sm text-gray-700 dark:text-zinc-300 whitespace-nowrap">{formatLakh(s.monthlyRevenue)}</Td>
+              <Td><StatusBadge status={s.status} /></Td>
+              <Td position="last">
+                <TableRowActions schoolId={s.id} open={openMenu === s.id} onToggle={() => onMenu(s.id)} />
+              </Td>
+            </Tr>
+          );
+        })}
+      </TableBody>
+    </Table>
+  );
+}
+
+// ── Sort ──────────────────────────────────────────────────────────────────────
+
+type SortKey = "name" | "students" | "staff" | "attendancePct" | "feePct" | "monthlyRevenue";
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: "name",           label: "Name" },
+  { key: "students",       label: "Students" },
+  { key: "staff",          label: "Staff" },
+  { key: "attendancePct",  label: "Attendance" },
+  { key: "feePct",         label: "Fee collection" },
+  { key: "monthlyRevenue", label: "Revenue" },
+];
+
+function SortMenu({
+  sortBy, sortDir, onKeyChange, onDirChange, open, onToggle,
+}: {
+  sortBy: SortKey; sortDir: "asc" | "desc"; open: boolean;
+  onKeyChange: (key: SortKey) => void; onDirChange: (dir: "asc" | "desc") => void; onToggle: () => void;
+}) {
+  const activeLabel = SORT_OPTIONS.find((o) => o.key === sortBy)?.label;
+  return (
+    <div className="relative">
+      <button
+        onClick={onToggle}
+        className="flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2.5 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
+      >
+        <ArrowUpDown className="h-3.5 w-3.5" /> Sort: {activeLabel}
+        {sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={onToggle} />
+          <div className="absolute right-0 top-full mt-1.5 z-20 w-56 overflow-hidden rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg shadow-black/10">
+            {SORT_OPTIONS.map((o) => (
+              <button
+                key={o.key}
+                onClick={() => onKeyChange(o.key)}
+                className="flex w-full items-center justify-between gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors"
+              >
+                <span className="truncate">{o.label}</span>
+                {o.key === sortBy && <Check className="h-3.5 w-3.5 shrink-0 text-violet-500" />}
+              </button>
+            ))}
+            <div className="border-t border-gray-100 dark:border-zinc-700/50" />
+            <div className="flex items-center gap-1.5 p-1.5">
+              <button
+                onClick={() => onDirChange("asc")}
+                className={`flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-xs font-medium transition-colors ${sortDir === "asc" ? "bg-violet-500/10 text-violet-600 dark:text-violet-400" : "text-gray-500 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-700/60"}`}
+              >
+                <ArrowUp className="h-3 w-3 shrink-0" /> Ascending
+              </button>
+              <button
+                onClick={() => onDirChange("desc")}
+                className={`flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-xs font-medium transition-colors ${sortDir === "desc" ? "bg-violet-500/10 text-violet-600 dark:text-violet-400" : "text-gray-500 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-700/60"}`}
+              >
+                <ArrowDown className="h-3 w-3 shrink-0" /> Descending
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -226,30 +408,42 @@ export default function SchoolsClient({ schools }: { schools: School[] }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | SchoolStatus>("all");
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<SortKey>("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [sortOpen, setSortOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
-  const filtered = schools.filter((s) => {
-    const q = search.toLowerCase();
-    const matchSearch = !q || s.name.toLowerCase().includes(q) || s.city.toLowerCase().includes(q) || (s.principalName ?? "").toLowerCase().includes(q);
-    const matchStatus = statusFilter === "all" || s.status === statusFilter;
-    return matchSearch && matchStatus;
-  });
+  const handleSortKeyChange = (key: SortKey) => setSortBy(key);
+  const handleSortDirChange = (dir: "asc" | "desc") => setSortDir(dir);
+
+  const filtered = schools
+    .filter((s) => {
+      const q = search.toLowerCase();
+      const matchSearch = !q || s.name.toLowerCase().includes(q) || s.city.toLowerCase().includes(q) || (s.principalName ?? "").toLowerCase().includes(q);
+      const matchStatus = statusFilter === "all" || s.status === statusFilter;
+      return matchSearch && matchStatus;
+    })
+    .sort((a, b) => {
+      const dir = sortDir === "asc" ? 1 : -1;
+      if (sortBy === "name") return a.name.localeCompare(b.name) * dir;
+      return (a[sortBy] - b[sortBy]) * dir;
+    });
 
   return (
     <div className="w-full px-6 py-6 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Schools</h1>
+          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">All schools under your institution, at a glance</p>
+        </div>
+        <Link href="/dashboard/schools/new" className="sm:ml-auto flex items-center gap-1.5 rounded-lg bg-violet-500 px-4 py-2 text-xs font-semibold text-white hover:bg-violet-600 transition-colors shadow shadow-violet-500/20 w-fit">
+          <Plus className="h-3.5 w-3.5" /> Add School
+        </Link>
+      </div>
+
       <TopStats schools={filtered} />
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search schools, cities, principals…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-3 py-2 text-sm text-gray-900 dark:text-zinc-50 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
-          />
-        </div>
-
         <div className="flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-1">
           {(["all", "active", "inactive", "pending"] as const).map((s) => (
             <button key={s} onClick={() => setStatusFilter(s)} className={`rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors ${statusFilter === s ? "bg-violet-500/10 text-violet-600 dark:text-violet-400" : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
@@ -259,12 +453,18 @@ export default function SchoolsClient({ schools }: { schools: School[] }) {
         </div>
 
         <div className="flex items-center gap-2 ml-auto">
-          <button className="flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors">
-            <SlidersHorizontal className="h-3.5 w-3.5" /> Sort
-          </button>
-          <Link href="/dashboard/schools/new" className="flex items-center gap-1.5 rounded-lg bg-violet-500 px-4 py-2 text-xs font-semibold text-white hover:bg-violet-600 transition-colors shadow shadow-violet-500/20">
-            <Plus className="h-3.5 w-3.5" /> Add School
-          </Link>
+          <div className="relative w-80">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search schools, cities, principals…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-3 py-2 text-sm text-gray-900 dark:text-zinc-50 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+            />
+          </div>
+          <ViewToggle view={viewMode} onChange={setViewMode} />
+          <SortMenu sortBy={sortBy} sortDir={sortDir} open={sortOpen} onToggle={() => setSortOpen((o) => !o)} onKeyChange={handleSortKeyChange} onDirChange={handleSortDirChange} />
         </div>
       </div>
 
@@ -285,15 +485,19 @@ export default function SchoolsClient({ schools }: { schools: School[] }) {
           <p className="text-sm font-semibold text-gray-700 dark:text-zinc-300">No schools found</p>
           <p className="text-xs text-gray-400 dark:text-zinc-500">Try adjusting your search or filter.</p>
         </div>
-      ) : (
+      ) : viewMode === "grid" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {filtered.map((school) => (
             <SchoolCard key={school.id} school={school} menuOpen={openMenu === school.id} onMenu={(id) => setOpenMenu(openMenu === id ? null : id)} />
           ))}
         </div>
+      ) : (
+        <SchoolsTable schools={filtered} openMenu={openMenu} onMenu={(id) => setOpenMenu(openMenu === id ? null : id)} />
       )}
 
-      {filtered.length > 1 && <CompareTable schools={filtered} />}
+      {viewMode === "grid" && filtered.length > 1 && (
+        <SchoolsTable schools={filtered} title="School comparison" openMenu={openMenu} onMenu={(id) => setOpenMenu(openMenu === id ? null : id)} />
+      )}
     </div>
   );
 }

@@ -1,17 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  Landmark, MapPin, Phone, Globe, AlertCircle, Check, BadgeCheck, ArrowLeft, ArrowRight, LogOut,
-  GraduationCap, ClipboardCheck, Mail, Loader, CircleCheck, ChevronRight,
+  Landmark, MapPin, Phone, Globe, AlertCircle, Check, ArrowLeft, ArrowRight, LogOut,
+  GraduationCap, ClipboardCheck, Mail, ChevronRight,
 } from "lucide-react";
-import { OtpInput } from "@/components/auth/auth-ui";
+import { AsYouType, getCountryCallingCode, type CountryCode } from "libphonenumber-js";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { createClient } from "@/lib/supabase/client";
 import { signOut } from "@/app/dashboard/actions";
-import { FieldLabel, Input, Select, FieldError, INDIAN_STATES, COUNTRIES } from "./_field-kit";
+import { FieldLabel, Input, Select, FieldError, INDIAN_STATES, COUNTRIES, COUNTRY_CODE_BY_NAME } from "./_field-kit";
 
 function getInitials(name: string) {
   return name
@@ -59,20 +58,13 @@ const GRADES_FROM = ["Pre-KG", "KG", "I", "II", "III", "IV", "V", "VI", "VII", "
 const GRADES_TO = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
 
 const STEPS = [
-  { label: "Identity", icon: Landmark },
-  { label: "Location", icon: MapPin },
-  { label: "Structure", icon: GraduationCap },
-  { label: "Contact", icon: Phone },
-  { label: "Review", icon: ClipboardCheck },
+  { label: "Institution", description: "Name and type", icon: Landmark },
+  { label: "Location", description: "City, state, and address", icon: MapPin },
+  { label: "Grades", description: "Grade levels offered", icon: GraduationCap },
+  { label: "Contact", description: "Phone and contact details", icon: Phone },
+  { label: "Review", description: "Confirm all details", icon: ClipboardCheck },
 ];
 const CONTACT_STEP = STEPS.findIndex((s) => s.label === "Contact");
-
-function phonesMatch(a: string, b: string) {
-  const da = a.replace(/\D/g, "");
-  const db = b.replace(/\D/g, "");
-  if (!da || !db) return false;
-  return da === db || da.endsWith(db) || db.endsWith(da);
-}
 
 function validateStep(step: number, data: InstitutionFormData): Partial<Record<keyof InstitutionFormData, string>> {
   const errs: Partial<Record<keyof InstitutionFormData, string>> = {};
@@ -249,60 +241,18 @@ function Step2({ data, set, errors }: StepProps) {
   );
 }
 
-function Step3({
-  data, set, errors, verified, onVerified,
-}: StepProps & {
-  verified: boolean;
-  onVerified: (phone: string) => void;
-}) {
+function Step3({ data, set, errors }: StepProps) {
   const isSchool = data.institutionType === "School";
-  const [otpStep, setOtpStep] = useState<"idle" | "sent">("idle");
-  const [otp, setOtp] = useState("");
-  const [sending, setSending] = useState(false);
-  const [verifying, setVerifying] = useState(false);
-  const [otpError, setOtpError] = useState("");
-  const [resendCooldown, setResendCooldown] = useState(0);
+  const countryCode = COUNTRY_CODE_BY_NAME[data.country] as CountryCode | undefined;
+  const callingCode = countryCode ? getCountryCallingCode(countryCode) : "91";
 
-  const isValidPhone = data.phone.replace(/\D/g, "").length >= 10;
-
-  useEffect(() => {
-    if (resendCooldown <= 0) return;
-    const timer = setInterval(() => setResendCooldown((s) => s - 1), 1000);
-    return () => clearInterval(timer);
-  }, [resendCooldown]);
-
-  // Editing the number cancels any in-progress or completed verification for it.
-  useEffect(() => {
-    setOtpStep("idle");
-    setOtp("");
-    setOtpError("");
-  }, [data.phone]);
-
-  async function sendCode() {
-    setOtpError("");
-    setSending(true);
-    try {
-      const supabase = createClient();
-      const { error } = await supabase.auth.updateUser({ phone: data.phone });
-      if (error) { setOtpError(error.message); return; }
-      setOtpStep("sent");
-      setResendCooldown(30);
-    } finally {
-      setSending(false);
-    }
-  }
-
-  async function verifyCode() {
-    setOtpError("");
-    setVerifying(true);
-    try {
-      const supabase = createClient();
-      const { error } = await supabase.auth.verifyOtp({ phone: data.phone, token: otp, type: "phone_change" });
-      if (error) { setOtpError(error.message); return; }
-      onVerified(data.phone);
-    } finally {
-      setVerifying(false);
-    }
+  function handlePhoneChange(raw: string) {
+    if (!countryCode) { set("phone", raw); return; }
+    // Always bake the selected country's dial code into the value, so it
+    // shows up automatically instead of requiring the user to type "+91".
+    const digits = raw.replace(/\D/g, "");
+    const nationalDigits = digits.startsWith(callingCode) ? digits.slice(callingCode.length) : digits;
+    set("phone", nationalDigits ? new AsYouType(countryCode).input(`+${callingCode}${nationalDigits}`) : "");
   }
 
   return (
@@ -313,65 +263,17 @@ function Step3({
           <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
           <input
             type="tel"
-            placeholder="+91 00000 00000"
+            placeholder={`+${callingCode} phone number`}
             value={data.phone}
-            onChange={(e) => set("phone", e.target.value)}
-            className={`w-full rounded-lg border bg-white dark:bg-zinc-800 pl-9 py-2.5 text-sm text-gray-900 dark:text-zinc-50 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 ${
+            onChange={(e) => handlePhoneChange(e.target.value)}
+            className={`w-full rounded-lg border bg-white dark:bg-zinc-800 pl-9 pr-3 py-2.5 text-sm text-gray-900 dark:text-zinc-50 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 ${
               errors.phone
                 ? "border-red-300 dark:border-red-500/50 focus:ring-red-500/30"
                 : "border-gray-200 dark:border-zinc-700 focus:ring-primary-500/40"
-            } ${
-              verified ? "pr-24" : isValidPhone && otpStep === "idle" ? "pr-16" : "pr-3"
             }`}
           />
-          {verified ? (
-            <span className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-1 text-xs font-medium text-primary-600 dark:text-primary-400">
-              <BadgeCheck className="h-3.5 w-3.5" /> Verified
-            </span>
-          ) : isValidPhone && otpStep === "idle" ? (
-            <button
-              type="button"
-              onClick={sendCode}
-              disabled={sending}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-xs font-semibold text-primary-600 hover:bg-primary-50 hover:text-primary-700 disabled:opacity-60 dark:text-primary-400 dark:hover:bg-primary-500/10 dark:hover:text-primary-300 transition-colors"
-            >
-              {sending ? "Sending…" : "Verify"}
-            </button>
-          ) : null}
         </div>
         <FieldError msg={errors.phone} />
-
-        {otpStep === "sent" && !verified && (
-          <div className="mt-3 space-y-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/50 p-3">
-            <p className="text-xs text-gray-500 dark:text-zinc-400">
-              Enter the code sent to <span className="text-gray-900 dark:text-white">{data.phone}</span>
-            </p>
-            <OtpInput value={otp} onChange={setOtp} />
-            {otpError && (
-              <p className="flex items-center gap-1 text-xs text-red-500">
-                <AlertCircle className="h-3 w-3 shrink-0" /> {otpError}
-              </p>
-            )}
-            <div className="flex items-center justify-between">
-              <button
-                type="button"
-                onClick={sendCode}
-                disabled={sending || resendCooldown > 0}
-                className="text-xs font-medium text-gray-500 hover:text-gray-700 disabled:opacity-60 dark:text-zinc-400 dark:hover:text-zinc-200"
-              >
-                {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : "Resend code"}
-              </button>
-              <button
-                type="button"
-                onClick={verifyCode}
-                disabled={verifying || otp.length < 6}
-                className="rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-600 disabled:opacity-60 transition-colors"
-              >
-                {verifying ? "Verifying…" : "Verify code"}
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       <div>
@@ -466,14 +368,12 @@ export function InstitutionForm({
   onSubmit,
   initialData,
   isResubmit,
-  confirmedPhone,
   userName,
   userEmail,
 }: {
   onSubmit: (data: InstitutionFormData) => Promise<{ error?: string } | void>;
   initialData?: InstitutionFormData;
   isResubmit?: boolean;
-  confirmedPhone: string | null;
   userName: string;
   userEmail: string;
 }) {
@@ -481,13 +381,11 @@ export function InstitutionForm({
   const [data, setData] = useState<InstitutionFormData>(initialData ?? EMPTY);
   const [step, setStep] = useState(0);
   const [maxStepReached, setMaxStepReached] = useState(initialData ? STEPS.length - 1 : 0);
-  const [verifiedPhone, setVerifiedPhone] = useState<string | null>(confirmedPhone);
   const [errors, setErrors] = useState<Partial<Record<keyof InstitutionFormData, string>>>({});
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const isLast = step === STEPS.length - 1;
-  const phoneVerified = !!verifiedPhone && phonesMatch(verifiedPhone, data.phone);
 
   function set(key: keyof InstitutionFormData, value: string) {
     setData((d) => ({ ...d, [key]: value }));
@@ -513,10 +411,8 @@ export function InstitutionForm({
     setErrors({});
     setSubmitError("");
 
-    if (step === CONTACT_STEP && !phoneVerified) {
-      setSubmitError("Please verify your phone number first.");
-      return;
-    }
+    // Phone verification is temporarily optional while SMS delivery is
+    // being set up — not gating progress on `phoneVerified` for now.
 
     if (!isLast) {
       setStep((s) => s + 1);
@@ -540,45 +436,43 @@ export function InstitutionForm({
 
   const initials = getInitials(userName || userEmail);
 
-  const isReviewStep = (i: number) => i === STEPS.length - 1;
-
   const stepList = (
     <>
       {STEPS.map((s, i) => {
         const active = i === step;
         const done = i < step;
         const canGo = i <= maxStepReached;
+        const Icon = s.icon;
         return (
           <button
             key={s.label}
             type="button"
             onClick={() => goToStep(i)}
             disabled={!canGo}
-            className={`flex shrink-0 items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors ${
+            className={`flex shrink-0 items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors ${
               active
-                ? "bg-primary-50 dark:bg-primary-500/10"
+                ? "bg-primary-50 dark:bg-primary-500/10 ring-1 ring-primary-200 dark:ring-primary-500/30"
                 : canGo
                 ? "hover:bg-gray-100 dark:hover:bg-zinc-800"
                 : "opacity-50 cursor-not-allowed"
             }`}
           >
-            <span className="flex h-4 w-4 shrink-0 items-center justify-center">
-              {done ? (
-                <CircleCheck className="h-3.5 w-3.5 text-primary-500" />
-              ) : active ? (
-                <Loader className="h-3.5 w-3.5 text-primary-500" />
-              ) : !isReviewStep(i) ? (
-                <span className="text-xs font-medium text-gray-400 dark:text-zinc-500">{i + 1}.</span>
-              ) : null}
-            </span>
-            <span className={`flex-1 truncate text-sm font-medium ${
-              active
-                ? "text-gray-900 dark:text-zinc-50"
-                : done
-                ? "text-gray-700 dark:text-zinc-300"
-                : "text-gray-400 dark:text-zinc-500"
+            <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-colors ${
+              done
+                ? "bg-primary-500 text-white"
+                : active
+                ? "bg-white dark:bg-zinc-900 ring-1 ring-primary-500 text-primary-600 dark:text-primary-400"
+                : "bg-gray-100 dark:bg-zinc-800 text-gray-400 dark:text-zinc-500"
             }`}>
-              {s.label}
+              {done ? <Check className="h-3.5 w-3.5" /> : <Icon className="h-3.5 w-3.5" />}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className={`block whitespace-nowrap text-sm font-medium ${active ? "text-gray-900 dark:text-zinc-50" : "text-gray-600 dark:text-zinc-300"}`}>
+                {s.label}
+              </span>
+              <span className="hidden lg:block text-xs text-gray-400 dark:text-zinc-500">
+                {s.description}
+              </span>
             </span>
             {done && <ChevronRight className="h-3.5 w-3.5 shrink-0 text-gray-300 dark:text-zinc-600" />}
           </button>
@@ -597,7 +491,7 @@ export function InstitutionForm({
             <span className="text-sm font-semibold tracking-tight text-gray-900 dark:text-white">Shikshaloy</span>
           </Link>
 
-          <div className="mt-8 flex flex-col gap-0.5">{stepList}</div>
+          <div className="mt-10 flex flex-col gap-2">{stepList}</div>
         </div>
 
         <div className="flex items-center gap-2.5 border-t border-gray-100 dark:border-zinc-800 pt-4">
@@ -639,13 +533,14 @@ export function InstitutionForm({
                 const active = i === step;
                 const done = i < step;
                 const canGo = i <= maxStepReached;
+                const Icon = s.icon;
                 return (
                   <button
                     key={s.label}
                     type="button"
                     onClick={() => goToStep(i)}
                     disabled={!canGo}
-                    className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                    className={`flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                       active
                         ? "bg-primary-50 dark:bg-primary-500/10 text-primary-700 dark:text-primary-300 ring-1 ring-primary-200 dark:ring-primary-500/30"
                         : canGo
@@ -653,13 +548,7 @@ export function InstitutionForm({
                         : "text-gray-300 dark:text-zinc-600 cursor-not-allowed"
                     }`}
                   >
-                    {done ? (
-                      <CircleCheck className="h-3 w-3" />
-                    ) : active ? (
-                      <Loader className="h-3 w-3" />
-                    ) : !isReviewStep(i) ? (
-                      <span>{i + 1}.</span>
-                    ) : null}
+                    {done ? <Check className="h-3 w-3" /> : <Icon className="h-3 w-3" />}
                     {s.label}
                   </button>
                 );
@@ -688,15 +577,7 @@ export function InstitutionForm({
               {step === 0 && <Step0 data={data} set={set} errors={errors} />}
               {step === 1 && <Step1 data={data} set={set} errors={errors} />}
               {step === 2 && <Step2 data={data} set={set} errors={errors} />}
-              {step === CONTACT_STEP && (
-                <Step3
-                  data={data}
-                  set={set}
-                  errors={errors}
-                  verified={phoneVerified}
-                  onVerified={(phone) => setVerifiedPhone(phone)}
-                />
-              )}
+              {step === CONTACT_STEP && <Step3 data={data} set={set} errors={errors} />}
               {step === 4 && <Step4 data={data} goToStep={goToStep} />}
             </div>
 
@@ -721,18 +602,13 @@ export function InstitutionForm({
               <button
                 type="button"
                 onClick={next}
-                disabled={submitting || (step === CONTACT_STEP && !phoneVerified)}
+                disabled={submitting}
                 className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-5 py-2 text-sm font-semibold text-white hover:bg-primary-600 disabled:opacity-60 disabled:cursor-not-allowed transition-colors shadow shadow-primary-500/20"
               >
                 {submitting ? (
                   <>
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                     {isResubmit ? "Resubmitting…" : "Creating…"}
-                  </>
-                ) : step === CONTACT_STEP && !phoneVerified ? (
-                  <>
-                    <Phone className="h-3.5 w-3.5" />
-                    Verify phone to continue
                   </>
                 ) : !isLast ? (
                   <>

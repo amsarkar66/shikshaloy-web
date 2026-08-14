@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { supabaseAdmin, DEMO_SCHOOL_ID } from "@/lib/supabase/service";
+import { supabaseAdmin } from "@/lib/supabase/service";
+import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 
 export async function addExpense(input: {
   category: string;
@@ -20,13 +21,14 @@ export async function addExpense(input: {
   if (!role || !["admin", "super_admin", "staff"].includes(role)) {
     throw new Error("Unauthorized");
   }
+  const schoolId = await getCurrentSchoolIdOrThrow();
 
   if (!input.category || !input.amount || input.amount <= 0) {
     throw new Error("Category and a valid amount are required.");
   }
 
   const { error } = await supabaseAdmin.from("expenses").insert({
-    school_id: DEMO_SCHOOL_ID,
+    school_id: schoolId,
     date: input.date,
     month_str: input.date.slice(0, 7),
     category: input.category,

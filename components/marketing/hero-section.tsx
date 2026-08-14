@@ -1,47 +1,46 @@
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { FancyButton, ArrowUpRightIcon } from "@/components/ui/fancy-button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Play } from "lucide-react";
+import { Play, Sparkles } from "lucide-react";
 import { FadeIn } from "@/components/ui/fade-in";
 
 export function HeroSection() {
   return (
-    <section className="relative min-h-screen flex items-center bg-indigo-950 overflow-hidden pt-16">
-      {/* Background glow effects */}
+    <section className="relative flex items-center bg-white overflow-hidden pt-32 pb-20 sm:pt-40 sm:pb-28">
+      {/* Soft gradient mesh */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-indigo-600/20 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-violet-600/10 rounded-full blur-3xl" />
-        <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-blue-600/10 rounded-full blur-3xl" />
+        <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[900px] h-[560px] bg-primary-200/50 rounded-full blur-3xl" />
+        <div className="absolute bottom-[-10%] left-[8%] w-[420px] h-[420px] bg-primary-300/30 rounded-full blur-3xl" />
+        <div className="absolute top-[10%] right-[5%] w-[380px] h-[380px] bg-amber-200/30 rounded-full blur-3xl" />
       </div>
 
-      {/* Grid overlay */}
+      {/* Dot grid overlay */}
       <div
-        className="absolute inset-0 opacity-[0.04]"
+        className="absolute inset-0 opacity-[0.5] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_40%,transparent_100%)]"
         style={{
-          backgroundImage:
-            "linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)",
-          backgroundSize: "60px 60px",
+          backgroundImage: "radial-gradient(circle,#d4d4d8 1px,transparent 1px)",
+          backgroundSize: "28px 28px",
         }}
       />
 
-      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-24 text-center">
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
         <FadeIn delay={0}>
-          <Badge className="mb-6 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/20 px-4 py-1.5 text-sm">
+          <Badge className="mb-6 h-auto bg-white text-primary-700 border border-zinc-200 shadow-sm px-4 py-1.5 text-sm gap-1.5">
+            <Sparkles className="h-3.5 w-3.5" />
             Modern School Management System
           </Badge>
         </FadeIn>
 
         <FadeIn delay={0.1}>
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold text-white leading-tight tracking-tight max-w-5xl mx-auto">
-            The Complete Platform{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">
-              for Modern Schools
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold text-zinc-900 leading-[1.05] tracking-tight max-w-5xl mx-auto text-balance">
+            The complete platform{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-500 to-primary-400">
+              for modern schools
             </span>
           </h1>
         </FadeIn>
 
         <FadeIn delay={0.2}>
-          <p className="mt-6 text-lg sm:text-xl text-indigo-200/80 max-w-2xl mx-auto leading-relaxed">
+          <p className="mt-6 text-lg sm:text-xl text-zinc-500 max-w-2xl mx-auto leading-relaxed text-balance">
             Shikshaloy unifies administration, teaching, parents, and students in
             one powerful platform — built for the way schools actually work.
           </p>
@@ -49,55 +48,46 @@ export function HeroSection() {
 
         <FadeIn delay={0.3}>
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/login">
-              <Button
-                size="lg"
-                className="bg-indigo-500 hover:bg-indigo-400 text-white px-8 py-6 text-base font-semibold rounded-xl group"
-              >
-                Start for Free
-                <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-              </Button>
-            </Link>
-            <Button
-              size="lg"
-              variant="ghost"
-              className="text-indigo-200 hover:text-white hover:bg-white/10 px-8 py-6 text-base font-semibold rounded-xl border border-white/10"
-            >
-              <Play className="mr-2 h-4 w-4 fill-current" />
+            <FancyButton href="/login" size="lg">
+              Start your free trial
+              <ArrowUpRightIcon className="size-5" />
+            </FancyButton>
+            <FancyButton variant="white" size="lg" className="group">
+              <Play className="h-4 w-4 fill-current" />
               Watch Demo
-            </Button>
+            </FancyButton>
           </div>
         </FadeIn>
 
         {/* Dashboard preview card */}
         <FadeIn delay={0.45} className="mt-20 relative mx-auto max-w-5xl">
-          <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm overflow-hidden shadow-2xl shadow-indigo-950/50">
-            <div className="bg-white/5 border-b border-white/10 px-4 py-3 flex items-center gap-2">
-              <div className="h-3 w-3 rounded-full bg-red-500/60" />
-              <div className="h-3 w-3 rounded-full bg-yellow-500/60" />
-              <div className="h-3 w-3 rounded-full bg-green-500/60" />
-              <div className="mx-auto text-xs text-indigo-400">
+          <div className="rounded-3xl border border-zinc-200 bg-white overflow-hidden shadow-2xl shadow-zinc-300/40">
+            <div className="bg-zinc-50 border-b border-zinc-200 px-4 py-3 flex items-center gap-2">
+              <div className="h-3 w-3 rounded-full bg-red-400" />
+              <div className="h-3 w-3 rounded-full bg-amber-400" />
+              <div className="h-3 w-3 rounded-full bg-emerald-400" />
+              <div className="mx-auto text-xs text-zinc-400">
                 shikshaloy.com/dashboard
               </div>
             </div>
-            <div className="aspect-[16/9] bg-gradient-to-br from-indigo-900/50 to-violet-900/30 flex items-center justify-center">
+            <div className="aspect-[16/9] bg-gradient-to-br from-primary-50 to-white flex items-center justify-center">
               <div className="grid grid-cols-3 gap-4 p-8 w-full max-w-2xl">
                 {["Students", "Teachers", "Classes", "Attendance", "Exams", "Revenue"].map((label, i) => (
                   <div
                     key={label}
-                    className="rounded-xl bg-white/5 border border-white/10 p-4 text-center"
+                    className="rounded-xl bg-white border border-zinc-200 p-4 text-center shadow-sm"
                   >
                     <div
-                      className="h-6 rounded bg-indigo-500/30 mb-2 mx-auto"
+                      className="h-6 rounded-md bg-primary-200 mb-2 mx-auto"
                       style={{ width: `${50 + (i % 3) * 20}%` }}
                     />
-                    <p className="text-xs text-indigo-300">{label}</p>
+                    <p className="text-xs text-zinc-500">{label}</p>
                   </div>
                 ))}
               </div>
             </div>
           </div>
-          <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 w-3/4 h-12 bg-indigo-600/20 blur-2xl rounded-full" />
+          <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 w-3/4 h-12 bg-primary-300/30 blur-2xl rounded-full" />
         </FadeIn>
       </div>
     </section>

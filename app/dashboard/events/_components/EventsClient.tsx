@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Calendar, CalendarDays, ChevronLeft, ChevronRight,
   Plus, Download, Clock, MapPin, Users, Sun,
   ClipboardCheck, Trophy, Star, BookOpen, List, CalendarCheck2,
+  Globe, Loader2,
 } from "lucide-react";
 import {
   TYPE_LABEL, TYPE_COLOR, TYPE_BADGE, AUDIENCE_LABEL,
@@ -15,6 +16,8 @@ import {
 } from "../_data/events";
 import { type PtmSession } from "../../ptm/_data/ptm";
 import { ScheduleModal, BookingsModal } from "../../ptm/_components/PtmModals";
+import { toggleEventPublic } from "../actions";
+import { FancyButton } from "@/components/ui/fancy-button";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -127,11 +130,11 @@ function DayPanel({ dateStr, events, onOpenPtm }: { dateStr: string; events: Sch
 
   return (
     <div className="w-72 shrink-0 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden flex flex-col">
-      <div className={`px-4 py-3.5 border-b border-gray-100 dark:border-zinc-700/50 ${isToday ? "bg-indigo-50 dark:bg-indigo-500/10" : ""}`}>
+      <div className={`px-4 py-3.5 border-b border-gray-100 dark:border-zinc-700/50 ${isToday ? "bg-primary-50 dark:bg-primary-500/10" : ""}`}>
         <div className="flex items-center gap-2 flex-wrap">
           <p className="text-sm font-bold text-gray-900 dark:text-zinc-100 leading-tight">{dayLabel}</p>
           {isToday && (
-            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded-full">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-primary-600 dark:text-primary-400 bg-primary-500/10 px-1.5 py-0.5 rounded-full">
               Today
             </span>
           )}
@@ -181,7 +184,7 @@ function DayPanel({ dateStr, events, onOpenPtm }: { dateStr: string; events: Sch
                       {TYPE_LABEL[ev.type]}
                     </span>
                     {clickable && (
-                      <span className="ml-1.5 text-[9px] font-semibold uppercase tracking-wide text-indigo-500 dark:text-indigo-400">
+                      <span className="ml-1.5 text-[9px] font-semibold uppercase tracking-wide text-primary-500 dark:text-primary-400">
                         View bookings →
                       </span>
                     )}
@@ -303,11 +306,11 @@ function CalendarView({ events, onOpenPtm }: { events: SchoolEvent[]; onOpenPtm:
                 onClick={() => setSelected(date)}
                 className={`min-h-[82px] w-full p-1.5 text-left border-b border-r border-gray-100 dark:border-zinc-700/50 transition-colors
                   ${!isCurrentMonth ? "opacity-30" : ""}
-                  ${isSelected && isCurrentMonth ? "bg-indigo-50/70 dark:bg-indigo-500/10" : "hover:bg-gray-50 dark:hover:bg-zinc-700/20"}
+                  ${isSelected && isCurrentMonth ? "bg-primary-50/70 dark:bg-primary-500/10" : "hover:bg-gray-50 dark:hover:bg-zinc-700/20"}
                 `}
               >
                 <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium
-                  ${isToday ? "bg-indigo-500 text-white" : "text-gray-700 dark:text-zinc-300"}
+                  ${isToday ? "bg-primary-500 text-white" : "text-gray-700 dark:text-zinc-300"}
                 `}>
                   {dayNum}
                 </span>
@@ -321,7 +324,7 @@ function CalendarView({ events, onOpenPtm }: { events: SchoolEvent[]; onOpenPtm:
                     </div>
                   ))}
                   {dayEvents.length > 2 && (
-                    <div className="text-[10px] font-medium text-indigo-500 dark:text-indigo-400 px-0.5">
+                    <div className="text-[10px] font-medium text-primary-500 dark:text-primary-400 px-0.5">
                       +{dayEvents.length - 2} more
                     </div>
                   )}
@@ -355,11 +358,28 @@ function EventCard({ event, onOpenPtm }: { event: SchoolEvent; onOpenPtm: (id: s
   const isMultiDay  = event.endDate && event.endDate !== event.date;
   const dayCount    = isMultiDay ? countDays(event.date, event.endDate!) : 1;
   const clickable   = Boolean(event.ptmSessionId);
+  const isRealEvent = !event.ptmSessionId;
+
+  const [isPublic, setIsPublic] = useState(event.isPublic ?? false);
+  const [pending, startTransition] = useTransition();
+
+  function handleTogglePublic(e: React.MouseEvent) {
+    e.stopPropagation();
+    const next = !isPublic;
+    setIsPublic(next);
+    startTransition(async () => {
+      try {
+        await toggleEventPublic(String(event.id), next);
+      } catch {
+        setIsPublic(!next);
+      }
+    });
+  }
 
   return (
     <div
       onClick={() => event.ptmSessionId && onOpenPtm(event.ptmSessionId)}
-      className={`flex items-start gap-4 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-4 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors ${clickable ? "cursor-pointer" : ""}`}
+      className={`flex items-start gap-4 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-4 hover:border-primary-300 dark:hover:border-primary-700 transition-colors ${clickable ? "cursor-pointer" : ""}`}
     >
       <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${TYPE_ICON_BG[event.type]}`}>
         <Icon className={`h-5 w-5 ${TYPE_ICON_COLOR[event.type]}`} />
@@ -377,7 +397,7 @@ function EventCard({ event, onOpenPtm }: { event: SchoolEvent; onOpenPtm: (id: s
             </span>
           )}
           {clickable && (
-            <span className="inline-flex items-center rounded-full bg-indigo-500/10 px-2 py-0.5 text-[10px] font-medium text-indigo-600 dark:text-indigo-400">
+            <span className="inline-flex items-center rounded-full bg-primary-500/10 px-2 py-0.5 text-[10px] font-medium text-primary-600 dark:text-primary-400">
               View bookings
             </span>
           )}
@@ -404,12 +424,27 @@ function EventCard({ event, onOpenPtm }: { event: SchoolEvent; onOpenPtm: (id: s
 
         <p className="mt-1.5 text-xs text-gray-400 dark:text-zinc-500 line-clamp-1">{event.description}</p>
 
-        <div className="mt-2 flex flex-wrap gap-1">
+        <div className="mt-2 flex flex-wrap items-center gap-1">
           {event.audience.map((a) => (
-            <span key={a} className="text-[10px] font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded-full">
+            <span key={a} className="text-[10px] font-medium text-primary-600 dark:text-primary-400 bg-primary-500/10 px-1.5 py-0.5 rounded-full">
               {AUDIENCE_LABEL[a]}
             </span>
           ))}
+          {isRealEvent && (
+            <button
+              onClick={handleTogglePublic}
+              disabled={pending}
+              title={isPublic ? "Visible on public website — click to unpublish" : "Not on public website — click to publish"}
+              className={`ml-auto flex h-6 items-center gap-1 px-2 rounded-full text-[10px] font-medium transition-colors disabled:opacity-50 ${
+                isPublic
+                  ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                  : "text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200"
+              }`}
+            >
+              {pending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Globe className="h-3 w-3" />}
+              {isPublic ? "On website" : "Publish to website"}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -462,7 +497,7 @@ function ListView({ events, onOpenPtm }: { events: SchoolEvent[]; onOpenPtm: (id
               onClick={() => handleTime(t)}
               className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                 timeFilter === t
-                  ? "bg-indigo-500 text-white shadow-sm"
+                  ? "bg-primary-500 text-white shadow-sm"
                   : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"
               }`}
             >
@@ -482,7 +517,7 @@ function ListView({ events, onOpenPtm }: { events: SchoolEvent[]; onOpenPtm: (id
               onClick={() => handleType(t)}
               className={`flex items-center gap-1.5 h-8 rounded-lg px-3 text-xs font-medium transition-colors ${
                 typeFilter === t
-                  ? "bg-indigo-500 text-white shadow-sm"
+                  ? "bg-primary-500 text-white shadow-sm"
                   : "border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"
               }`}
             >
@@ -496,13 +531,6 @@ function ListView({ events, onOpenPtm }: { events: SchoolEvent[]; onOpenPtm: (id
           );
         })}
       </div>
-
-      {/* Result count */}
-      <p className="text-xs text-gray-500 dark:text-zinc-500">
-        Showing{" "}
-        <span className="font-medium text-gray-700 dark:text-zinc-300">{filtered.length}</span>{" "}
-        event{filtered.length !== 1 ? "s" : ""}
-      </p>
 
       {/* Events */}
       {pageData.length === 0 ? (
@@ -520,7 +548,8 @@ function ListView({ events, onOpenPtm }: { events: SchoolEvent[]; onOpenPtm: (id
       {totalPages > 1 && (
         <div className="flex items-center justify-between border-t border-gray-200 dark:border-zinc-700 pt-3">
           <p className="text-xs text-gray-500 dark:text-zinc-400">
-            Page {page} of {totalPages}
+            Showing <span className="font-medium text-gray-700 dark:text-zinc-300">{(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, filtered.length)}</span> of{" "}
+            <span className="font-medium text-gray-700 dark:text-zinc-300">{filtered.length}</span> event{filtered.length !== 1 ? "s" : ""}
           </p>
           <div className="flex items-center gap-1">
             <button
@@ -546,7 +575,7 @@ function ListView({ events, onOpenPtm }: { events: SchoolEvent[]; onOpenPtm: (id
                     onClick={() => setPage(n as number)}
                     className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-medium transition-colors ${
                       page === n
-                        ? "bg-indigo-500 text-white"
+                        ? "bg-primary-500 text-white"
                         : "border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-700"
                     }`}
                   >
@@ -614,9 +643,9 @@ export default function EventsClient({
           >
             <CalendarCheck2 className="h-3.5 w-3.5" /> Schedule PTM
           </button>
-          <button className="flex h-9 items-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 px-4 text-sm font-medium text-white shadow-sm transition-colors">
+          <FancyButton size="sm">
             <Plus className="h-4 w-4" /> Add Event
-          </button>
+          </FancyButton>
         </div>
       </div>
 
@@ -631,7 +660,7 @@ export default function EventsClient({
             onClick={() => setTab(t)}
             className={`flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
               tab === t
-                ? "bg-indigo-500 text-white shadow-sm"
+                ? "bg-primary-500 text-white shadow-sm"
                 : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"
             }`}
           >

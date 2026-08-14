@@ -4,10 +4,16 @@ export interface CardPerson {
   id: string;
   type: PersonType;
   name: string;
-  idNumber: string;
-  subtitle: string;  // "Class 9-A" or designation
+  idNumber: string;        // roll_no or employee_id
+  admissionNo: string | null;
+  gradeLevel: number | null;
+  section: string | null;
+  subtitle: string;        // "Class 9-A" or designation
   bloodGroup: string;
-  validTill: string; // e.g. "Mar 2027"
+  phone: string | null;
+  dob: string | null;      // formatted, e.g. "14 Aug 2011"
+  photoUrl: string | null;
+  validTill: string;       // formatted, e.g. "31 Mar 2026"
 }
 
 const AVATAR_COLORS = [

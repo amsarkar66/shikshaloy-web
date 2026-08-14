@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useTransition } from "react";
 import {
   Megaphone, Search, Plus, Download, X, Eye,
   Pencil, Archive, Send, AlertTriangle, Info,
   ChevronDown, ChevronUp, Users, GraduationCap,
-  Briefcase, Heart, Globe, Clock,
+  Briefcase, Heart, Globe, Clock, Loader2,
 } from "lucide-react";
+import { FancyButton } from "@/components/ui/fancy-button";
 import {
   PRIORITY_LABEL, PRIORITY_BADGE, PRIORITY_DOT,
   STATUS_LABEL, STATUS_BADGE,
@@ -14,6 +15,7 @@ import {
   formatDate, daysUntil,
   type Priority, type Status, type Audience,
 } from "../_data/announcements";
+import { toggleAnnouncementPublic } from "../actions";
 
 export interface Announcement {
   id: string;
@@ -27,6 +29,7 @@ export interface Announcement {
   expiresAt?: string;
   postedBy: string;
   views: number;
+  isPublic: boolean;
 }
 
 // ── Stats ─────────────────────────────────────────────────────────────────────
@@ -64,31 +67,34 @@ function ComposePanel({ onClose }: { onClose: () => void }) {
   const [priority, setPriority] = useState<Priority>("normal");
   const [audience, setAudience] = useState<Audience>("all");
   return (
-    <div className="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/40 dark:bg-indigo-500/5 p-5 space-y-4">
+    <div className="rounded-xl border border-primary-200 dark:border-primary-800 bg-primary-50/40 dark:bg-primary-500/5 p-5 space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-gray-900 dark:text-zinc-100">New Announcement</p>
         <button onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors"><X className="h-4 w-4" /></button>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="sm:col-span-2"><label className="text-xs font-medium text-gray-500 dark:text-zinc-400 block mb-1">Title</label><input type="text" placeholder="Announcement title…" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-indigo-400 dark:focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20" /></div>
-        <div className="sm:col-span-2"><label className="text-xs font-medium text-gray-500 dark:text-zinc-400 block mb-1">Content</label><textarea rows={4} placeholder="Write the announcement body here…" className="w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2.5 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-indigo-400 dark:focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-none" /></div>
+        <div className="sm:col-span-2"><label className="text-xs font-medium text-gray-500 dark:text-zinc-400 block mb-1">Title</label><input type="text" placeholder="Announcement title…" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 dark:focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
+        <div className="sm:col-span-2"><label className="text-xs font-medium text-gray-500 dark:text-zinc-400 block mb-1">Content</label><textarea rows={4} placeholder="Write the announcement body here…" className="w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2.5 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 dark:focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 resize-none" /></div>
         <div>
           <label className="text-xs font-medium text-gray-500 dark:text-zinc-400 block mb-1">Priority</label>
           <div className="flex gap-1.5">
             {(["normal", "info", "urgent"] as Priority[]).map((p) => (
-              <button key={p} onClick={() => setPriority(p)} className={`flex-1 h-8 rounded-lg border text-xs font-medium capitalize transition-colors ${priority===p?"bg-indigo-500 border-indigo-500 text-white":"border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-400"}`}>{PRIORITY_LABEL[p]}</button>
+              <button key={p} onClick={() => setPriority(p)} className={`flex-1 h-8 rounded-lg border text-xs font-medium capitalize transition-colors ${priority===p?"bg-primary-500 border-primary-500 text-white":"border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-400"}`}>{PRIORITY_LABEL[p]}</button>
             ))}
           </div>
         </div>
         <div>
           <label className="text-xs font-medium text-gray-500 dark:text-zinc-400 block mb-1">Audience</label>
-          <select value={audience} onChange={(e) => setAudience(e.target.value as Audience)} className="h-8 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20">
-            <option value="all">Everyone</option><option value="students">All Students</option><option value="staff">All Staff</option><option value="parents">All Parents</option><option value="class">Specific Class</option>
-          </select>
+          <div className="relative">
+            <select value={audience} onChange={(e) => setAudience(e.target.value as Audience)} className="h-8 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+              <option value="all">Everyone</option><option value="students">All Students</option><option value="staff">All Staff</option><option value="parents">All Parents</option><option value="class">Specific Class</option>
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+          </div>
         </div>
       </div>
       <div className="flex items-center gap-2 pt-1">
-        <button className="flex h-8 items-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 px-4 text-xs font-medium text-white transition-colors shadow-sm"><Send className="h-3.5 w-3.5" /> Publish Now</button>
+        <FancyButton size="xs"><Send className="h-3.5 w-3.5" /> Publish Now</FancyButton>
         <button className="flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Save Draft</button>
         <button onClick={onClose} className="flex h-8 items-center px-3 text-xs font-medium text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 transition-colors">Cancel</button>
       </div>
@@ -98,8 +104,22 @@ function ComposePanel({ onClose }: { onClose: () => void }) {
 
 function AnnouncementCard({ ann }: { ann: Announcement }) {
   const [expanded, setExpanded] = useState(false);
+  const [isPublic, setIsPublic] = useState(ann.isPublic);
+  const [pending, startTransition] = useTransition();
   const expires   = ann.expiresAt ? daysUntil(ann.expiresAt) : null;
   const isExpired = expires !== null && expires < 0;
+
+  function handleTogglePublic() {
+    const next = !isPublic;
+    setIsPublic(next);
+    startTransition(async () => {
+      try {
+        await toggleAnnouncementPublic(ann.id, next);
+      } catch {
+        setIsPublic(!next);
+      }
+    });
+  }
   return (
     <div className={`rounded-xl border bg-white dark:bg-zinc-800/50 overflow-hidden transition-shadow hover:shadow-sm ${ann.priority==="urgent"&&ann.status==="active"?"border-red-200 dark:border-red-900/50":"border-gray-200 dark:border-zinc-800"}`}>
       <div className={`h-0.5 w-full ${ann.priority==="urgent"?"bg-red-500":ann.priority==="info"?"bg-sky-400":"bg-indigo-400"}`} />
@@ -123,13 +143,26 @@ function AnnouncementCard({ ann }: { ann: Announcement }) {
         </div>
         <div className="pl-11">
           <p className={`text-sm text-gray-600 dark:text-zinc-400 leading-relaxed ${!expanded?"line-clamp-2":""}`}>{ann.content}</p>
-          {ann.content.length>120&&<button onClick={()=>setExpanded(v=>!v)} className="mt-1 flex items-center gap-0.5 text-xs text-indigo-600 dark:text-indigo-400 hover:underline">{expanded?<><ChevronUp className="h-3 w-3"/>Show less</>:<><ChevronDown className="h-3 w-3"/>Read more</>}</button>}
+          {ann.content.length>120&&<button onClick={()=>setExpanded(v=>!v)} className="mt-1 flex items-center gap-0.5 text-xs text-primary-600 dark:text-primary-400 hover:underline">{expanded?<><ChevronUp className="h-3 w-3"/>Show less</>:<><ChevronDown className="h-3 w-3"/>Read more</>}</button>}
         </div>
         <div className="pl-11 flex items-center justify-between gap-3 pt-1 border-t border-gray-100 dark:border-zinc-700/50">
           <div className="flex items-center gap-3 text-[11px] text-gray-400 dark:text-zinc-500">
             <span>{formatDate(ann.date)}</span><span>·</span><span>by <span className="font-medium text-gray-500 dark:text-zinc-400">{ann.postedBy}</span></span>
           </div>
           <div className="flex items-center gap-1">
+            <button
+              onClick={handleTogglePublic}
+              disabled={pending}
+              title={isPublic ? "Visible on public website — click to unpublish" : "Not on public website — click to publish"}
+              className={`flex h-7 items-center gap-1 px-2 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 ${
+                isPublic
+                  ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                  : "text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200"
+              }`}
+            >
+              {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Globe className="h-3.5 w-3.5" />}
+              {isPublic ? "On website" : "Publish to website"}
+            </button>
             <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Pencil className="h-3.5 w-3.5" /></button>
             {ann.status==="draft"&&<button className="flex h-7 items-center gap-1 px-2 rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors text-xs font-medium"><Send className="h-3 w-3"/>Publish</button>}
             {ann.status==="active"&&<button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Archive className="h-3.5 w-3.5"/></button>}
@@ -177,7 +210,7 @@ export default function AnnouncementsClient({ initialData }: { initialData: Anno
         </div>
         <div className="sm:ml-auto flex items-center gap-2">
           <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5" /> Export</button>
-          <button onClick={() => setCompose((v) => !v)} className="flex h-9 items-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 px-4 text-sm font-medium text-white transition-colors shadow-sm"><Plus className="h-4 w-4" /> New Announcement</button>
+          <FancyButton onClick={() => setCompose((v) => !v)} size="sm"><Plus className="h-4 w-4" /> New Announcement</FancyButton>
         </div>
       </div>
 
@@ -188,10 +221,10 @@ export default function AnnouncementsClient({ initialData }: { initialData: Anno
         {STATUS_TABS.map((t) => {
           const count = t.value === "all" ? initialData.length : initialData.filter((a) => a.status === t.value).length;
           return (
-            <button key={t.value} onClick={() => setStatus(t.value)} className={`relative flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${statusTab===t.value?"text-indigo-600 dark:text-indigo-400":"text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
+            <button key={t.value} onClick={() => setStatus(t.value)} className={`relative flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${statusTab===t.value?"text-primary-600 dark:text-primary-400":"text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
               {t.label}
-              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${statusTab===t.value?"bg-indigo-500/15 text-indigo-600 dark:text-indigo-400":"bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-500"}`}>{count}</span>
-              {statusTab===t.value&&<span className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-t-full"/>}
+              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${statusTab===t.value?"bg-primary-500/15 text-primary-600 dark:text-primary-400":"bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-500"}`}>{count}</span>
+              {statusTab===t.value&&<span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500 rounded-t-full"/>}
             </button>
           );
         })}
@@ -200,21 +233,27 @@ export default function AnnouncementsClient({ initialData }: { initialData: Anno
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-zinc-500 pointer-events-none" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search announcements…" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-indigo-400 dark:focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search announcements…" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 dark:focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" />
         </div>
-        <select value={priorityFilter} onChange={(e) => setPriority(e.target.value as Priority|"all")} className="h-9 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20">
-          <option value="all">All Priorities</option><option value="urgent">Urgent</option><option value="normal">Normal</option><option value="info">Info</option>
-        </select>
-        <select value={audienceFilter} onChange={(e) => setAudience(e.target.value as Audience|"all")} className="h-9 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20">
-          <option value="all">All Audiences</option><option value="students">Students</option><option value="staff">Staff</option><option value="parents">Parents</option><option value="class">Specific Class</option>
-        </select>
+        <div className="relative">
+          <select value={priorityFilter} onChange={(e) => setPriority(e.target.value as Priority|"all")} className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+            <option value="all">All Priorities</option><option value="urgent">Urgent</option><option value="normal">Normal</option><option value="info">Info</option>
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+        </div>
+        <div className="relative">
+          <select value={audienceFilter} onChange={(e) => setAudience(e.target.value as Audience|"all")} className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+            <option value="all">All Audiences</option><option value="students">Students</option><option value="staff">Staff</option><option value="parents">Parents</option><option value="class">Specific Class</option>
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+        </div>
         {hasFilter&&<button onClick={clearFilters} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><X className="h-3.5 w-3.5"/> Clear</button>}
       </div>
 
       <p className="text-xs text-gray-500 dark:text-zinc-500">
         Showing <span className="font-medium text-gray-700 dark:text-zinc-300">{filtered.length}</span> of{" "}
         <span className="font-medium text-gray-700 dark:text-zinc-300">{initialData.length}</span> announcements
-        {hasFilter&&<span className="ml-2 font-medium text-indigo-600 dark:text-indigo-400">· Filters active</span>}
+        {hasFilter&&<span className="ml-2 font-medium text-primary-600 dark:text-primary-400">· Filters active</span>}
       </p>
 
       {filtered.length === 0 ? (

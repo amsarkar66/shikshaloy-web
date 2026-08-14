@@ -6,7 +6,9 @@ import {
   GraduationCap, BookOpen, CheckCircle2, AlertCircle,
   IndianRupee, Users2, TrendingUp,
 } from "lucide-react";
-import { supabaseAdmin, DEMO_SCHOOL_ID } from "@/lib/supabase/service";
+import { FancyButton } from "@/components/ui/fancy-button";
+import { supabaseAdmin } from "@/lib/supabase/service";
+import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -42,12 +44,47 @@ function formatDate(d: string | null): string {
   return new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
+interface ParentDetailRow {
+  id: string;
+  full_name: string;
+  phone: string | null;
+  email: string | null;
+  occupation: string | null;
+  address: string | null;
+  status: string | null;
+  joined_date: string | null;
+  profile_id: string | null;
+  student_parents: {
+    students: {
+      id: string;
+      full_name: string;
+      roll_no: string | null;
+      attendance_pct: number | null;
+      fee_status: string | null;
+      status: string | null;
+      sections: { name: string | null; grades: { level: number | null } | null } | null;
+    } | null;
+  }[] | null;
+}
+
+interface ParentFeeRow {
+  student_id: string;
+  amount_due: number | null;
+  amount_paid: number | null;
+}
+
+interface ParentConversationRow {
+  last_message: string | null;
+  last_time: string | null;
+}
+
 export default async function ParentDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const schoolId = await getCurrentSchoolIdOrThrow();
 
   const { data: parentRow } = await supabaseAdmin
     .from("parents")
@@ -57,35 +94,35 @@ export default async function ParentDetailPage({
         students ( id, full_name, roll_no, attendance_pct, fee_status, status, sections ( name, grades ( level ) ) )
       )
     `)
-    .eq("school_id", DEMO_SCHOOL_ID)
+    .eq("school_id", schoolId)
     .eq("id", id)
     .maybeSingle();
 
   if (!parentRow) notFound();
 
-  const p = parentRow as any;
+  const p = parentRow as unknown as ParentDetailRow;
   const parent = {
-    id: p.id as string,
-    name: p.full_name as string,
-    phone: (p.phone as string) ?? "—",
-    email: (p.email as string) ?? "—",
-    occupation: (p.occupation as string) ?? "—",
-    address: (p.address as string) ?? "—",
+    id: p.id,
+    name: p.full_name,
+    phone: p.phone ?? "—",
+    email: p.email ?? "—",
+    occupation: p.occupation ?? "—",
+    address: p.address ?? "—",
     joinedDate: formatDate(p.joined_date),
     active: p.status === "active",
   };
 
-  const children = ((p.student_parents ?? []) as any[])
+  const children = (p.student_parents ?? [])
     .map((sp) => sp.students)
-    .filter(Boolean)
-    .map((c: any) => ({
-      id: c.id as string,
-      name: c.full_name as string,
-      rollNo: (c.roll_no as string) ?? "",
+    .filter((s): s is NonNullable<typeof s> => !!s)
+    .map((c) => ({
+      id: c.id,
+      name: c.full_name,
+      rollNo: c.roll_no ?? "",
       classNum: String(c.sections?.grades?.level ?? "—"),
-      section: (c.sections?.name as string) ?? "—",
+      section: c.sections?.name ?? "—",
       attendance: Math.round(Number(c.attendance_pct ?? 0)),
-      feeStatus: (c.fee_status as string) ?? "overdue",
+      feeStatus: c.fee_status ?? "overdue",
       active: c.status === "active",
     }));
 
@@ -96,23 +133,23 @@ export default async function ParentDetailPage({
       ? supabaseAdmin
           .from("fee_payments")
           .select("student_id, amount_due, amount_paid")
-          .eq("school_id", DEMO_SCHOOL_ID)
+          .eq("school_id", schoolId)
           .in("student_id", childIds)
-      : Promise.resolve({ data: [] as any[] }),
+      : Promise.resolve({ data: [] as ParentFeeRow[] }),
 
     p.profile_id
       ? supabaseAdmin
           .from("conversations")
           .select("last_message, last_time")
-          .eq("school_id", DEMO_SCHOOL_ID)
+          .eq("school_id", schoolId)
           .or(`participant1.eq.${p.profile_id},participant2.eq.${p.profile_id}`)
           .order("last_time", { ascending: false })
           .limit(5)
-      : Promise.resolve({ data: [] as any[] }),
+      : Promise.resolve({ data: [] as ParentConversationRow[] }),
   ]);
 
   const feeByChild = new Map<string, { due: number; paid: number }>();
-  for (const r of (feeRows ?? []) as any[]) {
+  for (const r of (feeRows ?? []) as unknown as ParentFeeRow[]) {
     const entry = feeByChild.get(r.student_id) ?? { due: 0, paid: 0 };
     entry.due += Number(r.amount_due ?? 0);
     entry.paid += Number(r.amount_paid ?? 0);
@@ -132,7 +169,7 @@ export default async function ParentDetailPage({
   const anyPartial = children.some((c) => c.feeStatus === "partial");
   const overallFee = anyOverdue ? "overdue" : anyPartial ? "partial" : "paid";
 
-  const conversations = (convRows ?? []) as any[];
+  const conversations = (convRows ?? []) as unknown as ParentConversationRow[];
 
   return (
     <div className="w-full px-6 py-6 space-y-6">
@@ -149,9 +186,9 @@ export default async function ParentDetailPage({
           <button className="flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
             <MessageSquare className="h-3.5 w-3.5" /> Message
           </button>
-          <button className="flex h-8 items-center gap-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 px-4 text-sm font-medium text-white transition-colors">
+          <FancyButton size="xs">
             <Pencil className="h-3.5 w-3.5" /> Edit
-          </button>
+          </FancyButton>
         </div>
       </div>
 
@@ -228,7 +265,7 @@ export default async function ParentDetailPage({
       {/* Contact info */}
       <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5">
         <p className="mb-4 text-sm font-semibold text-gray-900 dark:text-zinc-50 flex items-center gap-2">
-          <Phone className="h-4 w-4 text-indigo-500" /> Contact Information
+          <Phone className="h-4 w-4 text-primary-500" /> Contact Information
         </p>
         <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
           <div>
@@ -249,7 +286,7 @@ export default async function ParentDetailPage({
       {/* Children cards */}
       <div>
         <p className="mb-3 text-sm font-semibold text-gray-900 dark:text-zinc-50 flex items-center gap-2">
-          <GraduationCap className="h-4 w-4 text-indigo-500" />
+          <GraduationCap className="h-4 w-4 text-primary-500" />
           {children.length === 1 ? "Child" : "Children"} ({children.length})
         </p>
         {children.length === 0 ? (
@@ -386,7 +423,7 @@ export default async function ParentDetailPage({
       {/* Recent communications */}
       <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100 dark:border-zinc-700 flex items-center gap-2">
-          <MessageSquare className="h-4 w-4 text-indigo-500" />
+          <MessageSquare className="h-4 w-4 text-primary-500" />
           <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Recent Communications</p>
         </div>
         {conversations.length === 0 ? (
@@ -395,7 +432,7 @@ export default async function ParentDetailPage({
           <div className="divide-y divide-gray-100 dark:divide-zinc-700/50">
             {conversations.map((c, i) => (
               <div key={i} className="flex items-start gap-3 px-5 py-3.5 hover:bg-gray-50 dark:hover:bg-zinc-700/30 transition-colors">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-500/10 text-indigo-500 text-[10px] font-bold mt-0.5">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-500/10 text-primary-500 text-[10px] font-bold mt-0.5">
                   <MessageSquare className="h-3.5 w-3.5" />
                 </div>
                 <div className="flex-1 min-w-0">

@@ -4,12 +4,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Phone, ShieldCheck, AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { FancyButton } from "@/components/ui/fancy-button";
 import {
   AuthChrome,
   FieldLabel,
   OtpInput,
-  buttonPrimaryClass,
   cardClass,
   inputClass,
 } from "@/components/auth/auth-ui";
@@ -140,10 +139,11 @@ export function VerifyPhoneClient({ defaultPhone }: { defaultPhone: string }) {
               />
             </div>
 
-            <Button
+            <FancyButton
               type="submit"
               disabled={loading}
-              className={`mt-2 ${buttonPrimaryClass}`}
+              size="sm"
+              className="mt-2 h-10 w-full px-3.5"
             >
               {loading ? (
                 <>
@@ -153,7 +153,7 @@ export function VerifyPhoneClient({ defaultPhone }: { defaultPhone: string }) {
               ) : (
                 "Send code"
               )}
-            </Button>
+            </FancyButton>
           </form>
         ) : (
           <form onSubmit={verifyCode} className="space-y-4">
@@ -188,10 +188,11 @@ export function VerifyPhoneClient({ defaultPhone }: { defaultPhone: string }) {
               </motion.div>
             )}
 
-            <Button
+            <FancyButton
               type="submit"
               disabled={loading || otp.length < 6}
-              className={`mt-2 ${buttonPrimaryClass}`}
+              size="sm"
+              className="mt-2 h-10 w-full px-3.5"
             >
               {loading ? (
                 <>
@@ -201,7 +202,7 @@ export function VerifyPhoneClient({ defaultPhone }: { defaultPhone: string }) {
               ) : (
                 "Verify"
               )}
-            </Button>
+            </FancyButton>
           </form>
         )}
       </div>

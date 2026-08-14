@@ -1,5 +1,5 @@
-import { DashboardSkeleton } from "../_components/dashboard-skeleton";
+import { IdCardsSkeleton } from "./_components/id-cards-skeleton";
 
 export default function Loading() {
-  return <DashboardSkeleton />;
+  return <IdCardsSkeleton />;
 }

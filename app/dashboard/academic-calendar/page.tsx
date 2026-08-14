@@ -1,15 +1,17 @@
-import { supabaseAdmin, DEMO_SCHOOL_ID } from "@/lib/supabase/service";
+import { supabaseAdmin } from "@/lib/supabase/service";
+import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import AcademicCalendarClient from "./_components/AcademicCalendarClient";
 import type { CalendarEvent } from "./_components/AcademicCalendarClient";
 
 export default async function AcademicCalendarPage() {
+  const schoolId = await getCurrentSchoolIdOrThrow();
   const { data } = await supabaseAdmin
     .from("academic_calendar")
     .select("id, title, date, date_to, type, description, affects_all, classes")
-    .eq("school_id", DEMO_SCHOOL_ID)
+    .eq("school_id", schoolId)
     .order("date");
 
-  const events: CalendarEvent[] = (data ?? []).map((e: any) => ({
+  const events: CalendarEvent[] = (data ?? []).map((e) => ({
     id:          e.id,
     title:       e.title,
     date:        e.date ?? "",

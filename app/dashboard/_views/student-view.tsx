@@ -65,7 +65,7 @@ function TodaySchedule({ items }: { items: ScheduleItem[] }) {
       ) : (
         <div className="space-y-1">
           {items.map((s, i) => (
-            <div key={i} className={`flex items-center gap-3 rounded-lg px-2 py-2 ${s.now ? "bg-indigo-500/5 dark:bg-indigo-500/10" : ""}`}>
+            <div key={i} className={`flex items-center gap-3 rounded-lg px-2 py-2 ${s.now ? "bg-primary-500/5 dark:bg-primary-500/10" : ""}`}>
               <span className={`w-10 shrink-0 text-[11px] font-mono font-semibold ${
                 s.done ? "text-gray-300 dark:text-zinc-600" :
                 s.now  ? "text-indigo-600 dark:text-indigo-400" :
@@ -82,7 +82,7 @@ function TodaySchedule({ items }: { items: ScheduleItem[] }) {
                 s.isBreak ? "text-gray-400 dark:text-zinc-500 italic" :
                 "text-gray-700 dark:text-zinc-300"
               }`}>{s.label}</span>
-              {s.now && <span className="ml-auto text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded-full">Now</span>}
+              {s.now && <span className="ml-auto text-[10px] font-semibold text-primary-600 dark:text-primary-400 bg-primary-500/10 px-1.5 py-0.5 rounded-full">Now</span>}
             </div>
           ))}
         </div>
@@ -98,7 +98,7 @@ function RecentGrades({ rows }: { rows: GradeRow[] }) {
     <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5">
       <div className="mb-4 flex items-center justify-between">
         <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Recent Grades</p>
-        <Link href="/dashboard/grades" className="flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 hover:underline">
+        <Link href="/dashboard/grades" className="flex items-center gap-1 text-xs text-primary-600 dark:text-primary-400 hover:underline">
           View all <ChevronRight className="h-3 w-3" />
         </Link>
       </div>
@@ -134,7 +134,7 @@ function HomeworkDue({ rows }: { rows: HomeworkRow[] }) {
     <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5">
       <div className="mb-4 flex items-center justify-between">
         <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Homework Due</p>
-        <Link href="/dashboard/homework" className="flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 hover:underline">
+        <Link href="/dashboard/homework" className="flex items-center gap-1 text-xs text-primary-600 dark:text-primary-400 hover:underline">
           View all <ChevronRight className="h-3 w-3" />
         </Link>
       </div>
@@ -232,7 +232,7 @@ export async function StudentView({ user }: { user: User }) {
           .eq("school_id", student.schoolId)
           .eq("section_id", student.sectionId)
           .eq("day_of_week", dayOfWeek)
-      : Promise.resolve({ data: [] as any[] }),
+      : Promise.resolve({ data: [] as { period_number: number; subjects: { name: string | null } | null }[] }),
 
     supabaseAdmin.from("exam_results")
       .select("marks_obtained, max_marks, grade, exams ( name, start_date ), subjects ( name )")
@@ -248,7 +248,7 @@ export async function StudentView({ user }: { user: User }) {
           .gte("due_date", todayISO)
           .order("due_date")
           .limit(5)
-      : Promise.resolve({ data: [] as any[] }),
+      : Promise.resolve({ data: [] as { id: string; title: string | null; due_date: string; subjects: { name: string | null } | null }[] }),
 
     supabaseAdmin.from("homework_submissions").select("homework_id").eq("student_id", student.id),
 
@@ -266,13 +266,15 @@ export async function StudentView({ user }: { user: User }) {
       .limit(10),
   ]);
 
-  const submittedIds = new Set(((submissionRows ?? []) as any[]).map((s) => s.homework_id));
+  const submittedIds = new Set(((submissionRows ?? []) as unknown as { homework_id: string }[]).map((s) => s.homework_id));
   const slotByPeriod: Record<number, string> = {};
-  for (const s of (slotRows ?? []) as any[]) {
+  for (const s of (slotRows ?? []) as { period_number: number; subjects: { name: string | null } | null }[]) {
     slotByPeriod[s.period_number] = s.subjects?.name ?? "Class";
   }
 
-  const scheduleItems: ScheduleItem[] = ((periodRows ?? []) as any[]).map((p) => {
+  const scheduleItems: ScheduleItem[] = ((periodRows ?? []) as unknown as {
+    number: number; start_time: string; end_time: string; is_break: boolean | null; break_label: string | null;
+  }[]).map((p) => {
     const [h, m] = p.start_time.split(":").map(Number);
     const [eh, em] = p.end_time.split(":").map(Number);
     const startMin = h * 60 + m, endMin = eh * 60 + em;
@@ -284,7 +286,11 @@ export async function StudentView({ user }: { user: User }) {
     };
   });
 
-  const grades: GradeRow[] = ((examResultRows ?? []) as any[]).map((r) => ({
+  const grades: GradeRow[] = ((examResultRows ?? []) as unknown as {
+    marks_obtained: number | null; max_marks: number | null; grade: string | null;
+    exams: { name: string | null; start_date: string } | null;
+    subjects: { name: string | null } | null;
+  }[]).map((r) => ({
     exam: r.exams?.name ?? "Exam",
     subject: r.subjects?.name ?? "Subject",
     marks: Math.round(Number(r.marks_obtained ?? 0)),
@@ -292,19 +298,23 @@ export async function StudentView({ user }: { user: User }) {
     grade: r.grade ?? "—",
   }));
 
-  const homeworkDue: HomeworkRow[] = ((homeworkRows ?? []) as any[]).map((h) => ({
-    title: h.title, subject: h.subjects?.name ?? "Subject",
+  const homeworkDue: HomeworkRow[] = ((homeworkRows ?? []) as unknown as {
+    id: string; title: string | null; due_date: string; subjects: { name: string | null } | null;
+  }[]).map((h) => ({
+    title: h.title ?? "", subject: h.subjects?.name ?? "Subject",
     dueDate: h.due_date, submitted: submittedIds.has(h.id),
   }));
   const pendingHomeworkCount = homeworkDue.filter((h) => !h.submitted).length;
 
-  const latestFee = feeRows?.[0] as any;
+  const latestFee = feeRows?.[0] as unknown as { month_str: string; amount_due: number | null; amount_paid: number | null } | undefined;
   const feeDue = latestFee ? Math.max(Number(latestFee.amount_due ?? 0) - Number(latestFee.amount_paid ?? 0), 0) : 0;
 
-  const announcements: AnnouncementRow[] = ((announcementRows ?? []) as any[])
+  const announcements: AnnouncementRow[] = ((announcementRows ?? []) as unknown as {
+    title: string | null; priority: string | null; audience: string; target_section_id: string | null; created_at: string;
+  }[])
     .filter((a) => a.audience === "all" || a.audience === "students" || (a.audience === "class" && a.target_section_id === student.sectionId))
     .slice(0, 5)
-    .map((a) => ({ title: a.title, priority: a.priority ?? "normal", createdAt: a.created_at }));
+    .map((a) => ({ title: a.title ?? "", priority: a.priority ?? "normal", createdAt: a.created_at }));
 
   const classLabel = student.gradeLevel ? `Class ${student.gradeLevel}-${student.sectionName}` : "—";
 

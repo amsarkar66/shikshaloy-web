@@ -1,9 +1,60 @@
-import { createClient } from "@/lib/supabase/server";
-import { supabaseAdmin, DEMO_SCHOOL_ID, DEMO_AY_ID } from "@/lib/supabase/service";
+import { getUser } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/service";
+import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 import { getStudentContext } from "@/lib/students/context";
+import { getTeacherContext } from "@/lib/teachers/context";
 import HomeworkClient from "./_components/HomeworkClient";
 import { StudentHomeworkList, type StudentHomeworkItem } from "./_components/StudentHomeworkList";
 import type { Homework } from "./_data/homework";
+
+interface StudentHomeworkRow {
+  id: string;
+  title: string | null;
+  due_date: string;
+  description: string | null;
+  subjects: { name: string | null } | null;
+  staff_members: { full_name: string | null } | null;
+}
+
+interface SubmissionRow {
+  homework_id: string;
+}
+
+interface AdminHomeworkRow {
+  id: string;
+  title: string | null;
+  assigned_date: string;
+  due_date: string;
+  description: string | null;
+  status: string;
+  section_id: string;
+  subjects: { name: string | null } | null;
+  sections: { name: string | null; grades: { level: number | null } | null } | null;
+  staff_members: { full_name: string | null } | null;
+}
+
+interface StudentSectionRow {
+  id: string;
+  section_id: string | null;
+}
+
+interface HomeworkSubjectRow {
+  id: string;
+  name: string | null;
+}
+
+interface HomeworkSectionRow {
+  id: string;
+  name: string | null;
+  grades: { level: number | null } | null;
+}
+
+interface HomeworkTeacherRow {
+  id: string;
+  full_name: string | null;
+  designation: string | null;
+}
 
 async function StudentHomework({ userId }: { userId: string }) {
   const student = await getStudentContext(userId);
@@ -29,11 +80,11 @@ async function StudentHomework({ userId }: { userId: string }) {
     supabaseAdmin.from("homework_submissions").select("homework_id").eq("student_id", student.id),
   ]);
 
-  const submittedIds = new Set(((subRows ?? []) as any[]).map((s) => s.homework_id));
+  const submittedIds = new Set(((subRows ?? []) as unknown as SubmissionRow[]).map((s) => s.homework_id));
 
-  const items: StudentHomeworkItem[] = ((hwRows ?? []) as any[]).map((h) => ({
+  const items: StudentHomeworkItem[] = ((hwRows ?? []) as unknown as StudentHomeworkRow[]).map((h) => ({
     id: h.id,
-    title: h.title,
+    title: h.title ?? "",
     subject: h.subjects?.name ?? "Subject",
     teacher: h.staff_members?.full_name ?? "—",
     dueDate: h.due_date,
@@ -54,14 +105,97 @@ async function StudentHomework({ userId }: { userId: string }) {
   );
 }
 
+async function TeacherHomework({ userId }: { userId: string }) {
+  const teacher = await getTeacherContext(userId);
+
+  if (!teacher) {
+    return (
+      <div className="w-full px-6 py-8">
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 py-24 text-center">
+          <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">No classes assigned yet</p>
+        </div>
+      </div>
+    );
+  }
+
+  const sectionIds = teacher.sectionIds;
+  const subjectIds = Array.from(new Set(teacher.subjectAssignments.map((a) => a.subjectId)));
+
+  const [{ data: hwRows }, { data: subjectRows }, { data: sectionRows }, { data: studentRows }] = await Promise.all([
+    supabaseAdmin
+      .from("homework")
+      .select(`
+        id, title, assigned_date, due_date, description, status, section_id,
+        subjects ( name ),
+        sections ( name, grades ( level ) ),
+        staff_members ( full_name )
+      `)
+      .eq("teacher_id", teacher.staffId)
+      .order("due_date"),
+
+    subjectIds.length
+      ? supabaseAdmin.from("subjects").select("id, name").in("id", subjectIds).order("name")
+      : Promise.resolve({ data: [] as HomeworkSubjectRow[] }),
+
+    sectionIds.length
+      ? supabaseAdmin.from("sections").select("id, name, grades ( level )").in("id", sectionIds).order("name")
+      : Promise.resolve({ data: [] as HomeworkSectionRow[] }),
+
+    sectionIds.length
+      ? supabaseAdmin.from("students").select("id, section_id").in("section_id", sectionIds)
+      : Promise.resolve({ data: [] as StudentSectionRow[] }),
+  ]);
+
+  const studentCountBySection: Record<string, number> = {};
+  for (const s of (studentRows ?? []) as unknown as StudentSectionRow[]) {
+    if (s.section_id) studentCountBySection[s.section_id] = (studentCountBySection[s.section_id] ?? 0) + 1;
+  }
+
+  const hwIds = ((hwRows ?? []) as unknown as AdminHomeworkRow[]).map((h) => h.id);
+  const { data: subRows } = hwIds.length
+    ? await supabaseAdmin.from("homework_submissions").select("homework_id").in("homework_id", hwIds)
+    : { data: [] as SubmissionRow[] };
+
+  const submittedCount: Record<string, number> = {};
+  for (const s of (subRows ?? []) as unknown as SubmissionRow[]) {
+    submittedCount[s.homework_id] = (submittedCount[s.homework_id] ?? 0) + 1;
+  }
+
+  const homework: Homework[] = ((hwRows ?? []) as unknown as AdminHomeworkRow[]).map((h) => ({
+    id: h.id,
+    title: h.title ?? "",
+    subject: h.subjects?.name ?? "—",
+    sectionLabel: `${h.sections?.grades?.level ?? "?"}-${h.sections?.name ?? ""}`,
+    teacher: h.staff_members?.full_name ?? "—",
+    assignedDate: h.assigned_date,
+    dueDate: h.due_date,
+    totalStudents: studentCountBySection[h.section_id] ?? 0,
+    submitted: submittedCount[h.id] ?? 0,
+    description: h.description ?? "",
+    status: h.status as Homework["status"],
+  }));
+
+  const subjects = ((subjectRows ?? []) as unknown as HomeworkSubjectRow[]).map((s) => ({ id: s.id, name: s.name ?? "" }));
+  const sections = ((sectionRows ?? []) as unknown as HomeworkSectionRow[]).map((s) => ({ id: s.id, label: `${s.grades?.level ?? "?"}-${s.name}` }));
+  const teachers = [{ id: teacher.staffId, name: teacher.fullName, designation: teacher.designation }];
+
+  return <HomeworkClient homework={homework} subjects={subjects} sections={sections} teachers={teachers} />;
+}
+
 export default async function HomeworkPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await getUser();
   const role = user?.user_metadata?.role as string | undefined;
 
   if (role === "student" && user) {
     return <StudentHomework userId={user.id} />;
   }
+
+  if (role === "teacher" && user) {
+    return <TeacherHomework userId={user.id} />;
+  }
+
+  const academicYearId = await getCurrentAcademicYearId();
+  const schoolId = await getCurrentSchoolIdOrThrow();
 
   const [{ data: hwRows }, { data: subjectRows }, { data: sectionRows }, { data: teacherRows }, { data: studentRows }] =
     await Promise.all([
@@ -73,46 +207,46 @@ export default async function HomeworkPage() {
           sections ( name, grades ( level ) ),
           staff_members ( full_name )
         `)
-        .eq("school_id", DEMO_SCHOOL_ID)
+        .eq("school_id", schoolId)
         .order("due_date"),
 
-      supabaseAdmin.from("subjects").select("id, name").eq("school_id", DEMO_SCHOOL_ID).order("name"),
+      supabaseAdmin.from("subjects").select("id, name").eq("school_id", schoolId).order("name"),
 
       supabaseAdmin
         .from("sections")
         .select("id, name, grades ( level )")
-        .eq("school_id", DEMO_SCHOOL_ID)
-        .eq("academic_year_id", DEMO_AY_ID)
+        .eq("school_id", schoolId)
+        .eq("academic_year_id", academicYearId)
         .order("name"),
 
       supabaseAdmin
         .from("staff_members")
         .select("id, full_name, designation")
-        .eq("school_id", DEMO_SCHOOL_ID)
+        .eq("school_id", schoolId)
         .eq("type", "teaching")
         .order("full_name"),
 
-      supabaseAdmin.from("students").select("id, section_id").eq("school_id", DEMO_SCHOOL_ID),
+      supabaseAdmin.from("students").select("id, section_id").eq("school_id", schoolId),
     ]);
 
   const studentCountBySection: Record<string, number> = {};
-  for (const s of (studentRows ?? []) as any[]) {
-    studentCountBySection[s.section_id] = (studentCountBySection[s.section_id] ?? 0) + 1;
+  for (const s of (studentRows ?? []) as unknown as StudentSectionRow[]) {
+    if (s.section_id) studentCountBySection[s.section_id] = (studentCountBySection[s.section_id] ?? 0) + 1;
   }
 
-  const hwIds = (hwRows ?? []).map((h: any) => h.id);
+  const hwIds = ((hwRows ?? []) as unknown as AdminHomeworkRow[]).map((h) => h.id);
   const { data: subRows } = hwIds.length
     ? await supabaseAdmin.from("homework_submissions").select("homework_id").in("homework_id", hwIds)
-    : { data: [] as any[] };
+    : { data: [] as SubmissionRow[] };
 
   const submittedCount: Record<string, number> = {};
-  for (const s of (subRows ?? []) as any[]) {
+  for (const s of (subRows ?? []) as unknown as SubmissionRow[]) {
     submittedCount[s.homework_id] = (submittedCount[s.homework_id] ?? 0) + 1;
   }
 
-  const homework: Homework[] = ((hwRows ?? []) as any[]).map((h) => ({
+  const homework: Homework[] = ((hwRows ?? []) as unknown as AdminHomeworkRow[]).map((h) => ({
     id: h.id,
-    title: h.title,
+    title: h.title ?? "",
     subject: h.subjects?.name ?? "—",
     sectionLabel: `${h.sections?.grades?.level ?? "?"}-${h.sections?.name ?? ""}`,
     teacher: h.staff_members?.full_name ?? "—",
@@ -121,12 +255,12 @@ export default async function HomeworkPage() {
     totalStudents: studentCountBySection[h.section_id] ?? 0,
     submitted: submittedCount[h.id] ?? 0,
     description: h.description ?? "",
-    status: h.status,
+    status: h.status as Homework["status"],
   }));
 
-  const subjects = ((subjectRows ?? []) as any[]).map((s) => ({ id: s.id, name: s.name }));
-  const sections = ((sectionRows ?? []) as any[]).map((s) => ({ id: s.id, label: `${s.grades?.level ?? "?"}-${s.name}` }));
-  const teachers = ((teacherRows ?? []) as any[]).map((t) => ({ id: t.id, name: t.full_name, designation: t.designation }));
+  const subjects = ((subjectRows ?? []) as unknown as HomeworkSubjectRow[]).map((s) => ({ id: s.id, name: s.name ?? "" }));
+  const sections = ((sectionRows ?? []) as unknown as HomeworkSectionRow[]).map((s) => ({ id: s.id, label: `${s.grades?.level ?? "?"}-${s.name}` }));
+  const teachers = ((teacherRows ?? []) as unknown as HomeworkTeacherRow[]).map((t) => ({ id: t.id, name: t.full_name ?? "", designation: t.designation ?? "" }));
 
   return <HomeworkClient homework={homework} subjects={subjects} sections={sections} teachers={teachers} />;
 }

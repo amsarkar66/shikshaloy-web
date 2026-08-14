@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { supabaseAdmin, DEMO_SCHOOL_ID } from "@/lib/supabase/service";
+import { supabaseAdmin } from "@/lib/supabase/service";
+import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { enrollStudent, type ParentLogin } from "@/lib/students/enroll";
 import type { AdmissionStatus } from "./_data/admissions";
 
@@ -43,10 +44,13 @@ export interface NewApplicationInput {
 
   photoUrl?: string | null;
 
+  documents?: { category: string; fileUrl: string; fileName: string }[];
+
   notes?: string;
 }
 
 export async function createApplication(input: NewApplicationInput): Promise<string> {
+  const schoolId = await getCurrentSchoolIdOrThrow();
   const { data: year } = await supabaseAdmin
     .from("academic_years")
     .select("name")
@@ -73,7 +77,7 @@ export async function createApplication(input: NewApplicationInput): Promise<str
   const { data, error } = await supabaseAdmin
     .from("admission_applications")
     .insert({
-      school_id: DEMO_SCHOOL_ID,
+      school_id: schoolId,
       academic_year_id: input.academicYearId,
       application_no: applicationNo,
       applicant_name: input.applicantName,
@@ -113,19 +117,144 @@ export async function createApplication(input: NewApplicationInput): Promise<str
 
   if (error || !data) throw new Error(error?.message ?? "Failed to create application");
 
+  if (input.documents && input.documents.length > 0) {
+    const { error: docError } = await supabaseAdmin.from("admission_documents").insert(
+      input.documents.map((d) => ({
+        application_id: data.id,
+        category: d.category,
+        file_name: d.fileName,
+        file_url: d.fileUrl,
+      }))
+    );
+    if (docError) throw new Error(`Application created, but failed to save documents: ${docError.message}`);
+  }
+
   revalidatePath("/dashboard/admissions");
   return data.id;
 }
 
-export async function updateApplicationStatus(applicationId: string, status: AdmissionStatus) {
+export async function updateApplicationStatus(applicationId: string, status: AdmissionStatus, reason?: string) {
   const { error } = await supabaseAdmin
     .from("admission_applications")
-    .update({ status, updated_at: new Date().toISOString() })
+    .update({ status, status_reason: reason?.trim() || null, updated_at: new Date().toISOString() })
     .eq("id", applicationId);
 
   if (error) throw new Error(error.message);
 
   revalidatePath("/dashboard/admissions");
+  revalidatePath(`/dashboard/admissions/${applicationId}`);
+}
+
+export interface ApplicationDetailsPatch {
+  applicantName?: string;
+  dob?: string | null;
+  gender?: "Male" | "Female" | "Other";
+  applyingForGrade?: string;
+  previousSchool?: string | null;
+  address?: string | null;
+  bloodGroup?: string | null;
+  category?: string | null;
+  nationality?: string | null;
+
+  parentName?: string;
+  parentPhone?: string;
+  parentEmail?: string;
+
+  fatherName?: string | null;
+  fatherOccupation?: string | null;
+  fatherPhone?: string | null;
+  fatherEmail?: string | null;
+
+  motherName?: string | null;
+  motherOccupation?: string | null;
+  motherPhone?: string | null;
+  motherEmail?: string | null;
+
+  guardianName?: string | null;
+  guardianRelation?: string | null;
+  guardianPhone?: string | null;
+
+  siblingStudying?: boolean;
+  siblingName?: string | null;
+
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
+
+  notes?: string | null;
+}
+
+export async function updateApplicationDetails(applicationId: string, patch: ApplicationDetailsPatch) {
+  const row: Record<string, unknown> = {};
+  if (patch.applicantName    !== undefined) row.applicant_name     = patch.applicantName;
+  if (patch.dob              !== undefined) row.dob                = patch.dob;
+  if (patch.gender           !== undefined) row.gender             = patch.gender;
+  if (patch.applyingForGrade !== undefined) row.applying_for_grade = patch.applyingForGrade;
+  if (patch.previousSchool   !== undefined) row.previous_school    = patch.previousSchool;
+  if (patch.address          !== undefined) row.address            = patch.address;
+  if (patch.bloodGroup       !== undefined) row.blood_group        = patch.bloodGroup;
+  if (patch.category         !== undefined) row.category           = patch.category;
+  if (patch.nationality      !== undefined) row.nationality        = patch.nationality;
+
+  if (patch.parentName  !== undefined) row.parent_name  = patch.parentName;
+  if (patch.parentPhone !== undefined) row.parent_phone = patch.parentPhone;
+  if (patch.parentEmail !== undefined) row.parent_email = patch.parentEmail;
+
+  if (patch.fatherName       !== undefined) row.father_name       = patch.fatherName;
+  if (patch.fatherOccupation !== undefined) row.father_occupation = patch.fatherOccupation;
+  if (patch.fatherPhone      !== undefined) row.father_phone      = patch.fatherPhone;
+  if (patch.fatherEmail      !== undefined) row.father_email      = patch.fatherEmail;
+
+  if (patch.motherName       !== undefined) row.mother_name       = patch.motherName;
+  if (patch.motherOccupation !== undefined) row.mother_occupation = patch.motherOccupation;
+  if (patch.motherPhone      !== undefined) row.mother_phone      = patch.motherPhone;
+  if (patch.motherEmail      !== undefined) row.mother_email      = patch.motherEmail;
+
+  if (patch.guardianName     !== undefined) row.guardian_name     = patch.guardianName;
+  if (patch.guardianRelation !== undefined) row.guardian_relation = patch.guardianRelation;
+  if (patch.guardianPhone    !== undefined) row.guardian_phone    = patch.guardianPhone;
+
+  if (patch.siblingStudying !== undefined) row.sibling_studying = patch.siblingStudying;
+  if (patch.siblingName     !== undefined) row.sibling_name     = patch.siblingName;
+
+  if (patch.emergencyContactName  !== undefined) row.emergency_contact_name  = patch.emergencyContactName;
+  if (patch.emergencyContactPhone !== undefined) row.emergency_contact_phone = patch.emergencyContactPhone;
+
+  if (patch.notes !== undefined) row.notes = patch.notes;
+
+  if (Object.keys(row).length === 0) return;
+  row.updated_at = new Date().toISOString();
+
+  const { error } = await supabaseAdmin
+    .from("admission_applications")
+    .update(row)
+    .eq("id", applicationId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/dashboard/admissions");
+  revalidatePath(`/dashboard/admissions/${applicationId}`);
+}
+
+export async function deleteAdmissionDocument(documentId: string, applicationId: string) {
+  const { data: doc } = await supabaseAdmin
+    .from("admission_documents")
+    .select("file_url")
+    .eq("id", documentId)
+    .single();
+
+  const { error } = await supabaseAdmin
+    .from("admission_documents")
+    .delete()
+    .eq("id", documentId);
+
+  if (error) throw new Error(error.message);
+
+  if (doc?.file_url) {
+    const path = doc.file_url.split("/admission-documents/")[1];
+    if (path) await supabaseAdmin.storage.from("admission-documents").remove([path]);
+  }
+
+  revalidatePath(`/dashboard/admissions/${applicationId}`);
 }
 
 export interface EnrollResult {
@@ -145,6 +274,7 @@ export async function enrollApplication(applicationId: string): Promise<EnrollRe
   if (fetchError || !app) throw new Error(fetchError?.message ?? "Application not found");
 
   const result = await enrollStudent({
+    schoolId: await getCurrentSchoolIdOrThrow(),
     fullName: app.applicant_name,
     dob: app.dob,
     gender: app.gender,
@@ -164,6 +294,7 @@ export async function enrollApplication(applicationId: string): Promise<EnrollRe
   if (updateError) throw new Error(updateError.message);
 
   revalidatePath("/dashboard/admissions");
+  revalidatePath(`/dashboard/admissions/${applicationId}`);
   revalidatePath("/dashboard/students");
 
   return {

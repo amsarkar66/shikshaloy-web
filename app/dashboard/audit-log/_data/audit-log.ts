@@ -9,6 +9,7 @@ export interface AuditEntry {
   description: string;
   timestamp: string; // ISO datetime
   ipAddress: string;
+  schoolName?: string; // present when viewed platform-wide (kernel role)
 }
 
 export const ACTION_BADGE: Record<AuditAction, { label: string; cls: string }> = {

@@ -13,21 +13,20 @@ export interface StudentContext {
   feeStatus: string;
 }
 
-export async function getStudentContext(profileId: string): Promise<StudentContext | null> {
-  const { data } = await supabaseAdmin
-    .from("students")
-    .select(`
-      id, school_id, full_name, roll_no, attendance_pct, fee_status,
-      section_id, academic_year_id,
-      sections ( name, grades ( level ) )
-    `)
-    .eq("profile_id", profileId)
-    .maybeSingle();
+interface StudentRow {
+  id: string;
+  school_id: string;
+  full_name: string;
+  roll_no: string | null;
+  attendance_pct: number | null;
+  fee_status: string | null;
+  section_id: string | null;
+  academic_year_id: string | null;
+  sections: { name: string | null; grades: { level: number | null } | null } | null;
+}
 
-  if (!data) return null;
-
-  const sections = data.sections as any;
-
+function toContext(data: StudentRow): StudentContext {
+  const sections = data.sections;
   return {
     id: data.id,
     schoolId: data.school_id,
@@ -40,4 +39,32 @@ export async function getStudentContext(profileId: string): Promise<StudentConte
     attendancePct: Number(data.attendance_pct ?? 0),
     feeStatus: data.fee_status ?? "overdue",
   };
+}
+
+const STUDENT_CONTEXT_SELECT = `
+  id, school_id, full_name, roll_no, attendance_pct, fee_status,
+  section_id, academic_year_id,
+  sections ( name, grades ( level ) )
+`;
+
+export async function getStudentContext(profileId: string): Promise<StudentContext | null> {
+  const { data } = await supabaseAdmin
+    .from("students")
+    .select(STUDENT_CONTEXT_SELECT)
+    .eq("profile_id", profileId)
+    .maybeSingle();
+
+  if (!data) return null;
+  return toContext(data as unknown as StudentRow);
+}
+
+export async function getStudentContextById(id: string): Promise<StudentContext | null> {
+  const { data } = await supabaseAdmin
+    .from("students")
+    .select(STUDENT_CONTEXT_SELECT)
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!data) return null;
+  return toContext(data as unknown as StudentRow);
 }

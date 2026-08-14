@@ -7,6 +7,7 @@ export const PLANS = [
     icon: Zap,
     price: 4000,
     schools: 1,
+    maxStudents: 500,
     color: "text-sky-500 bg-sky-500/10 border-sky-500/20",
     activeColor: "border-sky-500 ring-2 ring-sky-500/20",
     features: ["1 school", "Up to 500 students", "Basic fee management", "Attendance tracking", "Email support"],
@@ -18,6 +19,7 @@ export const PLANS = [
     icon: BarChart3,
     price: 8000,
     schools: 3,
+    maxStudents: 2000,
     color: "text-blue-500 bg-blue-500/10 border-blue-500/20",
     activeColor: "border-blue-500 ring-2 ring-blue-500/20",
     features: ["Up to 3 schools", "Up to 2,000 students", "Full fee management", "Analytics & reports", "Chat support"],
@@ -29,6 +31,7 @@ export const PLANS = [
     icon: Building2,
     price: 12000,
     schools: 5,
+    maxStudents: null,
     color: "text-violet-500 bg-violet-500/10 border-violet-500/20",
     activeColor: "border-violet-500 ring-2 ring-violet-500/20",
     features: [
@@ -47,8 +50,9 @@ export const PLANS = [
     icon: Landmark,
     price: null,
     schools: null,
-    color: "text-indigo-500 bg-indigo-500/10 border-indigo-500/20",
-    activeColor: "border-indigo-500 ring-2 ring-indigo-500/20",
+    maxStudents: null,
+    color: "text-primary-500 bg-primary-500/10 border-primary-500/20",
+    activeColor: "border-primary-500 ring-2 ring-primary-500/20",
     features: [
       "Unlimited schools",
       "Unlimited students",
@@ -65,15 +69,22 @@ export type PlanId = (typeof PLANS)[number]["id"];
 
 export type InvoiceStatus = "paid" | "pending" | "failed";
 export type SubscriptionStatus = "active" | "past_due" | "cancelled";
+export type PaymentMethod = "razorpay" | "offline";
 
 export interface Invoice {
   id: string;
   invoiceNo: string;
   period: string;
   plan: string;
+  planId?: string | null;
   amount: number;
   status: InvoiceStatus;
   issuedDate: string;
+  paymentMethod?: PaymentMethod | null;
+  offlineReference?: string | null;
+  offlineNote?: string | null;
+  offlineReceiptUrl?: string | null;
+  verifiedAt?: string | null;
 }
 
 export interface Subscription {
@@ -82,6 +93,7 @@ export interface Subscription {
   status: SubscriptionStatus;
   schoolsUsed: number;
   maxSchools: number;
+  studentsUsed: number;
   monthlyFee: number;
   renewsOn: string;
   paymentMethodSummary: string | null;
@@ -106,3 +118,15 @@ export const STATUS_BADGE: Record<InvoiceStatus, string> = {
 export const STATUS_LABEL: Record<InvoiceStatus, string> = {
   paid: "Paid", pending: "Pending", failed: "Failed",
 };
+
+export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
+  razorpay: "Razorpay",
+  offline: "Bank transfer",
+};
+
+export function generateInvoiceNo(): string {
+  const now = new Date();
+  const yyyymm = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const suffix = crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
+  return `INV-${yyyymm}-${suffix}`;
+}

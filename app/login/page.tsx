@@ -5,13 +5,12 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { Eye, EyeOff, AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { FancyButton } from "@/components/ui/fancy-button";
 import {
   AnimatedCheckCircle,
   AuthChrome,
   FieldLabel,
   GoogleIcon,
-  buttonPrimaryClass,
   buttonStrokeClass,
   cardClass,
   inputClass,
@@ -205,10 +204,11 @@ function LoginForm() {
             </div>
           </div>
 
-          <Button
+          <FancyButton
             type="submit"
             disabled={loading || success}
-            className={`mt-2 overflow-hidden ${buttonPrimaryClass}`}
+            size="sm"
+            className="mt-2 h-10 w-full overflow-hidden px-3.5"
           >
             <AnimatePresence mode="wait" initial={false}>
               {success ? (
@@ -247,7 +247,7 @@ function LoginForm() {
                 </motion.span>
               )}
             </AnimatePresence>
-          </Button>
+          </FancyButton>
         </form>
 
         {/* Sign up link */}
