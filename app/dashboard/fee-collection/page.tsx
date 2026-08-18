@@ -19,6 +19,16 @@ function formatMonthLabel(monthStr: string) {
   return new Date(monthStr + "-01").toLocaleDateString("en-IN", { month: "short", year: "numeric" });
 }
 
+function formatMonthShortLabel(monthStr: string) {
+  return new Date(monthStr + "-01").toLocaleDateString("en-IN", { month: "short" });
+}
+
+function shiftMonth(monthStr: string, delta: number): string {
+  const [y, m] = monthStr.split("-").map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + delta, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
 export default async function FeeCollectionPage() {
   const institutionId = await getCurrentInstitutionIdOrThrow();
 
@@ -84,21 +94,24 @@ export default async function FeeCollectionPage() {
     };
   });
 
-  // ── 6-month institution-wide trend ──────────────────────────────────
-  const monthsPresent = Array.from(new Set(rows.map((r) => r.month_str))).sort();
-  const last6Months = monthsPresent.slice(-6);
+  // ── 12-month institution-wide trend ──────────────────────────────────
+  // A fixed calendar range (rather than just whichever months happen to have
+  // rows) so the chart always shows a full year, with $0 bars for months
+  // that had no fee activity instead of compressing/skipping them.
+  const trendAnchorMonth = currentMonth || new Date().toISOString().slice(0, 7);
+  const last12Months = Array.from({ length: 12 }, (_, i) => shiftMonth(trendAnchorMonth, i - 11));
   const trendAgg: Record<string, { due: number; paid: number }> = {};
   for (const f of rows) {
-    if (!last6Months.includes(f.month_str)) continue;
+    if (!last12Months.includes(f.month_str)) continue;
     const entry = trendAgg[f.month_str] ?? { due: 0, paid: 0 };
     entry.due += Number(f.amount_due ?? 0);
     entry.paid += Number(f.amount_paid ?? 0);
     trendAgg[f.month_str] = entry;
   }
-  const trend: MonthTrend[] = last6Months.map((m) => ({
-    month: formatMonthLabel(m),
-    due: trendAgg[m].due,
-    paid: trendAgg[m].paid,
+  const trend: MonthTrend[] = last12Months.map((m) => ({
+    month: formatMonthShortLabel(m),
+    due: trendAgg[m]?.due ?? 0,
+    paid: trendAgg[m]?.paid ?? 0,
   }));
 
   // ── Fee-head (category) breakdown for the current month ─────────────

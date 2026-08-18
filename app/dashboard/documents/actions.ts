@@ -11,6 +11,8 @@ export async function uploadDocument(input: {
   audience: DocAudience;
   fileKind: FileKind;
   sizeKb: number;
+  fileUrl: string;
+  fileName: string;
 }) {
   const schoolId = await getCurrentSchoolIdOrThrow();
   const { error } = await supabaseAdmin.from("documents").insert({
@@ -20,6 +22,8 @@ export async function uploadDocument(input: {
     audience: input.audience,
     file_kind: input.fileKind,
     size_kb: input.sizeKb,
+    file_url: input.fileUrl,
+    file_name: input.fileName,
     uploaded_by: "Principal Office",
     uploaded_date: new Date().toISOString().slice(0, 10),
   });

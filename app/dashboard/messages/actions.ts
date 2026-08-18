@@ -35,10 +35,10 @@ export async function sendMessage(conversationId: string, text: string) {
   revalidatePath("/dashboard/messages");
 }
 
-export async function startConversation(otherProfileId: string, text: string) {
+export async function startConversation(otherProfileId: string, text: string): Promise<string> {
   const myId = await currentProfileId();
   const schoolId = await getCurrentSchoolIdOrThrow();
-  if (!text.trim()) return;
+  if (!text.trim()) throw new Error("Message text is required");
 
   const { data: existing } = await supabaseAdmin
     .from("conversations")
@@ -66,6 +66,7 @@ export async function startConversation(otherProfileId: string, text: string) {
   }
 
   await sendMessage(conversationId, text);
+  return conversationId;
 }
 
 export async function markConversationRead(conversationId: string) {

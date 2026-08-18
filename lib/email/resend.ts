@@ -141,6 +141,62 @@ export async function sendSupportRequestEmail(input: {
   }
 }
 
+export async function sendSupportRequestReplyToTeamEmail(input: {
+  institutionName: string;
+  fromName: string;
+  fromEmail: string;
+  subject: string;
+  message: string;
+}) {
+  const resend = getResendClient();
+  if (!resend) {
+    console.warn("RESEND_API_KEY not set — skipping support request reply email.");
+    return;
+  }
+  try {
+    await resend.emails.send({
+      from: FROM,
+      to: "support@shikshaloy.com",
+      replyTo: input.fromEmail,
+      subject: `Re: ${input.subject} — ${input.institutionName}`,
+      html: `
+        <p><strong>Institution:</strong> ${input.institutionName}</p>
+        <p><strong>From:</strong> ${input.fromName} (${input.fromEmail})</p>
+        <p><strong>New reply on:</strong> ${input.subject}</p>
+        <p>${input.message.replace(/\n/g, "<br/>")}</p>
+      `,
+    });
+  } catch (err) {
+    console.error("Failed to send support request reply email:", err);
+  }
+}
+
+export async function sendSupportRequestReplyToUserEmail(input: {
+  to: string;
+  subject: string;
+  message: string;
+}) {
+  const resend = getResendClient();
+  if (!resend) {
+    console.warn("RESEND_API_KEY not set — skipping support request reply email.");
+    return;
+  }
+  try {
+    await resend.emails.send({
+      from: FROM,
+      to: input.to,
+      subject: `Re: ${input.subject}`,
+      html: `
+        <p>You have a new reply on your support request &ldquo;${input.subject}&rdquo;:</p>
+        <p>${input.message.replace(/\n/g, "<br/>")}</p>
+        <p><a href="${siteUrl()}/dashboard/help">View and reply in Shikshaloy</a></p>
+      `,
+    });
+  } catch (err) {
+    console.error("Failed to send support request reply email:", err);
+  }
+}
+
 export async function sendOfflinePaymentSubmittedEmail(input: {
   institutionName: string;
   planName: string;

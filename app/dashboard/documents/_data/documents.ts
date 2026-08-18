@@ -11,6 +11,8 @@ export interface SchoolDocument {
   sizeKb: number;
   uploadedBy: string;
   uploadedDate: string; // ISO
+  fileUrl: string | null;
+  fileName: string | null;
 }
 
 export const CATEGORIES: DocCategory[] = ["Circular", "Policy", "Form", "Notice"];

@@ -27,3 +27,45 @@ export function formatDate(iso: string) {
     day: "2-digit", month: "short", year: "numeric",
   });
 }
+
+export const CERT_DOCUMENT_TITLE: Record<CertType, string> = {
+  bonafide:  "Bonafide Certificate",
+  transfer:  "Transfer Certificate",
+  character: "Character Certificate",
+  study:     "Study Certificate",
+};
+
+export function certificateBody(params: {
+  certType: CertType;
+  studentName: string;
+  rollNo: string;
+  classLabel: string;
+  purpose: string;
+  schoolName: string;
+  academicYear: string;
+}): string[] {
+  const { certType, studentName, rollNo, classLabel, purpose, schoolName, academicYear } = params;
+  const yearClause = academicYear ? ` during the academic year ${academicYear}` : "";
+  switch (certType) {
+    case "bonafide":
+      return [
+        `This is to certify that ${studentName} (Roll No. ${rollNo}) is a bona fide student of ${schoolName}, studying in Class ${classLabel}${yearClause}.`,
+        `This certificate is issued on the student's request for the purpose of ${purpose}.`,
+      ];
+    case "transfer":
+      return [
+        `This is to certify that ${studentName} (Roll No. ${rollNo}) was a bona fide student of ${schoolName}, studying in Class ${classLabel}${yearClause}.`,
+        `This Transfer Certificate is issued on request for the purpose of ${purpose}. The student's conduct during the period of study at this institution was found to be satisfactory.`,
+      ];
+    case "character":
+      return [
+        `This is to certify that ${studentName} (Roll No. ${rollNo}), studying in Class ${classLabel} at ${schoolName}, has, to the best of our knowledge, borne a good moral character during their period of study at this institution.`,
+        `This certificate is issued on request for the purpose of ${purpose}.`,
+      ];
+    case "study":
+      return [
+        `This is to certify that ${studentName} (Roll No. ${rollNo}) is currently studying in Class ${classLabel} at ${schoolName}${yearClause}.`,
+        `This certificate is issued on request for the purpose of ${purpose}.`,
+      ];
+  }
+}

@@ -115,15 +115,22 @@ export default async function ReportsPage() {
 
   const schoolId = await getCurrentSchoolIdOrThrow();
 
-  const { data: rows } = await supabaseAdmin
-    .from("report_generations")
-    .select("id, report_id, report_name, category, format, generated_by, size_kb, created_at")
-    .eq("school_id", schoolId)
-    .order("created_at", { ascending: false });
+  const [{ data: rows }, { data: customRows }] = await Promise.all([
+    supabaseAdmin
+      .from("report_generations")
+      .select("id, report_id, custom_report_id, report_name, category, format, generated_by, size_kb, created_at")
+      .eq("school_id", schoolId)
+      .order("created_at", { ascending: false }),
+    supabaseAdmin
+      .from("custom_reports")
+      .select("id, name, description, entity, columns, filters, group_by, aggregate, sort_by, sort_dir, is_scheduled, schedule_label")
+      .eq("school_id", schoolId)
+      .order("created_at", { ascending: false }),
+  ]);
 
   const recentReports: RecentReport[] = (rows ?? []).map((r) => ({
     id: r.id,
-    reportId: r.report_id,
+    reportId: r.custom_report_id ?? r.report_id,
     reportName: r.report_name,
     category: r.category,
     format: r.format,
@@ -132,15 +139,39 @@ export default async function ReportsPage() {
     sizeKb: r.size_kb,
   })).slice(0, 8);
 
-  const lastGeneratedByReport: Record<number, string> = {};
+  const lastGeneratedByReport: Record<string, string> = {};
   for (const r of rows ?? []) {
-    if (!lastGeneratedByReport[r.report_id]) lastGeneratedByReport[r.report_id] = r.created_at;
+    const key = String(r.custom_report_id ?? r.report_id);
+    if (!lastGeneratedByReport[key]) lastGeneratedByReport[key] = r.created_at;
   }
 
-  const reports: Report[] = REPORT_CATALOG.map((r) => ({
+  const staticReports: Report[] = REPORT_CATALOG.map((r) => ({
     ...r,
-    lastGenerated: lastGeneratedByReport[r.id] ?? null,
+    lastGenerated: lastGeneratedByReport[String(r.id)] ?? null,
   }));
+
+  const customReports: Report[] = (customRows ?? []).map((r) => ({
+    id: r.id,
+    name: r.name,
+    description: r.description ?? "Custom report built from your school's data.",
+    category: "custom",
+    formats: ["csv"],
+    lastGenerated: lastGeneratedByReport[r.id] ?? null,
+    isScheduled: r.is_scheduled ?? false,
+    scheduleLabel: r.schedule_label ?? undefined,
+    isCustom: true,
+    builderDef: {
+      entity: r.entity,
+      columns: r.columns ?? [],
+      filters: r.filters ?? [],
+      groupBy: r.group_by,
+      aggregate: r.aggregate,
+      sortBy: r.sort_by,
+      sortDir: r.sort_dir ?? "asc",
+    },
+  }));
+
+  const reports: Report[] = [...staticReports, ...customReports];
 
   return <ReportsClient reports={reports} recentReports={recentReports} />;
 }

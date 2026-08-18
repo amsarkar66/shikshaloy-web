@@ -19,7 +19,7 @@ export default async function BillingInvoiceDetailPage({
   const { data: inv } = await supabaseAdmin
     .from("subscription_invoices")
     .select(
-      "id, institution_id, invoice_no, period_label, plan_name, amount, status, issued_date, created_at, payment_method, offline_reference, offline_receipt_url, verified_at"
+      "id, institution_id, invoice_no, period_label, plan_name, amount, status, issued_date, created_at, payment_method, payment_method_summary, razorpay_method, razorpay_method_detail, offline_reference, offline_receipt_url, verified_at"
     )
     .eq("id", invoiceId)
     .maybeSingle();
@@ -34,7 +34,7 @@ export default async function BillingInvoiceDetailPage({
 
   const { data: subscription } = await supabaseAdmin
     .from("school_subscriptions")
-    .select("payment_method_summary")
+    .select("payment_method_summary, razorpay_method_detail")
     .eq("institution_id", institutionId)
     .maybeSingle();
 
@@ -57,8 +57,12 @@ export default async function BillingInvoiceDetailPage({
       email: institution?.email ?? null,
       website: institution?.website ?? null,
     },
-    paymentMethodSummary: subscription?.payment_method_summary ?? null,
+    paymentMethodSummary:
+      inv.payment_method_summary ?? (inv.payment_method === "razorpay" ? subscription?.payment_method_summary : null) ?? null,
     paymentMethod: inv.payment_method,
+    razorpayMethod: inv.razorpay_method,
+    razorpayMethodDetail:
+      inv.razorpay_method_detail ?? (inv.payment_method === "razorpay" ? subscription?.razorpay_method_detail : null) ?? null,
     offlineReference: inv.offline_reference,
     offlineReceiptUrl: inv.offline_receipt_url,
     verifiedAt: inv.verified_at,

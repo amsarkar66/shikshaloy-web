@@ -11,8 +11,22 @@ export interface HostelRoom {
   capacity: number;
   occupied: number;
   warden: string;
+  wardenId: string | null;
   amenities: string[];
   status: RoomStatus;
+}
+
+export interface WardenOption {
+  id: string;
+  name: string;
+}
+
+export interface EligibleStudentOption {
+  id: string;
+  name: string;
+  rollNo: string;
+  classNum: string;
+  section: string;
 }
 
 export interface HostelStudent {

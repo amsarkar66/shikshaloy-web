@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
+import { logAuditEvent } from "@/lib/audit/log";
 import { PLATFORM_AUDIENCE_LABEL } from "./constants";
 
 async function requireKernel() {
@@ -46,6 +47,17 @@ export async function broadcastAnnouncement(formData: FormData): Promise<void> {
 
   const { error } = await supabaseAdmin.from("announcements").insert(rows);
   if (error) throw new Error(`Failed to broadcast: ${error.message}`);
+
+  await Promise.all(
+    schools.map((s) =>
+      logAuditEvent({
+        schoolId: s.id,
+        action: "create",
+        module: "Announcements",
+        description: `Platform broadcast — '${title}'`,
+      })
+    )
+  );
 
   revalidatePath("/dashboard/platform-announcements");
 }

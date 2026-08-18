@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { STATUS_BADGE, formatLakh, type School, type SchoolStatus } from "../_data/schools";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableTitleHeader } from "@/components/ui/data-table";
+import { PlanLimitModal } from "../../_components/plan-limit-modal";
 
 // ── Stat bar ──────────────────────────────────────────────────────────────────
 
@@ -404,7 +405,13 @@ function SortMenu({
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-export default function SchoolsClient({ schools }: { schools: School[] }) {
+export default function SchoolsClient({
+  schools, atSchoolCapacity, maxSchools,
+}: {
+  schools: School[];
+  atSchoolCapacity?: boolean;
+  maxSchools?: number;
+}) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | SchoolStatus>("all");
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -412,6 +419,7 @@ export default function SchoolsClient({ schools }: { schools: School[] }) {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [sortOpen, setSortOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [showLimitModal, setShowLimitModal] = useState(false);
 
   const handleSortKeyChange = (key: SortKey) => setSortBy(key);
   const handleSortDirChange = (dir: "asc" | "desc") => setSortDir(dir);
@@ -436,10 +444,26 @@ export default function SchoolsClient({ schools }: { schools: School[] }) {
           <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Schools</h1>
           <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">All schools under your institution, at a glance</p>
         </div>
-        <Link href="/dashboard/schools/new" className="sm:ml-auto flex items-center gap-1.5 rounded-lg bg-violet-500 px-4 py-2 text-xs font-semibold text-white hover:bg-violet-600 transition-colors shadow shadow-violet-500/20 w-fit">
+        <Link
+          href="/dashboard/schools/new"
+          onClick={(e) => {
+            if (atSchoolCapacity) {
+              e.preventDefault();
+              setShowLimitModal(true);
+            }
+          }}
+          className="sm:ml-auto flex items-center gap-1.5 rounded-lg bg-violet-500 px-4 py-2 text-xs font-semibold text-white hover:bg-violet-600 transition-colors shadow shadow-violet-500/20 w-fit"
+        >
           <Plus className="h-3.5 w-3.5" /> Add School
         </Link>
       </div>
+
+      <PlanLimitModal
+        open={showLimitModal}
+        onClose={() => setShowLimitModal(false)}
+        resource="schools"
+        limit={maxSchools ?? null}
+      />
 
       <TopStats schools={filtered} />
 

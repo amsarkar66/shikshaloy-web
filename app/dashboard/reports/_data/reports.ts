@@ -1,8 +1,8 @@
-export type ReportCategory = "academic" | "attendance" | "finance" | "student";
+export type ReportCategory = "academic" | "attendance" | "finance" | "student" | "custom";
 export type ReportFormat   = "pdf" | "excel" | "csv";
 
 export interface Report {
-  id:          number;
+  id:          number | string;
   name:        string;
   description: string;
   category:    ReportCategory;
@@ -10,11 +10,15 @@ export interface Report {
   lastGenerated: string | null;
   isScheduled?:  boolean;
   scheduleLabel?: string;
+  /** True for user-built reports (custom_reports table) — enables edit/delete affordances. */
+  isCustom?: boolean;
+  /** Full builder definition — only present on custom reports, used to prefill the edit form. */
+  builderDef?: import("./report-builder-fields").CustomReportDefinition;
 }
 
 export interface RecentReport {
   id:          string;
-  reportId:    number;
+  reportId:    number | string | null;
   reportName:  string;
   category:    ReportCategory;
   format:      ReportFormat;
@@ -75,6 +79,7 @@ export const CATEGORY_META: Record<ReportCategory, { label: string; color: strin
   attendance: { label: "Attendance", color: "text-blue-600    dark:text-blue-400",    bg: "bg-blue-500/10"    },
   finance:    { label: "Finance",    color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10" },
   student:    { label: "Student",    color: "text-amber-600   dark:text-amber-400",   bg: "bg-amber-500/10"   },
+  custom:     { label: "Custom",     color: "text-pink-600    dark:text-pink-400",    bg: "bg-pink-500/10"    },
 };
 
 export const FORMAT_META: Record<ReportFormat, { label: string; color: string }> = {

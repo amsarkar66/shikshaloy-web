@@ -6,6 +6,7 @@ import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { randomPassword } from "@/lib/auth/random-password";
 import { sendStaffInviteEmail } from "@/lib/email/resend";
+import { logAuditEvent } from "@/lib/audit/log";
 
 async function requireSchoolAdmin() {
   const supabase = await createClient();
@@ -30,7 +31,7 @@ export async function assignStaffTemplate(
   await requireSchoolAdmin();
   const schoolId = await getCurrentSchoolIdOrThrow();
 
-  const { error } = await supabaseAdmin
+  const { data: staff, error } = await supabaseAdmin
     .from("staff_members")
     .update({
       permission_template_id: templateId || null,
@@ -38,9 +39,20 @@ export async function assignStaffTemplate(
       updated_at: new Date().toISOString(),
     })
     .eq("id", staffId)
-    .eq("school_id", schoolId);
+    .eq("school_id", schoolId)
+    .select("full_name")
+    .single();
 
   if (error) throw new Error(`Failed to update permission template: ${error.message}`);
+
+  await logAuditEvent({
+    schoolId,
+    action: "update",
+    module: "Staff",
+    description: templateName
+      ? `Set permission template for ${staff.full_name} to '${templateName}'`
+      : `Cleared permission template for ${staff.full_name}`,
+  });
 
   revalidatePath("/dashboard/staff");
   revalidatePath(`/dashboard/staff/${staffId}`);
@@ -105,6 +117,13 @@ export async function inviteStaffMember(input: InviteStaffInput): Promise<void> 
 
   await sendStaffInviteEmail({ to: email, fullName, loginEmail: email, loginPassword: password });
 
+  await logAuditEvent({
+    schoolId,
+    action: "create",
+    module: "Staff",
+    description: `Invited new staff member — ${fullName} (${input.designation || input.type})`,
+  });
+
   revalidatePath("/dashboard/staff");
 }
 
@@ -153,6 +172,15 @@ export async function bulkImportStaff(rows: BulkImportStaffRow[]): Promise<BulkI
     } else {
       outcome.succeeded += 1;
     }
+  }
+
+  if (outcome.succeeded > 0) {
+    await logAuditEvent({
+      schoolId,
+      action: "create",
+      module: "Staff",
+      description: `Bulk-imported ${outcome.succeeded} staff member${outcome.succeeded === 1 ? "" : "s"}`,
+    });
   }
 
   revalidatePath("/dashboard/staff");

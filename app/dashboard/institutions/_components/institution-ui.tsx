@@ -63,7 +63,7 @@ export function InstitutionActions({ inst, compact }: { inst: PendingInstitution
               defaultValue=""
               className="w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1.5 text-xs text-gray-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
             >
-              <option value="">Keep Starter plan</option>
+              <option value="">Keep current plan</option>
               {PLANS.map((p) => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}

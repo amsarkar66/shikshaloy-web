@@ -2,17 +2,19 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
-  CreditCard, CheckCircle2, Clock, Download,
+  CheckCircle2, Clock, Download,
   Eye, Calendar,
   Receipt, MoreVertical, Landmark,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import {
   PLANS, STATUS_BADGE, STATUS_LABEL, PAYMENT_METHOD_LABEL, formatCurrency, formatDate,
-  type Subscription, type Invoice, type PlanId,
+  type Subscription, type Invoice, type PlanId, type RazorpayMethod,
 } from "../_data/billing";
-import { cancelSubscription } from "../actions";
+import { PaymentMethodIcon } from "./PaymentMethodIcon";
+import { cancelSubscription, cancelOfflinePayment } from "../actions";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
@@ -106,15 +108,50 @@ function PlanUsageCard({
 // ── Pending offline payment banner ──────────────────────────────────────────────
 
 function PendingOfflineBanner({ invoice }: { invoice: Invoice }) {
+  const [confirming, setConfirming] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
+
+  function handleCancel() {
+    if (!confirming) {
+      setConfirming(true);
+      return;
+    }
+    startTransition(async () => {
+      await cancelOfflinePayment(invoice.id);
+      setConfirming(false);
+      router.refresh();
+    });
+  }
+
   return (
     <div className="rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50/60 dark:bg-amber-500/5 px-5 py-4 flex items-center gap-3">
       <Clock className="h-4 w-4 shrink-0 text-amber-500" />
       <p className="flex-1 text-sm text-amber-700 dark:text-amber-400">
         Your offline payment for the <span className="font-semibold">{invoice.plan}</span> plan ({formatCurrency(invoice.amount)}) is awaiting verification — usually within 1 business day.
       </p>
-      <Link href={`/dashboard/billing/${invoice.id}`} className="shrink-0 text-xs font-semibold text-amber-700 dark:text-amber-400 hover:underline whitespace-nowrap">
-        View submission
-      </Link>
+      <div className="flex shrink-0 items-center gap-3">
+        {confirming ? (
+          <>
+            <span className="text-xs text-amber-700/80 dark:text-amber-400/80 whitespace-nowrap">Withdraw this request?</span>
+            <button onClick={() => setConfirming(false)} className="text-xs font-medium text-amber-700 dark:text-amber-400 hover:underline whitespace-nowrap">
+              Never mind
+            </button>
+            <button onClick={handleCancel} disabled={isPending} className="text-xs font-semibold text-red-600 dark:text-red-400 hover:underline whitespace-nowrap disabled:opacity-50">
+              {isPending ? "Cancelling…" : "Confirm cancel"}
+            </button>
+          </>
+        ) : (
+          <>
+            <Link href={`/dashboard/billing/${invoice.id}`} className="text-xs font-semibold text-amber-700 dark:text-amber-400 hover:underline whitespace-nowrap">
+              View submission
+            </Link>
+            <button onClick={handleCancel} className="text-xs font-medium text-amber-700/70 dark:text-amber-400/70 hover:text-red-600 dark:hover:text-red-400 transition-colors whitespace-nowrap">
+              Cancel
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -144,8 +181,10 @@ function YourPlanCard({
 }) {
   const plan = PLANS.find((p) => p.id === subscription.planId);
   const isCancelled = subscription.status === "cancelled";
+  const isFree = plan?.price === 0;
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   function handleCancel() {
     if (!confirmingCancel) {
@@ -155,7 +194,7 @@ function YourPlanCard({
     startTransition(async () => {
       await cancelSubscription();
       setConfirmingCancel(false);
-      window.location.reload();
+      router.refresh();
     });
   }
 
@@ -195,7 +234,7 @@ function YourPlanCard({
         </div>
         {plan && plan.price !== null && (
           <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">
-            {formatCurrency(plan.price)} per month · billed monthly
+            {plan.price === 0 ? "No payment required" : `${formatCurrency(plan.price)}/mo · billed monthly`}
           </p>
         )}
       </div>
@@ -204,17 +243,20 @@ function YourPlanCard({
         <div className="mb-4 h-px bg-gray-100 dark:bg-zinc-800" />
 
         <div className="flex flex-wrap items-center justify-between gap-3">
-          {!isCancelled && subscription.renewsOn ? (
+          {isCancelled ? (
+            <span className="text-xs text-gray-400 dark:text-zinc-600">Your plan is cancelled — reactivate to resume billing.</span>
+          ) : isFree ? (
+            <span className="text-xs text-gray-400 dark:text-zinc-600">No billing cycle — upgrade anytime for more schools and students.</span>
+          ) : subscription.renewsOn ? (
             <p className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-zinc-400">
               <Calendar className="h-3.5 w-3.5 shrink-0" />
               Renews on <span className="font-semibold text-gray-700 dark:text-zinc-300">{formatDate(subscription.renewsOn)}</span> — usage resets the same day.
             </p>
-          ) : (
-            <span className="text-xs text-gray-400 dark:text-zinc-600">Your plan is cancelled — reactivate to resume billing.</span>
-          )}
-          {!isCancelled && (
+          ) : null}
+          {!isCancelled && !isFree && (
             confirmingCancel ? (
               <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-400 dark:text-zinc-600">You&rsquo;ll move to the Free plan immediately.</span>
                 <button onClick={() => setConfirmingCancel(false)} className="text-xs font-medium text-gray-500 dark:text-zinc-400 hover:underline">Never mind</button>
                 <button onClick={handleCancel} disabled={isPending} className="text-xs font-semibold text-red-600 dark:text-red-400 hover:underline disabled:opacity-50">
                   {isPending ? "Cancelling…" : "Confirm cancel"}
@@ -240,8 +282,10 @@ export interface BillTo {
   email: string | null;
 }
 
-function PaymentMethodCard({ summary, billTo, onUpdate }: {
+function PaymentMethodCard({ summary, razorpayMethod, razorpayMethodDetail, billTo, onUpdate }: {
   summary: string | null;
+  razorpayMethod?: RazorpayMethod | null;
+  razorpayMethodDetail?: string | null;
   billTo: BillTo | null;
   onUpdate: () => void;
 }) {
@@ -260,7 +304,16 @@ function PaymentMethodCard({ summary, billTo, onUpdate }: {
 
       <div className="mt-4 flex items-center gap-3 rounded-xl border border-gray-100 dark:border-zinc-800 p-3">
         <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${isOffline ? "text-emerald-500 bg-emerald-500/10" : "text-indigo-500 bg-indigo-500/10"}`}>
-          {isOffline ? <Landmark className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />}
+          {isOffline ? (
+            <Landmark className="h-4 w-4" />
+          ) : (
+            <PaymentMethodIcon
+              razorpayMethod={razorpayMethod}
+              razorpayMethodDetail={razorpayMethodDetail}
+              summary={summary}
+              className="h-4 w-4"
+            />
+          )}
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50 truncate">{summary ?? "No payment method yet"}</p>
@@ -322,8 +375,6 @@ function IncludedFeaturesCard({ planId, planName }: { planId: string; planName: 
 
 // ── Invoice table ─────────────────────────────────────────────────────────────
 
-const METHOD_ICON = { razorpay: CreditCard, offline: Landmark } as const;
-
 function InvoiceTable({ invoices }: { invoices: Invoice[] }) {
   return (
     <Table
@@ -349,7 +400,6 @@ function InvoiceTable({ invoices }: { invoices: Invoice[] }) {
         {invoices.length === 0 ? (
           <TableEmptyRow colSpan={7} message="No invoices yet" />
         ) : invoices.map((inv) => {
-          const MethodIcon = inv.paymentMethod ? METHOD_ICON[inv.paymentMethod] : null;
           return (
             <Tr key={inv.id}>
               <Td position="first">
@@ -368,7 +418,17 @@ function InvoiceTable({ invoices }: { invoices: Invoice[] }) {
               <Td className="text-sm text-gray-600 dark:text-zinc-400 whitespace-nowrap">
                 {inv.paymentMethod ? (
                   <span className="flex items-center gap-1.5">
-                    {MethodIcon && <MethodIcon className="h-3.5 w-3.5 text-gray-400" />} {PAYMENT_METHOD_LABEL[inv.paymentMethod]}
+                    {inv.paymentMethod === "razorpay" ? (
+                      <PaymentMethodIcon
+                        razorpayMethod={inv.razorpayMethod}
+                        razorpayMethodDetail={inv.razorpayMethodDetail}
+                        summary={inv.paymentMethodSummary}
+                        className="h-3.5 w-3.5 text-gray-400"
+                      />
+                    ) : (
+                      <Landmark className="h-3.5 w-3.5 text-gray-400" />
+                    )}{" "}
+                    {inv.paymentMethodSummary ?? PAYMENT_METHOD_LABEL[inv.paymentMethod]}
                   </span>
                 ) : "—"}
               </Td>
@@ -408,6 +468,7 @@ export default function BillingClient({
   billTo: BillTo | null;
 }) {
   const [modal, setModal] = useState<{ open: boolean; initialStep: "select" | "pay"; initialPlanId?: PlanId }>({ open: false, initialStep: "select" });
+  const router = useRouter();
 
   const pendingOfflineInvoice = useMemo(
     () => invoices.find((i) => i.status === "pending" && i.paymentMethod === "offline") ?? null,
@@ -422,7 +483,7 @@ export default function BillingClient({
   }, [subscription]);
 
   function refresh() {
-    window.location.reload();
+    router.refresh();
   }
 
   if (!subscription) {
@@ -474,6 +535,8 @@ export default function BillingClient({
         <div className="lg:col-span-2 space-y-5">
           <PaymentMethodCard
             summary={subscription.paymentMethodSummary}
+            razorpayMethod={subscription.razorpayMethod}
+            razorpayMethodDetail={subscription.razorpayMethodDetail}
             billTo={billTo}
             onUpdate={() => setModal({ open: true, initialStep: "pay", initialPlanId: subscription.planId as PlanId })}
           />

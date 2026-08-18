@@ -119,6 +119,17 @@ export default function ParentsClient({ initialParents }: { initialParents: Pare
 
   return (
     <div className="w-full px-6 py-6 space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Parents</h1>
+          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Manage parent accounts and linked students</p>
+        </div>
+        <div className="flex gap-2 sm:ml-auto">
+          <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5"/> Export</button>
+          <FancyButton size="sm"><Plus className="h-4 w-4"/> Add Parent</FancyButton>
+        </div>
+      </div>
+
       <StatsRow parents={initialParents} />
 
       <div className="flex flex-col sm:flex-row gap-3">
@@ -133,10 +144,6 @@ export default function ParentsClient({ initialParents }: { initialParents: Pare
           <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
         </div>
         {hasFilter&&<button onClick={clearFilters} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><X className="h-3.5 w-3.5"/> Clear</button>}
-        <div className="flex gap-2 sm:ml-auto">
-          <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5"/> Export</button>
-          <FancyButton size="sm"><Plus className="h-4 w-4"/> Add Parent</FancyButton>
-        </div>
       </div>
 
       {hasFilter&&(

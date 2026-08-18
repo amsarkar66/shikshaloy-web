@@ -23,14 +23,18 @@ const selectClass =
   "h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20";
 const labelClass = "mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400";
 
-function Section({ icon: Icon, title, children }: { icon: React.ElementType; title: string; children: React.ReactNode }) {
+function Section({
+  icon: Icon, title, children, cols = 2,
+}: {
+  icon: React.ElementType; title: string; children: React.ReactNode; cols?: 2 | 3;
+}) {
   return (
     <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5 space-y-4">
       <div className="flex items-center gap-2">
         <Icon className="h-4 w-4 text-primary-500" />
         <h3 className="text-sm font-semibold text-gray-900 dark:text-zinc-100">{title}</h3>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{children}</div>
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${cols === 3 ? "lg:grid-cols-3" : ""} gap-3`}>{children}</div>
     </div>
   );
 }
@@ -91,7 +95,7 @@ export default function NewApplicationForm({ academicYears }: { academicYears: A
   }
 
   return (
-    <div className="w-full px-6 py-6 space-y-5 max-w-4xl">
+    <div className="w-full px-6 py-6 space-y-5">
       <div className="flex items-center gap-3">
         <Link href="/dashboard/admissions" className="flex items-center gap-1.5 text-sm font-medium text-gray-500 dark:text-zinc-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
           <ArrowLeft className="h-4 w-4" /> All Applications
@@ -103,12 +107,12 @@ export default function NewApplicationForm({ academicYears }: { academicYears: A
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        <Section icon={GraduationCap} title="Student Information">
-          <div className="sm:col-span-2">
+        <Section icon={GraduationCap} title="Student Information" cols={3}>
+          <div className="col-span-full">
             <label className={labelClass}>Photo</label>
             <PhotoUpload value={form.photoUrl} onChange={(url) => update("photoUrl", url)} />
           </div>
-          <div className="sm:col-span-2">
+          <div className="col-span-full">
             <label className={labelClass}>Full Name *</label>
             <input className={inputClass} value={form.applicantName} onChange={(e) => update("applicantName", e.target.value)} required />
           </div>
@@ -171,101 +175,107 @@ export default function NewApplicationForm({ academicYears }: { academicYears: A
             <label className={labelClass}>Nationality</label>
             <input className={inputClass} value={form.nationality} onChange={(e) => update("nationality", e.target.value)} />
           </div>
-          <div className="sm:col-span-2">
+          <div className="col-span-full">
             <label className={labelClass}>Address</label>
             <input className={inputClass} value={form.address} onChange={(e) => update("address", e.target.value)} />
           </div>
         </Section>
 
-        <Section icon={Users} title="Father's Details">
-          <div>
-            <label className={labelClass}>Name</label>
-            <input className={inputClass} value={form.fatherName} onChange={(e) => update("fatherName", e.target.value)} />
-          </div>
-          <div>
-            <label className={labelClass}>Occupation</label>
-            <input className={inputClass} value={form.fatherOccupation} onChange={(e) => update("fatherOccupation", e.target.value)} />
-          </div>
-          <div>
-            <label className={labelClass}>Phone</label>
-            <input className={inputClass} value={form.fatherPhone} onChange={(e) => update("fatherPhone", e.target.value)} />
-          </div>
-          <div>
-            <label className={labelClass}>Email</label>
-            <input type="email" className={inputClass} value={form.fatherEmail} onChange={(e) => update("fatherEmail", e.target.value)} />
-          </div>
-        </Section>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <Section icon={Users} title="Father's Details">
+            <div>
+              <label className={labelClass}>Name</label>
+              <input className={inputClass} value={form.fatherName} onChange={(e) => update("fatherName", e.target.value)} />
+            </div>
+            <div>
+              <label className={labelClass}>Occupation</label>
+              <input className={inputClass} value={form.fatherOccupation} onChange={(e) => update("fatherOccupation", e.target.value)} />
+            </div>
+            <div>
+              <label className={labelClass}>Phone</label>
+              <input className={inputClass} value={form.fatherPhone} onChange={(e) => update("fatherPhone", e.target.value)} />
+            </div>
+            <div>
+              <label className={labelClass}>Email</label>
+              <input type="email" className={inputClass} value={form.fatherEmail} onChange={(e) => update("fatherEmail", e.target.value)} />
+            </div>
+          </Section>
 
-        <Section icon={Users} title="Mother's Details">
-          <div>
-            <label className={labelClass}>Name</label>
-            <input className={inputClass} value={form.motherName} onChange={(e) => update("motherName", e.target.value)} />
-          </div>
-          <div>
-            <label className={labelClass}>Occupation</label>
-            <input className={inputClass} value={form.motherOccupation} onChange={(e) => update("motherOccupation", e.target.value)} />
-          </div>
-          <div>
-            <label className={labelClass}>Phone</label>
-            <input className={inputClass} value={form.motherPhone} onChange={(e) => update("motherPhone", e.target.value)} />
-          </div>
-          <div>
-            <label className={labelClass}>Email</label>
-            <input type="email" className={inputClass} value={form.motherEmail} onChange={(e) => update("motherEmail", e.target.value)} />
-          </div>
-        </Section>
+          <Section icon={Users} title="Mother's Details">
+            <div>
+              <label className={labelClass}>Name</label>
+              <input className={inputClass} value={form.motherName} onChange={(e) => update("motherName", e.target.value)} />
+            </div>
+            <div>
+              <label className={labelClass}>Occupation</label>
+              <input className={inputClass} value={form.motherOccupation} onChange={(e) => update("motherOccupation", e.target.value)} />
+            </div>
+            <div>
+              <label className={labelClass}>Phone</label>
+              <input className={inputClass} value={form.motherPhone} onChange={(e) => update("motherPhone", e.target.value)} />
+            </div>
+            <div>
+              <label className={labelClass}>Email</label>
+              <input type="email" className={inputClass} value={form.motherEmail} onChange={(e) => update("motherEmail", e.target.value)} />
+            </div>
+          </Section>
+        </div>
 
-        <Section icon={Users} title="Guardian's Details (if applicable)">
-          <div>
-            <label className={labelClass}>Name</label>
-            <input className={inputClass} value={form.guardianName} onChange={(e) => update("guardianName", e.target.value)} />
-          </div>
-          <div>
-            <label className={labelClass}>Relation to Student</label>
-            <input className={inputClass} value={form.guardianRelation} onChange={(e) => update("guardianRelation", e.target.value)} />
-          </div>
-          <div>
-            <label className={labelClass}>Phone</label>
-            <input className={inputClass} value={form.guardianPhone} onChange={(e) => update("guardianPhone", e.target.value)} />
-          </div>
-        </Section>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <Section icon={Users} title="Guardian's Details (if applicable)">
+            <div>
+              <label className={labelClass}>Name</label>
+              <input className={inputClass} value={form.guardianName} onChange={(e) => update("guardianName", e.target.value)} />
+            </div>
+            <div>
+              <label className={labelClass}>Relation to Student</label>
+              <input className={inputClass} value={form.guardianRelation} onChange={(e) => update("guardianRelation", e.target.value)} />
+            </div>
+            <div>
+              <label className={labelClass}>Phone</label>
+              <input className={inputClass} value={form.guardianPhone} onChange={(e) => update("guardianPhone", e.target.value)} />
+            </div>
+          </Section>
 
-        <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5">
-          <p className={labelClass}>Primary Contact *</p>
-          <p className="mb-3 text-xs text-gray-400 dark:text-zinc-500">Used for enrollment communication and the parent portal login.</p>
-          <div className="flex gap-4">
-            {(["father", "mother", "guardian"] as PrimaryContact[]).map((c) => (
-              <label key={c} className="flex items-center gap-2 text-sm text-gray-700 dark:text-zinc-300 capitalize cursor-pointer">
-                <input type="radio" name="primaryContact" checked={form.primaryContact === c} onChange={() => update("primaryContact", c)} />
-                {c}
-              </label>
-            ))}
+          <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5">
+            <p className={labelClass}>Primary Contact *</p>
+            <p className="mb-3 text-xs text-gray-400 dark:text-zinc-500">Used for enrollment communication and the parent portal login.</p>
+            <div className="flex gap-4">
+              {(["father", "mother", "guardian"] as PrimaryContact[]).map((c) => (
+                <label key={c} className="flex items-center gap-2 text-sm text-gray-700 dark:text-zinc-300 capitalize cursor-pointer">
+                  <input type="radio" name="primaryContact" checked={form.primaryContact === c} onChange={() => update("primaryContact", c)} />
+                  {c}
+                </label>
+              ))}
+            </div>
           </div>
         </div>
 
-        <Section icon={Heart} title="Sibling">
-          <div className="sm:col-span-2 flex items-center gap-2">
-            <input type="checkbox" id="sibling" checked={form.siblingStudying} onChange={(e) => update("siblingStudying", e.target.checked)} />
-            <label htmlFor="sibling" className="text-sm text-gray-700 dark:text-zinc-300">A sibling is already studying at this school</label>
-          </div>
-          {form.siblingStudying && (
-            <div className="sm:col-span-2">
-              <label className={labelClass}>Sibling&apos;s Name</label>
-              <input className={inputClass} value={form.siblingName} onChange={(e) => update("siblingName", e.target.value)} />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <Section icon={Heart} title="Sibling">
+            <div className="col-span-full flex items-center gap-2">
+              <input type="checkbox" id="sibling" checked={form.siblingStudying} onChange={(e) => update("siblingStudying", e.target.checked)} />
+              <label htmlFor="sibling" className="text-sm text-gray-700 dark:text-zinc-300">A sibling is already studying at this school</label>
             </div>
-          )}
-        </Section>
+            {form.siblingStudying && (
+              <div className="col-span-full">
+                <label className={labelClass}>Sibling&apos;s Name</label>
+                <input className={inputClass} value={form.siblingName} onChange={(e) => update("siblingName", e.target.value)} />
+              </div>
+            )}
+          </Section>
 
-        <Section icon={PhoneIcon} title="Emergency Contact">
-          <div>
-            <label className={labelClass}>Name</label>
-            <input className={inputClass} value={form.emergencyContactName} onChange={(e) => update("emergencyContactName", e.target.value)} />
-          </div>
-          <div>
-            <label className={labelClass}>Phone</label>
-            <input className={inputClass} value={form.emergencyContactPhone} onChange={(e) => update("emergencyContactPhone", e.target.value)} />
-          </div>
-        </Section>
+          <Section icon={PhoneIcon} title="Emergency Contact">
+            <div>
+              <label className={labelClass}>Name</label>
+              <input className={inputClass} value={form.emergencyContactName} onChange={(e) => update("emergencyContactName", e.target.value)} />
+            </div>
+            <div>
+              <label className={labelClass}>Phone</label>
+              <input className={inputClass} value={form.emergencyContactPhone} onChange={(e) => update("emergencyContactPhone", e.target.value)} />
+            </div>
+          </Section>
+        </div>
 
         <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5 space-y-4">
           <div className="flex items-center gap-2">

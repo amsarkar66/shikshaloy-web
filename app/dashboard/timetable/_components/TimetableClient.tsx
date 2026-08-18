@@ -256,6 +256,18 @@ export default function TimetableClient({
 
   return (
     <div className="w-full px-6 py-6 space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Timetable</h1>
+          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Class schedule</p>
+        </div>
+        <div className="flex gap-2 sm:ml-auto">
+          <button onClick={() => window.print()} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
+            <Printer className="h-3.5 w-3.5" /> Print
+          </button>
+        </div>
+      </div>
+
       <StatsRow tt={activeTt} viewMode={view} summaries={summaries} periods={periods} />
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
@@ -285,12 +297,6 @@ export default function TimetableClient({
         ) : null}
 
         <div className="text-xs text-gray-400 dark:text-zinc-500 sm:ml-1">{configuredCount} of {classList.length} classes configured</div>
-
-        <div className="sm:ml-auto flex gap-2">
-          <button onClick={() => window.print()} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
-            <Printer className="h-3.5 w-3.5" /> Print
-          </button>
-        </div>
       </div>
 
       <div className="flex items-center gap-2">

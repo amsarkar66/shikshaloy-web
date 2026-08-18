@@ -76,15 +76,23 @@ function collectionStatus(pct: number, hasData: boolean) {
   return { label: "At Risk", className: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20" };
 }
 
-// ── Trend chart: due vs collected, last 6 months ────────────────────────────
+// ── Trend chart: due vs collected, last 12 months ───────────────────────────
 
 function TrendChart({ data }: { data: MonthTrend[] }) {
+  // Bars/gridlines are drawn in an SVG with preserveAspectRatio="none" so
+  // they reliably stretch to the container's full width from the very first
+  // paint — no JS measurement, no race condition. Axis labels are rendered
+  // as plain positioned HTML *outside* that SVG (at the matching percentage
+  // offsets) instead of <text> inside it, since anything inside a
+  // non-uniformly-scaled SVG gets stretched too — this keeps label text at
+  // a fixed, consistent size regardless of how wide the chart renders.
   const W = 900;
   const H = 180;
-  const PAD_L = 56;
-  const PAD_R = 8;
-  const PAD_T = 12;
+  const PAD_L = 2;
+  const PAD_R = 2;
+  const PAD_T = 18;
   const PAD_B = 24;
+  const LABEL_GAP = 3;
   const chartW = W - PAD_L - PAD_R;
   const chartH = H - PAD_T - PAD_B;
   const maxVal = Math.max(...data.map((d) => d.due), 1) * 1.1;
@@ -97,31 +105,58 @@ function TrendChart({ data }: { data: MonthTrend[] }) {
   function barH(v: number) { return (v / maxVal) * chartH; }
   function yTop(v: number) { return PAD_T + chartH - barH(v); }
   function yOf(v: number) { return PAD_T + (1 - v / maxVal) * chartH; }
+  function pctX(x: number) { return (x / W) * 100; }
+  function pctY(y: number) { return (y / H) * 100; }
 
   if (data.length === 0) {
     return <p className="py-10 text-center text-sm text-gray-400 dark:text-zinc-500">No fee payment data yet</p>;
   }
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: H }}>
+    <div className="relative w-full" style={{ height: H }}>
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
+        {yTicks.map((t) => (
+          <line
+            key={t}
+            x1={PAD_L} y1={yOf(t)} x2={W - PAD_R} y2={yOf(t)}
+            stroke="currentColor" strokeWidth="0.5" vectorEffect="non-scaling-stroke"
+            className="text-gray-100 dark:text-zinc-800"
+          />
+        ))}
+        {data.map((d, i) => {
+          const x1 = xGroupStart(i);
+          const x2 = x1 + barW + gap;
+          return (
+            <g key={d.month}>
+              <rect x={x1} y={yTop(d.due)} width={barW} height={barH(d.due)} rx="2" fill="currentColor" className="text-gray-200 dark:text-zinc-700" />
+              <rect x={x2} y={yTop(d.paid)} width={barW} height={barH(d.paid)} rx="2" fill="#6366f1" />
+            </g>
+          );
+        })}
+      </svg>
+
       {yTicks.map((t) => (
-        <g key={t}>
-          <line x1={PAD_L} y1={yOf(t)} x2={W - PAD_R} y2={yOf(t)} stroke="currentColor" strokeWidth="0.5" className="text-gray-100 dark:text-zinc-800" />
-          <text x={PAD_L - 6} y={yOf(t) + 3.5} textAnchor="end" fontSize="9" className="fill-gray-400 dark:fill-zinc-600">{formatCurrency(t)}</text>
-        </g>
+        <span
+          key={t}
+          className="absolute -translate-y-full whitespace-nowrap text-left text-[9px] text-gray-400 dark:text-zinc-600"
+          style={{ left: 0, top: `${pctY(yOf(t) - LABEL_GAP)}%` }}
+        >
+          {formatCurrency(t)}
+        </span>
       ))}
       {data.map((d, i) => {
         const x1 = xGroupStart(i);
-        const x2 = x1 + barW + gap;
         return (
-          <g key={d.month}>
-            <rect x={x1} y={yTop(d.due)} width={barW} height={barH(d.due)} rx="2" fill="currentColor" className="text-gray-200 dark:text-zinc-700" />
-            <rect x={x2} y={yTop(d.paid)} width={barW} height={barH(d.paid)} rx="2" fill="#6366f1" />
-            <text x={x1 + barW + gap / 2} y={H - 6} textAnchor="middle" fontSize="9" className="fill-gray-400 dark:fill-zinc-600">{d.month}</text>
-          </g>
+          <span
+            key={d.month}
+            className="absolute bottom-0 -translate-x-1/2 whitespace-nowrap text-[9px] text-gray-400 dark:text-zinc-600"
+            style={{ left: `${pctX(x1 + barW + gap / 2)}%` }}
+          >
+            {d.month}
+          </span>
         );
       })}
-    </svg>
+    </div>
   );
 }
 
@@ -298,7 +333,7 @@ export default function FeeCollectionClient({
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Collection Trend</p>
-            <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Due vs collected, last {trend.length || 6} months across all schools</p>
+            <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Due vs collected, last {trend.length || 12} months across all schools</p>
           </div>
           <div className="flex items-center gap-4 text-[11px] text-gray-500 dark:text-zinc-400">
             <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-gray-200 dark:bg-zinc-700" /> Due</span>

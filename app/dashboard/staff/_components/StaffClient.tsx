@@ -7,10 +7,11 @@ import {
   Users, GraduationCap, UserPlus, UserMinus, Upload,
   Search, Plus, Download, ChevronLeft, ChevronRight, ChevronDown,
   Eye, Pencil, ArrowUpDown, ArrowUp, ArrowDown, X, Briefcase,
-  Shield, CheckCircle2, Loader2,
+  Shield, CheckCircle2, Loader2, MoreHorizontal,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { deptColor, formatJoinDate } from "../_data/staff";
 import { assignStaffTemplate, inviteStaffMember, bulkImportStaff, type BulkImportOutcome } from "../actions";
 import { BulkImportModal, type ImportColumn } from "../../_components/bulk-import-modal";
@@ -372,6 +373,38 @@ export default function StaffClient({ initialStaff, permissionTemplates }: { ini
 
   return (
     <div className="w-full px-6 py-6 space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Staff</h1>
+          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Manage staff members</p>
+        </div>
+        <div className="flex gap-2 sm:ml-auto">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"
+              title="More actions"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" sideOffset={8} className="w-48">
+              <DropdownMenuItem className="cursor-pointer" onClick={handleExport}>
+                <Download className="h-3.5 w-3.5" /> Export
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                disabled={importBusy}
+                onClick={() => setImportOpen(true)}
+              >
+                {importBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} Import
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <FancyButton onClick={() => setShowInvite(true)} size="sm">
+            <Plus className="h-4 w-4" /> Invite Staff
+          </FancyButton>
+        </div>
+      </div>
+
       <StatsRow staff={staffList} />
 
       <div className="flex flex-col sm:flex-row gap-3">
@@ -401,21 +434,6 @@ export default function StaffClient({ initialStaff, permissionTemplates }: { ini
             <X className="h-3.5 w-3.5" /> Clear
           </button>
         )}
-        <div className="flex gap-2 sm:ml-auto">
-          <button onClick={handleExport} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
-            <Download className="h-3.5 w-3.5" /> Export
-          </button>
-          <button
-            onClick={() => setImportOpen(true)}
-            disabled={importBusy}
-            className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors disabled:opacity-50"
-          >
-            {importBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} Import
-          </button>
-          <FancyButton onClick={() => setShowInvite(true)} size="sm">
-            <Plus className="h-4 w-4" /> Invite Staff
-          </FancyButton>
-        </div>
       </div>
 
       <BulkImportModal

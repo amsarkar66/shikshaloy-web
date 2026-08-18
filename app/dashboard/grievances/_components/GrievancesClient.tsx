@@ -175,21 +175,22 @@ export default function GrievancesClient({ initialData }: { initialData: Grievan
 
   return (
     <div className="w-full px-6 py-6 space-y-5">
-      <div>
-        <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Grievances</h1>
-        <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Complaints and feedback submitted from the public website</p>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Grievances</h1>
+          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Track and resolve raised concerns</p>
+        </div>
       </div>
 
       <StatsRow grievances={initialData} />
 
-      <div className="flex items-center gap-1 border-b border-gray-200 dark:border-zinc-800">
+      <div className="flex gap-1 border-b border-gray-200 dark:border-zinc-800">
         {STATUS_TABS.map((t) => {
           const count = t.value === "all" ? initialData.length : initialData.filter((g) => g.status === t.value).length;
           return (
-            <button key={t.value} onClick={() => setStatusTab(t.value)} className={`relative flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${statusTab===t.value?"text-primary-600 dark:text-primary-400":"text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
+            <button key={t.value} onClick={() => setStatusTab(t.value)} className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${statusTab===t.value?"border-primary-500 text-primary-600 dark:text-primary-400":"border-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 hover:border-gray-300 dark:hover:border-zinc-600"}`}>
               {t.label}
-              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${statusTab===t.value?"bg-primary-500/15 text-primary-600 dark:text-primary-400":"bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-500"}`}>{count}</span>
-              {statusTab===t.value&&<span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500 rounded-t-full"/>}
+              <span className={`ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${statusTab===t.value?"bg-primary-500/15 text-primary-600 dark:text-primary-400":"bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-500"}`}>{count}</span>
             </button>
           );
         })}

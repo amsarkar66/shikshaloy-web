@@ -4,7 +4,8 @@ import { useMemo, useState, useTransition } from "react";
 import {
   Receipt, TrendingDown, Wallet, Search, Download, Plus,
   ArrowLeft, Printer, X, Check, Clock, Ban,
-  BarChart2, ChevronLeft, ChevronRight,
+  BarChart2, ChevronLeft, ChevronRight, ChevronDown,
+  SlidersHorizontal, ArrowUpDown, ArrowUp, ArrowDown,
 } from "lucide-react";
 import {
   computeMonthStats, computeCategoryBreakdown,
@@ -275,10 +276,72 @@ function ExpenseDetail({ expense, onBack }: { expense: Expense; onBack: () => vo
   );
 }
 
+// ── Sort menu ─────────────────────────────────────────────────────────────────
+
+type ExpenseSortKey = "date" | "amount" | "category" | "status";
+const EXPENSE_SORT_OPTIONS: { key: ExpenseSortKey; label: string }[] = [
+  { key: "date",     label: "Date" },
+  { key: "amount",   label: "Amount" },
+  { key: "category", label: "Category" },
+  { key: "status",   label: "Status" },
+];
+
+function ExpenseSortMenu({
+  sortBy, sortDir, open, onToggle, onKeyChange, onDirChange,
+}: {
+  sortBy: ExpenseSortKey; sortDir: "asc" | "desc"; open: boolean;
+  onToggle: () => void; onKeyChange: (key: ExpenseSortKey) => void; onDirChange: (dir: "asc" | "desc") => void;
+}) {
+  const activeLabel = EXPENSE_SORT_OPTIONS.find((o) => o.key === sortBy)?.label;
+  return (
+    <div className="relative">
+      <button
+        onClick={onToggle}
+        className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"
+      >
+        <ArrowUpDown className="h-3.5 w-3.5" /> Sort: {activeLabel}
+        {sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={onToggle} />
+          <div className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg shadow-black/10">
+            {EXPENSE_SORT_OPTIONS.map((o) => (
+              <button
+                key={o.key}
+                onClick={() => onKeyChange(o.key)}
+                className="flex w-full items-center justify-between gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors"
+              >
+                <span className="truncate">{o.label}</span>
+                {o.key === sortBy && <Check className="h-3.5 w-3.5 shrink-0 text-primary-500" />}
+              </button>
+            ))}
+            <div className="border-t border-gray-100 dark:border-zinc-700/50" />
+            <div className="flex items-center gap-1.5 p-1.5">
+              <button
+                onClick={() => onDirChange("asc")}
+                className={`flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-xs font-medium transition-colors ${sortDir === "asc" ? "bg-primary-500/10 text-primary-600 dark:text-primary-400" : "text-gray-500 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-700/60"}`}
+              >
+                <ArrowUp className="h-3 w-3 shrink-0" /> Ascending
+              </button>
+              <button
+                onClick={() => onDirChange("desc")}
+                className={`flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-xs font-medium transition-colors ${sortDir === "desc" ? "bg-primary-500/10 text-primary-600 dark:text-primary-400" : "text-gray-500 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-700/60"}`}
+              >
+                <ArrowDown className="h-3 w-3 shrink-0" /> Descending
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Expense table ─────────────────────────────────────────────────────────────
 
 function ExpenseTable({
-  expenses, budgets, monthStr, categories, onView, onAdded,
+  expenses, budgets, monthStr, categories, onView, onAdded, showAdd, setShowAdd,
 }: {
   expenses: Expense[];
   budgets: BudgetLine[];
@@ -286,38 +349,48 @@ function ExpenseTable({
   categories: string[];
   onView: (e: Expense) => void;
   onAdded: () => void;
+  showAdd: boolean;
+  setShowAdd: (v: boolean) => void;
 }) {
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategory] = useState<"all" | string>("all");
   const [statusFilter, setStatus] = useState<"all" | ExpenseStatus>("all");
-  const [showAdd, setShowAdd] = useState(false);
   const [view, setView] = useState<"list" | "budget">("list");
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<ExpenseSortKey>("date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [sortOpen, setSortOpen] = useState(false);
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
-    return expenses.filter((e) => {
+    const rows = expenses.filter((e) => {
       const matchQ = !q || e.description.toLowerCase().includes(q) || e.vendor.toLowerCase().includes(q) || e.category.toLowerCase().includes(q);
       const matchC = categoryFilter === "all" || e.category === categoryFilter;
       const matchS = statusFilter === "all" || e.status === statusFilter;
       return matchQ && matchC && matchS;
     });
-  }, [expenses, query, categoryFilter, statusFilter]);
+    rows.sort((a, b) => {
+      let cmp = 0;
+      if (sortBy === "date")     cmp = a.date.localeCompare(b.date);
+      if (sortBy === "amount")   cmp = a.amount - b.amount;
+      if (sortBy === "category") cmp = a.category.localeCompare(b.category);
+      if (sortBy === "status")   cmp = a.status.localeCompare(b.status);
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return rows;
+  }, [expenses, query, categoryFilter, statusFilter, sortBy, sortDir]);
 
-  const hasFilter = query || categoryFilter !== "all" || statusFilter !== "all";
+  const activeFilterCount = [categoryFilter, statusFilter].filter((v) => v !== "all").length;
+  const hasFilter = Boolean(query) || activeFilterCount > 0;
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <div className="flex rounded-lg border border-gray-200 dark:border-zinc-700 overflow-hidden">
-          {(["list", "budget"] as const).map((v) => (
-            <button key={v} onClick={() => setView(v)} className={`h-8 px-4 text-xs font-medium capitalize transition-colors ${view === v ? "bg-primary-500 text-white" : "bg-white dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
-              {v === "budget" ? "Budget View" : "Expense List"}
-            </button>
-          ))}
-        </div>
-        <FancyButton onClick={() => setShowAdd((v) => !v)} size="sm" className="ml-auto">
-          <Plus className="h-4 w-4" /> Add Expense
-        </FancyButton>
+      <div className="flex rounded-lg border border-gray-200 dark:border-zinc-700 overflow-hidden w-fit">
+        {(["list", "budget"] as const).map((v) => (
+          <button key={v} onClick={() => setView(v)} className={`h-8 px-4 text-xs font-medium capitalize transition-colors ${view === v ? "bg-primary-500 text-white" : "bg-white dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
+            {v === "budget" ? "Budget View" : "Expense List"}
+          </button>
+        ))}
       </div>
 
       {showAdd && <AddExpenseForm categories={categories} onClose={() => setShowAdd(false)} onAdded={onAdded} />}
@@ -331,39 +404,94 @@ function ExpenseTable({
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-zinc-500 pointer-events-none" />
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search description, vendor or category…" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
             </div>
-            <div className="flex items-center gap-1">
-              {(["all", "approved", "pending", "rejected"] as const).map((s) => (
-                <button key={s} onClick={() => setStatus(s)} className={`h-9 rounded-lg px-3 text-sm font-medium capitalize transition-colors ${statusFilter === s ? "bg-primary-500 text-white shadow-sm" : "border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
-                  {s === "all" ? "All Status" : STATUS_LABEL[s]}
-                </button>
-              ))}
-              {hasFilter && (
-                <button onClick={() => { setQuery(""); setCategory("all"); setStatus("all"); }} className="h-9 w-9 flex items-center justify-center rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors">
-                  <X className="h-3.5 w-3.5" />
-                </button>
+
+            <ExpenseSortMenu
+              sortBy={sortBy}
+              sortDir={sortDir}
+              open={sortOpen}
+              onToggle={() => setSortOpen((v) => !v)}
+              onKeyChange={(key) => { setSortBy(key); setSortOpen(false); }}
+              onDirChange={(dir) => { setSortDir(dir); setSortOpen(false); }}
+            />
+
+            <div className="relative">
+              <button
+                onClick={() => setFilterOpen((v) => !v)}
+                className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" /> Filters
+                {activeFilterCount > 0 && (
+                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary-500 px-1 text-[10px] font-semibold text-white">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+
+              {filterOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setFilterOpen(false)} />
+                  <div className="absolute right-0 top-full z-50 mt-2 w-64 space-y-3 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-4 shadow-lg shadow-black/10">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Category</label>
+                      <div className="relative">
+                        <select
+                          value={categoryFilter}
+                          onChange={(e) => setCategory(e.target.value)}
+                          className="h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
+                        >
+                          <option value="all">All Categories</option>
+                          {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Status</label>
+                      <div className="relative">
+                        <select
+                          value={statusFilter}
+                          onChange={(e) => setStatus(e.target.value as "all" | ExpenseStatus)}
+                          className="h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
+                        >
+                          <option value="all">All Status</option>
+                          <option value="approved">{STATUS_LABEL.approved}</option>
+                          <option value="pending">{STATUS_LABEL.pending}</option>
+                          <option value="rejected">{STATUS_LABEL.rejected}</option>
+                        </select>
+                        <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+                      </div>
+                    </div>
+                    {activeFilterCount > 0 && (
+                      <button
+                        onClick={() => { setCategory("all"); setStatus("all"); }}
+                        className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 py-1.5 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors"
+                      >
+                        <X className="h-3.5 w-3.5" /> Clear all filters
+                      </button>
+                    )}
+                  </div>
+                </>
               )}
             </div>
-          </div>
 
-          <div className="flex flex-wrap gap-1.5">
-            <button onClick={() => setCategory("all")} className={`h-7 rounded-full px-3 text-xs font-medium transition-colors ${categoryFilter === "all" ? "bg-primary-500 text-white" : "border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
-              All
-            </button>
-            {categories.map((c) => (
-              <button key={c} onClick={() => setCategory(c)} className={`h-7 rounded-full px-3 text-xs font-medium transition-colors flex items-center gap-1.5 ${categoryFilter === c ? "bg-primary-500 text-white" : "border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${categoryColor(c)}`} />
-                {c}
+            {hasFilter && (
+              <button onClick={() => { setQuery(""); setCategory("all"); setStatus("all"); }} className="h-9 w-9 shrink-0 flex items-center justify-center rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors">
+                <X className="h-3.5 w-3.5" />
               </button>
-            ))}
+            )}
           </div>
 
-          <p className="text-xs text-gray-500 dark:text-zinc-500">
-            Showing <span className="font-medium text-gray-700 dark:text-zinc-300">{filtered.length}</span> of{" "}
-            <span className="font-medium text-gray-700 dark:text-zinc-300">{expenses.length}</span> expenses
-            {hasFilter && <span className="ml-2 text-primary-600 dark:text-primary-400 font-medium">· Filters active</span>}
-          </p>
-
-          <Table>
+          <Table
+            footer={
+              <div className="flex items-center justify-between border-t border-gray-200 dark:border-zinc-700 px-4 py-3">
+                <p className="text-xs text-gray-500 dark:text-zinc-500">
+                  Showing <span className="font-medium text-gray-700 dark:text-zinc-300">{filtered.length}</span> of{" "}
+                  <span className="font-medium text-gray-700 dark:text-zinc-300">{expenses.length}</span> expenses
+                </p>
+                {hasFilter && <span className="text-xs text-primary-600 dark:text-primary-400 font-medium">Filters active</span>}
+              </div>
+            }
+          >
             <TableHead>
               <Th position="first">Date</Th>
               <Th>Category</Th>
@@ -420,6 +548,7 @@ export default function ExpensesClient({
   const months = useMemo(() => Array.from(new Set(expenses.map((e) => e.monthStr))).sort(), [expenses]);
   const [monthIndex, setMonthIndex] = useState(Math.max(0, months.length - 1));
   const [selected, setSelected] = useState<Expense | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
 
   const monthStr = months[monthIndex] ?? "";
   const monthExpenses = useMemo(() => expenses.filter((e) => e.monthStr === monthStr), [expenses, monthStr]);
@@ -443,13 +572,16 @@ export default function ExpensesClient({
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div>
           <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Expenses</h1>
-          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Track and manage school operating expenses</p>
+          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Track institution expenses</p>
         </div>
         <div className="sm:ml-auto flex items-center gap-2 flex-wrap">
           {months.length > 0 && <MonthNav months={months} index={monthIndex} onChange={handleMonthChange} />}
           <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
             <Download className="h-3.5 w-3.5" /> Export
           </button>
+          <FancyButton onClick={() => setShowAdd((v) => !v)} size="sm">
+            <Plus className="h-4 w-4" /> Add Expense
+          </FancyButton>
         </div>
       </div>
 
@@ -468,6 +600,8 @@ export default function ExpensesClient({
             categories={categories}
             onView={(e) => setSelected(e)}
             onAdded={() => {}}
+            showAdd={showAdd}
+            setShowAdd={setShowAdd}
           />
         </>
       )}

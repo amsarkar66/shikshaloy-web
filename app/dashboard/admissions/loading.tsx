@@ -1,5 +1,5 @@
-import { DashboardSkeleton } from "../_components/dashboard-skeleton";
+import { AdmissionsSkeleton } from "../_components/dashboard-skeleton";
 
 export default function Loading() {
-  return <DashboardSkeleton />;
+  return <AdmissionsSkeleton />;
 }

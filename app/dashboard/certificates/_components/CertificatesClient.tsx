@@ -1,15 +1,17 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useTransition } from "react";
 import {
   Award, Clock, CheckCircle2, FileText, Search, Plus,
   Download, X, Eye, Printer, XCircle,
   ArrowUpDown, ArrowUp, ArrowDown,
-  ChevronLeft, ChevronRight, ChevronDown,
+  ChevronLeft, ChevronRight, ChevronDown, Loader2,
 } from "lucide-react";
 import { STATUS_BADGE, CERT_TYPE_LABEL, CERT_TYPE_BADGE, formatDate } from "../_data/certificates";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
+import { requestCertificate, rejectCertificateRequest } from "../actions";
+import { CertificateDocument } from "./certificate-document";
 import type { CertStatus, CertType } from "../_data/certificates";
 
 export interface Cert {
@@ -24,6 +26,14 @@ export interface Cert {
   issuedOn?: string;
   status: CertStatus;
   issuedBy?: string;
+}
+
+export interface StudentOption {
+  id: string;
+  name: string;
+  rollNo: string;
+  class: string;
+  section: string;
 }
 
 const AVATAR_COLORS = ["bg-blue-500","bg-violet-500","bg-emerald-500","bg-rose-500","bg-amber-500","bg-teal-500","bg-indigo-500","bg-pink-500","bg-cyan-500","bg-orange-500"];
@@ -62,18 +72,184 @@ function StatsRow({ certs }: { certs: Cert[] }) {
   );
 }
 
+function NewRequestModal({
+  studentOptions, onClose, onCreated,
+}: {
+  studentOptions: StudentOption[];
+  onClose: () => void;
+  onCreated: (cert: Cert) => void;
+}) {
+  const [studentId, setStudentId] = useState("");
+  const [certType,  setCertType]  = useState<CertType>("bonafide");
+  const [purpose,   setPurpose]   = useState("");
+  const [error,     setError]     = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const student = studentOptions.find((s) => s.id === studentId);
+    if (!student) { setError("Please select a student."); return; }
+    if (!purpose.trim()) { setError("Please enter a purpose."); return; }
+    setError(null);
+    startTransition(async () => {
+      try {
+        const result = await requestCertificate(studentId, certType, purpose.trim());
+        onCreated({
+          id: result.id,
+          studentName: student.name,
+          rollNo: student.rollNo,
+          class: student.class,
+          section: student.section,
+          certType,
+          purpose: purpose.trim(),
+          requestedOn: result.requestedOn,
+          status: "pending",
+        });
+        onClose();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to submit request");
+      }
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <form onSubmit={handleSubmit} onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-gray-200 dark:border-zinc-800 px-5 py-4">
+          <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">New Certificate Request</p>
+          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200"><X className="h-4 w-4" /></button>
+        </div>
+        <div className="space-y-4 p-5">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">Student</label>
+            <div className="relative">
+              <select value={studentId} onChange={(e) => setStudentId(e.target.value)} required className="h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-2 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+                <option value="">Select a student…</option>
+                {studentOptions.map((s) => <option key={s.id} value={s.id}>{s.name} — Class {s.class}{s.section} ({s.rollNo})</option>)}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+            </div>
+            {studentOptions.length === 0 && <p className="text-[11px] text-gray-400 dark:text-zinc-500">No active students found.</p>}
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">Certificate Type</label>
+            <div className="relative">
+              <select value={certType} onChange={(e) => setCertType(e.target.value as CertType)} className="h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-2 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+                {(Object.keys(CERT_TYPE_LABEL) as CertType[]).map((t) => <option key={t} value={t}>{CERT_TYPE_LABEL[t]}</option>)}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">Purpose</label>
+            <textarea value={purpose} onChange={(e) => setPurpose(e.target.value)} required rows={3} placeholder="e.g. Passport application" className="w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
+          </div>
+          {error && <p className="text-xs text-red-500 dark:text-red-400">{error}</p>}
+        </div>
+        <div className="flex justify-end gap-2 border-t border-gray-200 dark:border-zinc-800 px-5 py-4">
+          <button type="button" onClick={onClose} className="h-9 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 text-sm font-medium text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Cancel</button>
+          <FancyButton type="submit" disabled={isPending} size="sm">
+            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} {isPending ? "Submitting…" : "Submit Request"}
+          </FancyButton>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function CertificateViewModal({
+  cert, schoolInfo, onClose,
+}: {
+  cert: Cert;
+  schoolInfo: { schoolName: string; schoolAddress: string; schoolLogoUrl: string | null; academicYear: string };
+  onClose: () => void;
+}) {
+  const [downloading, setDownloading] = useState(false);
+
+  function handlePrint() { window.print(); }
+
+  async function handleDownload() {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import("html2canvas-pro"),
+        import("jspdf"),
+      ]);
+      const node = document.getElementById("certificate-preview");
+      if (!node) return;
+      const canvas = await html2canvas(node, { scale: 2, backgroundColor: "#ffffff" });
+      const doc = new jsPDF({ unit: "mm", format: "a4" });
+      doc.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, 210, 297);
+      doc.save(`${CERT_TYPE_LABEL[cert.certType].replace(/\s+/g, "-").toLowerCase()}-${cert.studentName.replace(/\s+/g, "-").toLowerCase()}.pdf`);
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 print:hidden" onClick={onClose}>
+        <div onClick={(e) => e.stopPropagation()} className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xl">
+          <div className="flex items-center justify-between gap-3 border-b border-gray-200 dark:border-zinc-800 px-5 py-4">
+            <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">{CERT_TYPE_LABEL[cert.certType]} — {cert.studentName}</p>
+            <button onClick={onClose} className="shrink-0 text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200"><X className="h-4 w-4" /></button>
+          </div>
+          <div className="flex-1 overflow-auto bg-gray-100 dark:bg-zinc-950 p-6">
+            <div className="origin-top scale-[0.8] shadow-lg sm:scale-90 lg:scale-100">
+              <div id="certificate-preview">
+                <CertificateDocument cert={cert} {...schoolInfo} />
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 border-t border-gray-200 dark:border-zinc-800 px-5 py-4">
+            <button type="button" onClick={onClose} className="h-9 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 text-sm font-medium text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Close</button>
+            <button type="button" onClick={handleDownload} disabled={downloading} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 text-sm font-medium text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 disabled:opacity-50 transition-colors">
+              {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} {downloading ? "Generating…" : "Download PDF"}
+            </button>
+            <FancyButton type="button" onClick={handlePrint} size="sm"><Printer className="h-4 w-4" /> Print</FancyButton>
+          </div>
+        </div>
+      </div>
+
+      {/* Print-only full-size copy — the browser's print engine shows/hides this natively via CSS, so no
+          html2canvas capture trickery is needed here (that's only for the Download PDF button above, which
+          captures the already-visible on-screen preview instead). */}
+      <div className="hidden print:block">
+        <CertificateDocument cert={cert} {...schoolInfo} />
+      </div>
+
+      <style>{`@media print { @page { size: A4; margin: 0; } }`}</style>
+    </>
+  );
+}
+
 const PAGE_SIZE = 10;
 const TABS: { id: TabFilter; label: string }[] = [
   { id: "all", label: "All" }, { id: "pending", label: "Pending" }, { id: "ready", label: "Ready" }, { id: "issued", label: "Issued" },
 ];
 
-export default function CertificatesClient({ initialCerts }: { initialCerts: Cert[] }) {
+export default function CertificatesClient({
+  initialCerts, studentOptions, schoolName, schoolAddress, schoolLogoUrl, academicYear,
+}: {
+  initialCerts: Cert[];
+  studentOptions: StudentOption[];
+  schoolName: string;
+  schoolAddress: string;
+  schoolLogoUrl: string | null;
+  academicYear: string;
+}) {
+  const [certs,      setCerts]     = useState(initialCerts);
   const [tab,        setTab]       = useState<TabFilter>("all");
   const [query,      setQuery]     = useState("");
   const [typeFilter, setType]      = useState<"all"|CertType>("all");
   const [sortField,  setSortField] = useState<SortField>("requestedOn");
   const [sortDir,    setSortDir]   = useState<SortDir>("desc");
   const [page,       setPage]      = useState(1);
+  const [newRequestOpen, setNewRequestOpen] = useState(false);
+  const [viewCert,   setViewCert]  = useState<Cert | null>(null);
+  const [, startTransition] = useTransition();
+  const schoolInfo = { schoolName, schoolAddress, schoolLogoUrl, academicYear };
 
   function toggleSort(field: SortField) {
     if (sortField===field) setSortDir((d)=>(d==="asc"?"desc":"asc"));
@@ -81,9 +257,14 @@ export default function CertificatesClient({ initialCerts }: { initialCerts: Cer
     setPage(1);
   }
 
+  function reject(id: string) {
+    setCerts((prev) => prev.map((c) => (c.id === id ? { ...c, status: "rejected" } : c)));
+    startTransition(async () => { await rejectCertificateRequest(id); });
+  }
+
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
-    return initialCerts.filter((c) => {
+    return certs.filter((c) => {
       const matchTab  = tab==="all"||c.status===tab;
       const matchType = typeFilter==="all"||c.certType===typeFilter;
       const matchQ    = !q||c.studentName.toLowerCase().includes(q)||c.rollNo.toLowerCase().includes(q)||c.purpose.toLowerCase().includes(q);
@@ -97,7 +278,7 @@ export default function CertificatesClient({ initialCerts }: { initialCerts: Cer
       if (sortField==="status")      cmp=a.status.localeCompare(b.status);
       return sortDir==="asc"?cmp:-cmp;
     });
-  }, [tab, query, typeFilter, sortField, sortDir, initialCerts]);
+  }, [tab, query, typeFilter, sortField, sortDir, certs]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length/PAGE_SIZE));
   const pageData   = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
@@ -105,23 +286,24 @@ export default function CertificatesClient({ initialCerts }: { initialCerts: Cer
   function clearFilters() { setQuery(""); setType("all"); setPage(1); }
 
   return (
-    <div className="w-full px-6 py-6 space-y-5">
+    <div className="w-full px-6 py-6 space-y-5 print:p-0">
+    <div className="print:hidden space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-        <div><h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Certificates</h1><p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Issue bonafide, transfer, character, and study certificates</p></div>
+        <div><h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Certificates</h1><p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Generate and issue student certificates</p></div>
         <div className="flex gap-2 sm:ml-auto">
           <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5"/> Export</button>
-          <FancyButton size="sm"><Plus className="h-4 w-4"/> New Request</FancyButton>
+          <FancyButton size="sm" onClick={()=>setNewRequestOpen(true)}><Plus className="h-4 w-4"/> New Request</FancyButton>
         </div>
       </div>
 
-      <StatsRow certs={initialCerts} />
+      <StatsRow certs={certs} />
 
       <div className="flex gap-1 border-b border-gray-200 dark:border-zinc-800">
         {TABS.map(({id,label}) => (
           <button key={id} onClick={()=>{setTab(id);setPage(1);}} className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${tab===id?"border-primary-500 text-primary-600 dark:text-primary-400":"border-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 hover:border-gray-300 dark:hover:border-zinc-600"}`}>
             {label}
             <span className={`ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${tab===id?"bg-primary-500/15 text-primary-600 dark:text-primary-400":"bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-500"}`}>
-              {id==="all"?initialCerts.length:initialCerts.filter((c)=>c.status===id).length}
+              {id==="all"?certs.length:certs.filter((c)=>c.status===id).length}
             </span>
           </button>
         ))}
@@ -148,16 +330,18 @@ export default function CertificatesClient({ initialCerts }: { initialCerts: Cer
       )}
 
       <Table
-        footer={totalPages>1&&(
+        footer={
           <div className="flex items-center justify-between border-t border-gray-200 dark:border-zinc-700 px-4 py-3">
-            <p className="text-xs text-gray-500 dark:text-zinc-400">Showing <span className="font-medium text-gray-700 dark:text-zinc-300">{(page-1)*PAGE_SIZE+1}-{Math.min(page*PAGE_SIZE,filtered.length)}</span> of <span className="font-medium text-gray-700 dark:text-zinc-300">{filtered.length}</span> requests</p>
-            <div className="flex items-center gap-1">
-              <button onClick={()=>setPage((p)=>Math.max(1,p-1))} disabled={page===1} className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 disabled:opacity-40 hover:enabled:bg-gray-100 dark:hover:enabled:bg-zinc-700 transition-colors"><ChevronLeft className="h-3.5 w-3.5"/></button>
-              {Array.from({length:totalPages},(_,i)=>i+1).filter((n)=>n===1||n===totalPages||Math.abs(n-page)<=1).reduce<(number|"…")[]>((acc,n,i,arr)=>{if(i>0&&n-(arr[i-1] as number)>1)acc.push("…");acc.push(n);return acc;},[]).map((n,i)=>n==="…"?<span key={`e${i}`} className="px-1 text-xs text-gray-400">…</span>:<button key={n} onClick={()=>setPage(n as number)} className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-medium transition-colors ${page===n?"bg-primary-500 text-white":"border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-700"}`}>{n}</button>)}
-              <button onClick={()=>setPage((p)=>Math.min(totalPages,p+1))} disabled={page===totalPages} className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 disabled:opacity-40 hover:enabled:bg-gray-100 dark:hover:enabled:bg-zinc-700 transition-colors"><ChevronRight className="h-3.5 w-3.5"/></button>
-            </div>
+            <p className="text-xs text-gray-500 dark:text-zinc-400">Showing <span className="font-medium text-gray-700 dark:text-zinc-300">{filtered.length===0?0:(page-1)*PAGE_SIZE+1}-{Math.min(page*PAGE_SIZE,filtered.length)}</span> of <span className="font-medium text-gray-700 dark:text-zinc-300">{filtered.length}</span> requests</p>
+            {totalPages>1&&(
+              <div className="flex items-center gap-1">
+                <button onClick={()=>setPage((p)=>Math.max(1,p-1))} disabled={page===1} className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 disabled:opacity-40 hover:enabled:bg-gray-100 dark:hover:enabled:bg-zinc-700 transition-colors"><ChevronLeft className="h-3.5 w-3.5"/></button>
+                {Array.from({length:totalPages},(_,i)=>i+1).filter((n)=>n===1||n===totalPages||Math.abs(n-page)<=1).reduce<(number|"…")[]>((acc,n,i,arr)=>{if(i>0&&n-(arr[i-1] as number)>1)acc.push("…");acc.push(n);return acc;},[]).map((n,i)=>n==="…"?<span key={`e${i}`} className="px-1 text-xs text-gray-400">…</span>:<button key={n} onClick={()=>setPage(n as number)} className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-medium transition-colors ${page===n?"bg-primary-500 text-white":"border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-700"}`}>{n}</button>)}
+                <button onClick={()=>setPage((p)=>Math.min(totalPages,p+1))} disabled={page===totalPages} className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 disabled:opacity-40 hover:enabled:bg-gray-100 dark:hover:enabled:bg-zinc-700 transition-colors"><ChevronRight className="h-3.5 w-3.5"/></button>
+              </div>
+            )}
           </div>
-        )}
+        }
       >
         <TableHead>
           <Th position="first"><button onClick={()=>toggleSort("studentName")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Student <SortIcon active={sortField==="studentName"} dir={sortDir}/></button></Th>
@@ -194,9 +378,9 @@ export default function CertificatesClient({ initialCerts }: { initialCerts: Cer
                 </Td>
                 <Td position="last">
                   <div className="flex items-center justify-end gap-1">
-                    <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors" title="View"><Eye className="h-3.5 w-3.5"/></button>
-                    {(cert.status==="pending"||cert.status==="ready")&&<button className="flex h-7 w-7 items-center justify-center rounded-lg text-indigo-500 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors" title="Print"><Printer className="h-3.5 w-3.5"/></button>}
-                    {cert.status==="pending"&&<button className="flex h-7 w-7 items-center justify-center rounded-lg text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors" title="Reject"><XCircle className="h-3.5 w-3.5"/></button>}
+                    <button onClick={()=>setViewCert(cert)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors" title="View"><Eye className="h-3.5 w-3.5"/></button>
+                    {(cert.status==="pending"||cert.status==="ready")&&<button onClick={()=>setViewCert(cert)} className="flex h-7 w-7 items-center justify-center rounded-lg text-indigo-500 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors" title="Print"><Printer className="h-3.5 w-3.5"/></button>}
+                    {cert.status==="pending"&&<button onClick={()=>reject(cert.id)} className="flex h-7 w-7 items-center justify-center rounded-lg text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors" title="Reject"><XCircle className="h-3.5 w-3.5"/></button>}
                   </div>
                 </Td>
               </Tr>
@@ -204,6 +388,23 @@ export default function CertificatesClient({ initialCerts }: { initialCerts: Cer
           })}
         </TableBody>
       </Table>
+
+      {newRequestOpen && (
+        <NewRequestModal
+          studentOptions={studentOptions}
+          onClose={()=>setNewRequestOpen(false)}
+          onCreated={(cert)=>{ setCerts((prev)=>[cert, ...prev]); setPage(1); }}
+        />
+      )}
+    </div>
+
+      {viewCert && (
+        <CertificateViewModal
+          cert={viewCert}
+          schoolInfo={schoolInfo}
+          onClose={()=>setViewCert(null)}
+        />
+      )}
     </div>
   );
 }

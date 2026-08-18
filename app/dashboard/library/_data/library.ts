@@ -1,4 +1,5 @@
 export type BookStatus = "available" | "low" | "out";
+export type BorrowerType = "student" | "staff";
 
 export interface Book {
   id: string;
@@ -10,6 +11,31 @@ export interface Book {
   issued: number;
   overdue: number;
   addedYear: number;
+}
+
+export interface BookIssue {
+  id: string;
+  bookId: string;
+  borrowerId: string;
+  borrowerType: BorrowerType;
+  borrowerName: string;
+  borrowerSubtitle: string;
+  issuedDate: string;
+  dueDate: string;
+  overdue: boolean;
+}
+
+export interface BorrowerOption {
+  profileId: string;
+  name: string;
+  subtitle: string;
+  type: BorrowerType;
+}
+
+export function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-IN", {
+    day: "2-digit", month: "short", year: "numeric",
+  });
 }
 
 export function bookStatus(book: Book): BookStatus {

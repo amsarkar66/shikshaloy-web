@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import TransportClient from "./_components/TransportClient";
+import { getDriverOptions } from "./actions";
 import type { Route, Vehicle, StudentTransport } from "./_data/transport";
 
 interface TransportRouteRow {
@@ -46,7 +47,7 @@ interface StudentTransportRow {
 export default async function TransportPage() {
   const schoolId = await getCurrentSchoolIdOrThrow();
 
-  const [{ data: routeRows }, { data: vehicleRows }, { data: studentRows }] = await Promise.all([
+  const [{ data: routeRows }, { data: vehicleRows }, { data: studentRows }, drivers] = await Promise.all([
     supabaseAdmin
       .from("transport_routes")
       .select("id, route_no, route_name, driver_id, driver_phone, stops, capacity, status, morning_departure, evening_departure")
@@ -67,6 +68,8 @@ export default async function TransportPage() {
         transport_routes ( route_no, route_name )
       `)
       .eq("school_id", schoolId),
+
+    getDriverOptions(),
   ]);
 
   const studentCountByRoute: Record<string, number> = {};
@@ -79,6 +82,7 @@ export default async function TransportPage() {
     id: r.id,
     routeNo: r.route_no ?? "",
     routeName: r.route_name ?? "",
+    driverId: r.driver_id,
     driverPhone: r.driver_phone,
     stops: Array.isArray(r.stops) ? r.stops : [],
     studentCount: studentCountByRoute[r.route_no ?? ""] ?? 0,
@@ -95,6 +99,7 @@ export default async function TransportPage() {
     capacity: v.capacity ?? 0,
     year: v.year ?? 0,
     status: (v.status ?? "active") as Vehicle["status"],
+    driverId: v.driver_id,
     hasDriver: Boolean(v.driver_id),
     fuelType: (v.fuel_type ?? "diesel") as Vehicle["fuelType"],
     lastService: v.last_service,
@@ -115,5 +120,5 @@ export default async function TransportPage() {
     monthlyFee: Number(s.monthly_fee ?? 0),
   }));
 
-  return <TransportClient routes={routes} vehicles={vehicles} students={students} />;
+  return <TransportClient routes={routes} vehicles={vehicles} students={students} drivers={drivers} />;
 }

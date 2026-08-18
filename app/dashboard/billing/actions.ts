@@ -3,19 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
-import { createRazorpayOrder as createOrder, verifyRazorpaySignature } from "@/lib/razorpay";
+import {
+  createRazorpayOrder as createOrder,
+  verifyRazorpaySignature,
+  fetchRazorpayPayment,
+} from "@/lib/razorpay";
+import { fulfillRazorpayPayment } from "@/lib/billing/fulfill-razorpay-payment";
 import { sendOfflinePaymentSubmittedEmail } from "@/lib/email/resend";
-import { PLANS, formatDate, generateInvoiceNo, type PlanId } from "./_data/billing";
-
-function renewsOnFromToday(): { issuedIso: string; renewsIso: string } {
-  const today = new Date();
-  const renews = new Date(today);
-  renews.setMonth(renews.getMonth() + 1);
-  return {
-    issuedIso: today.toISOString().slice(0, 10),
-    renewsIso: renews.toISOString().slice(0, 10),
-  };
-}
+import { PLANS, formatDate, generateInvoiceNo, renewsOnFromToday, type PlanId } from "./_data/billing";
 
 export async function createRazorpayOrder(planId: PlanId) {
   const institutionId = await getCurrentInstitutionIdOrThrow();
@@ -23,7 +18,7 @@ export async function createRazorpayOrder(planId: PlanId) {
   if (!plan || plan.price === null) throw new Error("Contact sales for this plan");
 
   const receipt = `plan-${planId}-${institutionId.slice(0, 8)}-${Date.now()}`;
-  const order = await createOrder(plan.price * 100, receipt);
+  const order = await createOrder(plan.price * 100, receipt, { institutionId, planId });
 
   return {
     orderId: order.id,
@@ -48,41 +43,14 @@ export async function verifyRazorpayPayment(input: {
   });
   if (!ok) throw new Error("Payment verification failed");
 
-  const plan = PLANS.find((p) => p.id === input.planId);
-  if (!plan || plan.price === null) throw new Error("Invalid plan");
+  const payment = await fetchRazorpayPayment(input.paymentId);
 
-  const { issuedIso, renewsIso } = renewsOnFromToday();
-
-  const { error: subError } = await supabaseAdmin
-    .from("school_subscriptions")
-    .update({
-      plan_id: plan.id,
-      plan_name: plan.name,
-      max_schools: plan.schools,
-      monthly_fee: plan.price,
-      status: "active",
-      renews_on: renewsIso,
-      payment_method: "razorpay",
-      payment_method_summary: "Razorpay",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("institution_id", institutionId);
-  if (subError) throw new Error(subError.message);
-
-  const { error: invError } = await supabaseAdmin.from("subscription_invoices").insert({
-    institution_id: institutionId,
-    invoice_no: generateInvoiceNo(),
-    period_label: `${formatDate(issuedIso)} – ${formatDate(renewsIso)}`,
-    plan_id: plan.id,
-    plan_name: plan.name,
-    amount: plan.price,
-    status: "paid",
-    issued_date: issuedIso,
-    payment_method: "razorpay",
-    razorpay_order_id: input.orderId,
-    razorpay_payment_id: input.paymentId,
+  await fulfillRazorpayPayment({
+    institutionId,
+    planId: input.planId,
+    orderId: input.orderId,
+    payment,
   });
-  if (invError) throw new Error(invError.message);
 
   revalidatePath("/dashboard/billing");
 }
@@ -154,12 +122,83 @@ export async function submitOfflinePayment(formData: FormData) {
   revalidatePath("/dashboard/billing");
 }
 
-export async function cancelSubscription() {
+export async function cancelOfflinePayment(invoiceId: string) {
   const institutionId = await getCurrentInstitutionIdOrThrow();
+
+  const { data: invoice } = await supabaseAdmin
+    .from("subscription_invoices")
+    .select("id, institution_id, status, payment_method, offline_receipt_url")
+    .eq("id", invoiceId)
+    .maybeSingle();
+
+  if (!invoice || invoice.institution_id !== institutionId) throw new Error("Invoice not found");
+  if (invoice.payment_method !== "offline" || invoice.status !== "pending") {
+    throw new Error("This payment can't be cancelled.");
+  }
+
+  const { error } = await supabaseAdmin.from("subscription_invoices").delete().eq("id", invoiceId);
+  if (error) throw new Error(error.message);
+
+  if (invoice.offline_receipt_url) {
+    const marker = "/payment-receipts/";
+    const idx = invoice.offline_receipt_url.indexOf(marker);
+    if (idx !== -1) {
+      await supabaseAdmin.storage
+        .from("payment-receipts")
+        .remove([invoice.offline_receipt_url.slice(idx + marker.length)]);
+    }
+  }
+
+  revalidatePath("/dashboard/billing");
+}
+
+export async function switchToFreePlan() {
+  const institutionId = await getCurrentInstitutionIdOrThrow();
+  const freePlan = PLANS.find((p) => p.id === "free")!;
+
+  const { data: schoolRows } = await supabaseAdmin
+    .from("schools")
+    .select("id")
+    .eq("institution_id", institutionId);
+  const schoolIds = (schoolRows ?? []).map((s) => s.id);
+
+  if (freePlan.schools !== null && schoolIds.length > freePlan.schools) {
+    throw new Error(`The Free plan supports up to ${freePlan.schools} school. Remove extra schools first.`);
+  }
+
+  if (freePlan.maxStudents !== null && schoolIds.length > 0) {
+    const { count: studentsUsed } = await supabaseAdmin
+      .from("students")
+      .select("id", { count: "exact", head: true })
+      .in("school_id", schoolIds);
+    if ((studentsUsed ?? 0) > freePlan.maxStudents) {
+      throw new Error(`The Free plan supports up to ${freePlan.maxStudents} students. You have more than that enrolled.`);
+    }
+  }
+
   const { error } = await supabaseAdmin
     .from("school_subscriptions")
-    .update({ status: "cancelled", updated_at: new Date().toISOString() })
+    .update({
+      plan_id: freePlan.id,
+      plan_name: freePlan.name,
+      max_schools: freePlan.schools,
+      monthly_fee: freePlan.price,
+      status: "active",
+      payment_method: null,
+      payment_method_summary: null,
+      razorpay_method: null,
+      razorpay_method_detail: null,
+      updated_at: new Date().toISOString(),
+    })
     .eq("institution_id", institutionId);
   if (error) throw new Error(error.message);
+
   revalidatePath("/dashboard/billing");
+}
+
+export async function cancelSubscription() {
+  // Cancelling a paid plan drops the institution straight to Free — there's no
+  // grace period or auto-expiry job, so "cancelled" must not leave them in a
+  // limbo state still tagged with the old paid plan_id.
+  await switchToFreePlan();
 }

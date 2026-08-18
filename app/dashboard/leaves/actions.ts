@@ -1,9 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { logAuditEvent } from "@/lib/audit/log";
+import { notifyRoles, notifyProfile } from "@/lib/notifications/create";
 import type { LeaveType } from "./_data/leaves";
 
 export async function applyLeave(input: {
@@ -35,6 +37,25 @@ export async function applyLeave(input: {
     .single();
 
   if (error || !data) throw new Error(error?.message ?? "Failed to submit leave request");
+
+  const { data: staff } = await supabaseAdmin.from("staff_members").select("full_name").eq("id", input.staffId).maybeSingle();
+  await logAuditEvent({
+    schoolId,
+    action: "create",
+    module: "Leave",
+    description: `${staff?.full_name ?? "A staff member"} applied for ${input.leaveType} leave (${days} day${days === 1 ? "" : "s"})`,
+  });
+
+  const { data: { user } } = await getUser();
+  await notifyRoles({
+    schoolId,
+    roles: ["admin", "super_admin"],
+    excludeProfileId: user?.id,
+    title: "New leave request",
+    description: `${staff?.full_name ?? "A staff member"} applied for ${input.leaveType} leave (${days} day${days === 1 ? "" : "s"})`,
+    link: "/dashboard/leaves",
+  });
+
   revalidatePath("/dashboard/leaves");
   return { id: data.id, days };
 }
@@ -55,11 +76,34 @@ export async function updateLeaveStatus(leaveId: string, status: "approved" | "r
     .maybeSingle();
   const approvedBy = approver?.id ?? null;
 
-  const { error } = await supabaseAdmin
+  const { data: leave, error } = await supabaseAdmin
     .from("leave_requests")
     .update({ status, approved_by: approvedBy })
-    .eq("id", leaveId);
+    .eq("id", leaveId)
+    .select("school_id, leave_type, staff_members!leave_requests_staff_id_fkey ( full_name, profile_id )")
+    .single();
 
   if (error) throw new Error(error.message);
+
+  const staffMember = Array.isArray(leave?.staff_members) ? leave?.staff_members[0] : leave?.staff_members;
+  const staffInfo = staffMember as { full_name: string | null; profile_id: string | null } | undefined;
+  const staffName = staffInfo?.full_name ?? "a staff member";
+  await logAuditEvent({
+    schoolId: leave.school_id,
+    action: status === "approved" ? "approve" : "reject",
+    module: "Leave",
+    description: `${status === "approved" ? "Approved" : "Rejected"} leave request for ${staffName}`,
+  });
+
+  if (staffInfo?.profile_id) {
+    await notifyProfile({
+      schoolId: leave.school_id,
+      profileId: staffInfo.profile_id,
+      title: status === "approved" ? "Leave request approved" : "Leave request rejected",
+      description: `Your ${leave.leave_type} leave request was ${status}`,
+      link: "/dashboard/leaves",
+    });
+  }
+
   revalidatePath("/dashboard/leaves");
 }

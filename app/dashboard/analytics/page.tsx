@@ -72,13 +72,21 @@ export default async function AnalyticsPage() {
     byMonth[f.month_str].due += Number(f.amount_due ?? 0);
     byMonth[f.month_str].paid += Number(f.amount_paid ?? 0);
   }
-  const feeMonths: FeeMonth[] = Object.entries(byMonth)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, { due, paid }]) => ({
+  // Fixed last-12-months window (ending this month) so the chart always shows
+  // 12 bars, with zero bars for months that have no fee_payments rows yet.
+  const now = new Date();
+  const last12MonthKeys = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const feeMonths: FeeMonth[] = last12MonthKeys.map((month) => {
+    const agg = byMonth[month] ?? { due: 0, paid: 0 };
+    return {
       month: new Date(month + "-01").toLocaleDateString("en-IN", { month: "short" }),
-      collected: Math.round((paid / 100000) * 100) / 100,
-      due: Math.round((due / 100000) * 100) / 100,
-    }));
+      collected: Math.round((agg.paid / 100000) * 100) / 100,
+      due: Math.round((agg.due / 100000) * 100) / 100,
+    };
+  });
   const totalDue = Object.values(byMonth).reduce((s, m) => s + m.due, 0);
   const totalPaid = Object.values(byMonth).reduce((s, m) => s + m.paid, 0);
   const feeCollectionRate = totalDue ? Math.round((totalPaid / totalDue) * 100) : 0;

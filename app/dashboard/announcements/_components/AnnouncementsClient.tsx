@@ -206,9 +206,9 @@ export default function AnnouncementsClient({ initialData }: { initialData: Anno
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div>
           <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Announcements</h1>
-          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Broadcast updates to students, staff, and parents</p>
+          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Broadcast updates</p>
         </div>
-        <div className="sm:ml-auto flex items-center gap-2">
+        <div className="flex gap-2 sm:ml-auto">
           <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5" /> Export</button>
           <FancyButton onClick={() => setCompose((v) => !v)} size="sm"><Plus className="h-4 w-4" /> New Announcement</FancyButton>
         </div>
@@ -217,14 +217,13 @@ export default function AnnouncementsClient({ initialData }: { initialData: Anno
       <StatsRow announcements={initialData} />
       {composing && <ComposePanel onClose={() => setCompose(false)} />}
 
-      <div className="flex items-center gap-1 border-b border-gray-200 dark:border-zinc-800">
+      <div className="flex gap-1 border-b border-gray-200 dark:border-zinc-800">
         {STATUS_TABS.map((t) => {
           const count = t.value === "all" ? initialData.length : initialData.filter((a) => a.status === t.value).length;
           return (
-            <button key={t.value} onClick={() => setStatus(t.value)} className={`relative flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${statusTab===t.value?"text-primary-600 dark:text-primary-400":"text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
+            <button key={t.value} onClick={() => setStatus(t.value)} className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${statusTab===t.value?"border-primary-500 text-primary-600 dark:text-primary-400":"border-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 hover:border-gray-300 dark:hover:border-zinc-600"}`}>
               {t.label}
-              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${statusTab===t.value?"bg-primary-500/15 text-primary-600 dark:text-primary-400":"bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-500"}`}>{count}</span>
-              {statusTab===t.value&&<span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500 rounded-t-full"/>}
+              <span className={`ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${statusTab===t.value?"bg-primary-500/15 text-primary-600 dark:text-primary-400":"bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-500"}`}>{count}</span>
             </button>
           );
         })}
@@ -249,12 +248,6 @@ export default function AnnouncementsClient({ initialData }: { initialData: Anno
         </div>
         {hasFilter&&<button onClick={clearFilters} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><X className="h-3.5 w-3.5"/> Clear</button>}
       </div>
-
-      <p className="text-xs text-gray-500 dark:text-zinc-500">
-        Showing <span className="font-medium text-gray-700 dark:text-zinc-300">{filtered.length}</span> of{" "}
-        <span className="font-medium text-gray-700 dark:text-zinc-300">{initialData.length}</span> announcements
-        {hasFilter&&<span className="ml-2 font-medium text-primary-600 dark:text-primary-400">· Filters active</span>}
-      </p>
 
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 py-20">

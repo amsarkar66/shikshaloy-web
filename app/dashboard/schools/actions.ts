@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getUser } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
+import { getSchoolCapacity } from "@/lib/billing/plan-limits";
 import type { SchoolFormData } from "@/app/onboarding/_school-onboarding-form";
 
 export interface UpdateSchoolInput {
@@ -73,21 +74,8 @@ export async function createAdditionalSchool(input: SchoolFormData): Promise<{ e
 
   const institutionId = await getCurrentInstitutionIdOrThrow();
 
-  const [{ data: subscription }, { count: schoolCount }] = await Promise.all([
-    supabaseAdmin
-      .from("school_subscriptions")
-      .select("max_schools")
-      .eq("institution_id", institutionId)
-      .maybeSingle(),
-    supabaseAdmin
-      .from("schools")
-      .select("id", { count: "exact", head: true })
-      .eq("institution_id", institutionId),
-  ]);
-
-  const maxSchools = subscription?.max_schools ?? 1;
-  const currentCount = schoolCount ?? 0;
-  if (currentCount >= maxSchools) {
+  const { maxSchools, schoolsUsed: currentCount, atCapacity } = await getSchoolCapacity(institutionId);
+  if (atCapacity) {
     return { error: `Your plan allows up to ${maxSchools} school${maxSchools === 1 ? "" : "s"}. Upgrade your plan to add another.` };
   }
 

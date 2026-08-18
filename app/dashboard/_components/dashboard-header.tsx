@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Bell, Search, Settings, LogOut, Menu, CheckCheck, CreditCard } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { createClient } from "@/lib/supabase/client";
 import { signOut } from "../actions";
+import { useIsMac } from "../_lib/use-is-mac";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -23,6 +25,7 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   "/dashboard/admissions":    { title: "Admissions",    subtitle: "Manage student applications and enrolments" },
   "/dashboard/admissions/new": { title: "New Application", subtitle: "Submit a new admission application" },
   "/dashboard/students":      { title: "Students",      subtitle: "Manage student records" },
+  "/dashboard/subjects":      { title: "Subjects",      subtitle: "Manage subjects and curriculum" },
   "/dashboard/staff":         { title: "Staff",         subtitle: "Manage staff members" },
   "/dashboard/classes":       { title: "Classes",       subtitle: "Manage class sections" },
   "/dashboard/attendance":    { title: "Attendance",    subtitle: "Daily attendance records" },
@@ -52,6 +55,20 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   "/dashboard/principals":              { title: "Principals & School Admins", subtitle: "Manage principal accounts across your schools" },
   "/dashboard/fee-collection":          { title: "Fee Collection", subtitle: "Dues and collection across every school" },
   "/dashboard/help":                    { title: "Help & Support", subtitle: "Reach the Shikshaloy team" },
+  "/dashboard/parents":                 { title: "Parents",        subtitle: "Manage parent accounts and linked students" },
+  "/dashboard/certificates":            { title: "Certificates",   subtitle: "Generate and issue student certificates" },
+  "/dashboard/homework":                { title: "Homework",       subtitle: "Assignments and submissions" },
+  "/dashboard/id-cards":                { title: "ID Cards",       subtitle: "Generate student and staff ID cards" },
+  "/dashboard/expenses":                { title: "Expenses",       subtitle: "Track institution expenses" },
+  "/dashboard/payroll":                 { title: "Payroll",        subtitle: "Staff salary and payroll processing" },
+  "/dashboard/events":                  { title: "Events & Calendar", subtitle: "School events and important dates" },
+  "/dashboard/grievances":              { title: "Grievances",     subtitle: "Track and resolve raised concerns" },
+  "/dashboard/transport":               { title: "Transport",      subtitle: "Routes, vehicles, and drivers" },
+  "/dashboard/drivers":                 { title: "Drivers",        subtitle: "Manage driver accounts and assignments" },
+  "/dashboard/library":                 { title: "Library",        subtitle: "Books, issues, and returns" },
+  "/dashboard/hostel":                  { title: "Hostel",         subtitle: "Rooms, allotments, and residents" },
+  "/dashboard/inventory":               { title: "Inventory",      subtitle: "Track school assets and supplies" },
+  "/dashboard/gallery":                 { title: "Website Gallery", subtitle: "Manage photos shown on the public site" },
 };
 
 const ROLE_COLORS: Record<string, string> = {
@@ -80,33 +97,21 @@ type Notification = {
   id: string;
   title: string;
   description: string;
-  time: string;
+  link: string | null;
   read: boolean;
+  createdAt: string;
 };
 
-const INITIAL_NOTIFICATIONS: Notification[] = [
-  {
-    id: "1",
-    title: "New admission application",
-    description: "A new student application is awaiting your review.",
-    time: "10 min ago",
-    read: false,
-  },
-  {
-    id: "2",
-    title: "Fee payment received",
-    description: "A fee payment has been recorded successfully.",
-    time: "1 hour ago",
-    read: false,
-  },
-  {
-    id: "3",
-    title: "Attendance report ready",
-    description: "Yesterday's attendance report has been generated.",
-    time: "Yesterday",
-    read: true,
-  },
-];
+function formatRelativeTime(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.round(diffMs / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs} hr${hrs > 1 ? "s" : ""} ago`;
+  const days = Math.round(hrs / 24);
+  return `${days} day${days > 1 ? "s" : ""} ago`;
+}
 
 function getInitials(name: string) {
   return name
@@ -118,17 +123,62 @@ function getInitials(name: string) {
 }
 
 export function DashboardHeader({
-  role, user, orgName, orgLogoUrl, onMenuClick,
+  role, user, orgName, orgLogoUrl, onMenuClick, onSearchClick,
 }: {
   role: string;
   user: User;
   orgName?: string | null;
   orgLogoUrl?: string | null;
   onMenuClick?: () => void;
+  onSearchClick?: () => void;
 }) {
   const pathname = usePathname();
-  const [notifications, setNotifications] = useState<Notification[]>(INITIAL_NOTIFICATIONS);
+  const router = useRouter();
+  const isMac = useIsMac();
+  const supabase = useMemo(() => createClient(), []);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const fetchNotifications = useCallback(async () => {
+    const { data } = await supabase
+      .from("notifications")
+      .select("id, title, description, link, read, created_at")
+      .eq("recipient_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(30);
+
+    setNotifications(
+      (data ?? []).map((n) => ({
+        id: n.id,
+        title: n.title,
+        description: n.description,
+        link: n.link,
+        read: n.read,
+        createdAt: n.created_at,
+      }))
+    );
+  }, [supabase, user.id]);
+
+  useEffect(() => {
+    void fetchNotifications();
+  }, [fetchNotifications]);
+
+  const markAllRead = useCallback(async () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    await supabase.from("notifications").update({ read: true }).eq("recipient_id", user.id).eq("read", false);
+  }, [supabase, user.id]);
+
+  const handleNotificationClick = useCallback(
+    async (n: Notification) => {
+      if (!n.read) {
+        setNotifications((prev) => prev.map((item) => (item.id === n.id ? { ...item, read: true } : item)));
+        await supabase.from("notifications").update({ read: true }).eq("id", n.id);
+      }
+      if (n.link) router.push(n.link);
+    },
+    [supabase, router]
+  );
+
   const meta =
     PAGE_META[pathname] ??
     (/^\/dashboard\/schools\/[^/]+\/edit$/.test(pathname) ? { title: "Edit School", subtitle: "Update school profile" } :
@@ -169,13 +219,21 @@ export function DashboardHeader({
 
       {/* Right — actions */}
       <div className="flex shrink-0 items-center gap-1">
-        <button className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 dark:text-zinc-400 transition-colors hover:bg-gray-100 dark:hover:bg-zinc-800 hover:text-gray-900 dark:hover:text-zinc-50">
-          <Search className="h-4 w-4" />
+        <button
+          onClick={onSearchClick}
+          aria-label="Open command menu"
+          className="mr-3 flex h-8 w-8 md:w-44 items-center gap-2 rounded-lg border border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900 px-2 text-gray-400 dark:text-zinc-500 transition-colors hover:border-gray-300 dark:hover:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800 hover:text-gray-600 dark:hover:text-zinc-300"
+        >
+          <Search className="h-4 w-4 shrink-0" />
+          <span className="hidden md:inline flex-1 truncate text-left text-xs">Search…</span>
+          <span className="hidden md:flex h-5 shrink-0 items-center rounded-md border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-1.5 text-[10px] font-medium">
+            {isMac ? "⌘K" : "Ctrl K"}
+          </span>
         </button>
 
-        <ThemeToggle />
+        <ThemeToggle variant="ghost" />
 
-        <DropdownMenu>
+        <DropdownMenu onOpenChange={(open) => { if (open) void fetchNotifications(); }}>
           <DropdownMenuTrigger className="relative flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 dark:text-zinc-400 transition-colors hover:bg-gray-100 dark:hover:bg-zinc-800 hover:text-gray-900 dark:hover:text-zinc-50">
             <Bell className="h-4 w-4" />
             {unreadCount > 0 && (
@@ -187,7 +245,7 @@ export function DashboardHeader({
               <p className="text-sm font-medium text-foreground">Notifications</p>
               {unreadCount > 0 && (
                 <button
-                  onClick={() => setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))}
+                  onClick={() => void markAllRead()}
                   className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                 >
                   <CheckCheck className="h-3.5 w-3.5" />
@@ -205,11 +263,7 @@ export function DashboardHeader({
                 <DropdownMenuItem
                   key={n.id}
                   className="cursor-pointer flex-col items-start gap-0.5 py-2"
-                  onClick={() =>
-                    setNotifications((prev) =>
-                      prev.map((item) => (item.id === n.id ? { ...item, read: true } : item))
-                    )
-                  }
+                  onClick={() => void handleNotificationClick(n)}
                 >
                   <div className="flex w-full items-center gap-1.5">
                     {!n.read && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary-500" />}
@@ -218,7 +272,7 @@ export function DashboardHeader({
                     </p>
                   </div>
                   <p className="line-clamp-2 pl-3 text-xs text-muted-foreground">{n.description}</p>
-                  <p className="pl-3 text-[11px] text-muted-foreground/70">{n.time}</p>
+                  <p className="pl-3 text-[11px] text-muted-foreground/70">{formatRelativeTime(n.createdAt)}</p>
                 </DropdownMenuItem>
               ))
             )}

@@ -54,14 +54,16 @@ export default function AuditLogClient({ entries }: { entries: AuditEntry[] }) {
 
   return (
     <div className="w-full px-6 py-6 space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div>
           <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Audit Log</h1>
-          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Track who changed what, across every module.</p>
+          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Track who changed what, across every module</p>
         </div>
-        <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
-          <Download className="h-3.5 w-3.5" /> Export
-        </button>
+        <div className="flex gap-2 sm:ml-auto">
+          <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
+            <Download className="h-3.5 w-3.5" /> Export
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">

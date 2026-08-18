@@ -219,6 +219,18 @@ export default function HomeworkClient({
 
   return (
     <div className="w-full px-6 py-6 space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Homework</h1>
+          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Assignments and submissions</p>
+        </div>
+        <div className="flex gap-2 sm:ml-auto">
+          <FancyButton onClick={() => setModalOpen(true)} size="sm">
+            <Plus className="h-4 w-4" /> New Assignment
+          </FancyButton>
+        </div>
+      </div>
+
       <StatsRow items={homework} />
 
       <div className="flex flex-col sm:flex-row gap-3">
@@ -259,11 +271,6 @@ export default function HomeworkClient({
             <X className="h-3.5 w-3.5" /> Clear
           </button>
         )}
-        <div className="flex gap-2 sm:ml-auto">
-          <FancyButton onClick={() => setModalOpen(true)} size="sm">
-            <Plus className="h-4 w-4" /> New Assignment
-          </FancyButton>
-        </div>
       </div>
 
       {hasFilter && (

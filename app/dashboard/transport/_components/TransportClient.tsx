@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import {
   Bus, Users, MapPin, Search, Plus, Download,
-  X, Phone, ChevronDown, ChevronUp, Eye, Pencil,
+  X, Phone, ChevronDown, ChevronUp, Pencil,
   AlertCircle,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
@@ -13,6 +14,10 @@ import {
   FEE_BADGE, VEHICLE_STATUS_BADGE, ROUTE_STATUS_BADGE, FUEL_ICON,
   type Route, type Vehicle, type StudentTransport, type TransportFeeStatus, type VehicleStatus, type RouteStatus,
 } from "../_data/transport";
+import type { DriverOption } from "../actions";
+import { RouteModal } from "./RouteModal";
+import { VehicleModal } from "./VehicleModal";
+import { StudentTransportModal } from "./StudentTransportModal";
 
 // ── Stats ─────────────────────────────────────────────────────────────────────
 
@@ -43,7 +48,7 @@ function StatsRow({ routes, vehicles, students }: { routes: Route[]; vehicles: V
 
 // ── Routes tab ────────────────────────────────────────────────────────────────
 
-function RouteRow({ route }: { route: Route }) {
+function RouteRow({ route, onEdit }: { route: Route; onEdit: () => void }) {
   const [open, setOpen] = useState(false);
   const fill = route.capacity ? Math.round((route.studentCount / route.capacity) * 100) : 0;
   const fillColor = fill >= 90 ? "bg-amber-500" : "bg-indigo-500";
@@ -82,9 +87,17 @@ function RouteRow({ route }: { route: Route }) {
           <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${ROUTE_STATUS_BADGE[route.status]}`}>{route.status}</span>
         </Td>
         <Td position="last" align="right">
-          <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors ml-auto">
-            {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-          </button>
+          <div className="flex items-center justify-end gap-1">
+            <button
+              onClick={(e) => { e.stopPropagation(); onEdit(); }}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+            <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors">
+              {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            </button>
+          </div>
         </Td>
       </Tr>
       {open && (
@@ -115,7 +128,7 @@ function RouteRow({ route }: { route: Route }) {
   );
 }
 
-function RoutesTab({ routes }: { routes: Route[] }) {
+function RoutesTab({ routes, onEdit }: { routes: Route[]; onEdit: (route: Route) => void }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatus] = useState<"all" | RouteStatus>("all");
 
@@ -149,9 +162,6 @@ function RoutesTab({ routes }: { routes: Route[] }) {
             </button>
           )}
         </div>
-        <FancyButton size="sm" className="shrink-0 sm:ml-auto">
-          <Plus className="h-4 w-4" /> Add Route
-        </FancyButton>
       </div>
 
       <Table>
@@ -167,7 +177,7 @@ function RoutesTab({ routes }: { routes: Route[] }) {
         <TableBody>
           {filtered.length === 0 ? (
             <TableEmptyRow colSpan={7} icon={MapPin} message="No routes found" />
-          ) : filtered.map((route) => <RouteRow key={route.id} route={route} />)}
+          ) : filtered.map((route) => <RouteRow key={route.id} route={route} onEdit={() => onEdit(route)} />)}
         </TableBody>
       </Table>
     </div>
@@ -176,7 +186,7 @@ function RoutesTab({ routes }: { routes: Route[] }) {
 
 // ── Vehicles tab ──────────────────────────────────────────────────────────────
 
-function VehiclesTab({ vehicles }: { vehicles: Vehicle[] }) {
+function VehiclesTab({ vehicles, onAdd, onEdit }: { vehicles: Vehicle[]; onAdd: () => void; onEdit: (vehicle: Vehicle) => void }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatus] = useState<"all" | VehicleStatus>("all");
 
@@ -218,7 +228,7 @@ function VehiclesTab({ vehicles }: { vehicles: Vehicle[] }) {
             </button>
           )}
         </div>
-        <FancyButton size="sm" className="shrink-0 sm:ml-auto">
+        <FancyButton size="sm" className="shrink-0 sm:ml-auto" onClick={onAdd}>
           <Plus className="h-4 w-4" /> Add Vehicle
         </FancyButton>
       </div>
@@ -270,8 +280,7 @@ function VehiclesTab({ vehicles }: { vehicles: Vehicle[] }) {
                 </Td>
                 <Td position="last">
                   <div className="flex items-center justify-end gap-1">
-                    <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Eye className="h-3.5 w-3.5" /></button>
-                    <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Pencil className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => onEdit(v)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Pencil className="h-3.5 w-3.5" /></button>
                   </div>
                 </Td>
               </Tr>
@@ -304,7 +313,24 @@ function VehiclesTab({ vehicles }: { vehicles: Vehicle[] }) {
 
 const PAGE_SIZE = 10;
 
-function StudentsTab({ students, routes }: { students: StudentTransport[]; routes: Route[] }) {
+function exportStudentsCsv(students: StudentTransport[]) {
+  const header = ["Student", "Roll No", "Class", "Section", "Route", "Stop", "Monthly Fee", "Fee Status"];
+  const rows = students.map((s) => [
+    s.studentName, s.rollNo, s.classNum, s.section, `${s.routeNo} ${s.routeName}`, s.stopName, s.monthlyFee, s.feeStatus,
+  ]);
+  const csv = [header, ...rows]
+    .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+    .join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "transport-students.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function StudentsTab({ students, routes, onAssign, onEdit }: { students: StudentTransport[]; routes: Route[]; onAssign: () => void; onEdit: (s: StudentTransport) => void }) {
   const [query, setQuery] = useState("");
   const [routeFilter, setRoute] = useState("all");
   const [feeFilter, setFee] = useState<"all" | TransportFeeStatus>("all");
@@ -360,8 +386,8 @@ function StudentsTab({ students, routes }: { students: StudentTransport[]; route
           </button>
         )}
         <div className="flex gap-2 sm:ml-auto">
-          <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5" /> Export</button>
-          <FancyButton size="sm"><Plus className="h-4 w-4" /> Assign Student</FancyButton>
+          <button onClick={() => exportStudentsCsv(filtered)} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5" /> Export</button>
+          <FancyButton size="sm" onClick={onAssign}><Plus className="h-4 w-4" /> Assign Student</FancyButton>
         </div>
       </div>
 
@@ -430,7 +456,7 @@ function StudentsTab({ students, routes }: { students: StudentTransport[]; route
               <Td position="last">
                 <div className="flex items-center justify-end gap-1">
                   <a href={`tel:${s.phone}`} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors" title="Call parent"><Phone className="h-3.5 w-3.5" /></a>
-                  <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Pencil className="h-3.5 w-3.5" /></button>
+                  <button onClick={() => onEdit(s)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Pencil className="h-3.5 w-3.5" /></button>
                 </div>
               </Td>
             </Tr>
@@ -450,25 +476,58 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "students", label: "Students", icon: Users },
 ];
 
+function exportOverviewCsv(routes: Route[], vehicles: Vehicle[]) {
+  const header = ["Type", "Identifier", "Name/Model", "Status", "Capacity", "Extra"];
+  const rows = [
+    ...routes.map((r) => ["Route", r.routeNo, r.routeName, r.status, r.capacity, `${r.studentCount} students`]),
+    ...vehicles.map((v) => ["Vehicle", v.regNo, v.model, v.status, v.capacity, v.fuelType]),
+  ];
+  const csv = [header, ...rows]
+    .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+    .join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "transport-report.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function TransportClient({
-  routes, vehicles, students,
+  routes, vehicles, students, drivers,
 }: {
   routes: Route[];
   vehicles: Vehicle[];
   students: StudentTransport[];
+  drivers: DriverOption[];
 }) {
+  const router = useRouter();
   const [activeTab, setTab] = useState<Tab>("routes");
+
+  const [routeModal, setRouteModal] = useState<Route | "new" | null>(null);
+  const [vehicleModal, setVehicleModal] = useState<Vehicle | "new" | null>(null);
+  const [assignModal, setAssignModal] = useState<StudentTransport | "new" | null>(null);
+
+  function refresh() {
+    router.refresh();
+  }
 
   return (
     <div className="w-full px-6 py-6 space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div>
           <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Transport</h1>
-          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Manage routes, fleet, and student assignments</p>
+          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Routes, vehicles, and drivers</p>
         </div>
-        <button className="sm:ml-auto flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
-          <Download className="h-3.5 w-3.5" /> Export Report
-        </button>
+        <div className="flex gap-2 sm:ml-auto">
+          <button onClick={() => exportOverviewCsv(routes, vehicles)} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
+            <Download className="h-3.5 w-3.5" /> Export Report
+          </button>
+          {activeTab === "routes" && (
+            <FancyButton onClick={() => setRouteModal("new")} size="sm"><Plus className="h-4 w-4" /> Add Route</FancyButton>
+          )}
+        </div>
       </div>
 
       <StatsRow routes={routes} vehicles={vehicles} students={students} />
@@ -481,9 +540,34 @@ export default function TransportClient({
         ))}
       </div>
 
-      {activeTab === "routes"   && <RoutesTab routes={routes} />}
-      {activeTab === "vehicles" && <VehiclesTab vehicles={vehicles} />}
-      {activeTab === "students" && <StudentsTab students={students} routes={routes} />}
+      {activeTab === "routes"   && <RoutesTab routes={routes} onEdit={(r) => setRouteModal(r)} />}
+      {activeTab === "vehicles" && <VehiclesTab vehicles={vehicles} onAdd={() => setVehicleModal("new")} onEdit={(v) => setVehicleModal(v)} />}
+      {activeTab === "students" && <StudentsTab students={students} routes={routes} onAssign={() => setAssignModal("new")} onEdit={(s) => setAssignModal(s)} />}
+
+      {routeModal && (
+        <RouteModal
+          route={routeModal === "new" ? null : routeModal}
+          drivers={drivers}
+          onClose={() => setRouteModal(null)}
+          onSaved={refresh}
+        />
+      )}
+      {vehicleModal && (
+        <VehicleModal
+          vehicle={vehicleModal === "new" ? null : vehicleModal}
+          drivers={drivers}
+          onClose={() => setVehicleModal(null)}
+          onSaved={refresh}
+        />
+      )}
+      {assignModal && (
+        <StudentTransportModal
+          assignment={assignModal === "new" ? null : assignModal}
+          routes={routes}
+          onClose={() => setAssignModal(null)}
+          onSaved={refresh}
+        />
+      )}
     </div>
   );
 }

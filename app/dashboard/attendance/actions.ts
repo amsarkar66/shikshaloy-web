@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
+import { logAuditEvent } from "@/lib/audit/log";
 
 export async function markStudentAttendance(studentId: string, sectionId: string, date: string, status: "present" | "absent" | "late") {
   const schoolId = await getCurrentSchoolIdOrThrow();
@@ -14,6 +15,15 @@ export async function markStudentAttendance(studentId: string, sectionId: string
       { onConflict: "student_id,date" },
     );
   if (error) throw new Error(error.message);
+
+  const { data: student } = await supabaseAdmin.from("students").select("full_name").eq("id", studentId).maybeSingle();
+  await logAuditEvent({
+    schoolId,
+    action: "update",
+    module: "Attendance",
+    description: `Marked ${student?.full_name ?? "a student"} as ${status} (${date})`,
+  });
+
   revalidatePath("/dashboard/attendance");
 }
 
@@ -26,6 +36,15 @@ export async function markStaffAttendance(staffId: string, date: string, status:
       { onConflict: "staff_id,date" },
     );
   if (error) throw new Error(error.message);
+
+  const { data: staff } = await supabaseAdmin.from("staff_members").select("full_name").eq("id", staffId).maybeSingle();
+  await logAuditEvent({
+    schoolId,
+    action: "update",
+    module: "Attendance",
+    description: `Marked ${staff?.full_name ?? "a staff member"} as ${status} (${date})`,
+  });
+
   revalidatePath("/dashboard/attendance");
 }
 

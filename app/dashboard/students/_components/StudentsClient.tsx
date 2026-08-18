@@ -12,10 +12,12 @@ import {
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr } from "@/components/ui/data-table";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { BulkImportModal, type ImportColumn } from "../../_components/bulk-import-modal";
 import { AddStudentModal, type SectionOption } from "./add-student-modal";
 import { StudentCredentialsDialog } from "./credentials-dialog";
 import { bulkImportStudents, setStudentActive, type BulkImportOutcome } from "../actions";
+import { PlanLimitModal } from "../../_components/plan-limit-modal";
 
 export type FeeStatus = "paid" | "partial" | "overdue";
 
@@ -323,9 +325,17 @@ function StudentCard({
   );
 }
 
-export default function StudentsClient({ students: initialStudents, sections }: { students: Student[]; sections: SectionOption[] }) {
+export default function StudentsClient({
+  students: initialStudents, sections, atStudentCapacity, maxStudents,
+}: {
+  students: Student[];
+  sections: SectionOption[];
+  atStudentCapacity?: boolean;
+  maxStudents?: number | null;
+}) {
   const router = useRouter();
   const [students,    setStudents]  = useState(initialStudents);
+  const [showLimitModal, setShowLimitModal] = useState(false);
   const [viewMode,    setViewMode]  = useState<"table" | "grid">("table");
   const [query,       setQuery]     = useState("");
   const [classFilter,  setClass]    = useState("all");
@@ -455,6 +465,41 @@ export default function StudentsClient({ students: initialStudents, sections }: 
 
   return (
     <div className="w-full px-6 py-6 space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Students</h1>
+          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Manage student records</p>
+        </div>
+        <div className="flex gap-2 sm:ml-auto">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"
+              title="More actions"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" sideOffset={8} className="w-48">
+              <DropdownMenuItem className="cursor-pointer">
+                <Download className="h-3.5 w-3.5" /> Export
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                disabled={importBusy}
+                onClick={() => (atStudentCapacity ? setShowLimitModal(true) : setImportOpen(true))}
+              >
+                {importBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} Import
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer" render={<Link href="/dashboard/students/promote" />}>
+                <GraduationCap className="h-3.5 w-3.5" /> Promote Students
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <FancyButton onClick={() => (atStudentCapacity ? setShowLimitModal(true) : setAddOpen(true))} size="sm">
+            <Plus className="h-4 w-4" /> Add Student
+          </FancyButton>
+        </div>
+      </div>
+
       <StatsRow students={students} />
 
       <div className="flex flex-col sm:flex-row gap-3">
@@ -507,7 +552,7 @@ export default function StudentsClient({ students: initialStudents, sections }: 
           {filterOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setFilterOpen(false)} />
-              <div className="absolute left-0 top-full z-50 mt-2 w-72 space-y-3 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-4 shadow-lg shadow-black/10">
+              <div className="absolute right-0 top-full z-50 mt-2 w-72 space-y-3 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-4 shadow-lg shadow-black/10">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Class</label>
@@ -642,28 +687,14 @@ export default function StudentsClient({ students: initialStudents, sections }: 
             <X className="h-3.5 w-3.5" /> Clear
           </button>
         )}
-        <div className="flex gap-2 sm:ml-auto">
-          <Link
-            href="/dashboard/students/promote"
-            className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"
-          >
-            <GraduationCap className="h-3.5 w-3.5" /> Promote Students
-          </Link>
-          <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
-            <Download className="h-3.5 w-3.5" /> Export
-          </button>
-          <button
-            onClick={() => setImportOpen(true)}
-            disabled={importBusy}
-            className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors disabled:opacity-50"
-          >
-            {importBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} Import
-          </button>
-          <FancyButton onClick={() => setAddOpen(true)} size="sm">
-            <Plus className="h-4 w-4" /> Add Student
-          </FancyButton>
-        </div>
       </div>
+
+      <PlanLimitModal
+        open={showLimitModal}
+        onClose={() => setShowLimitModal(false)}
+        resource="students"
+        limit={maxStudents ?? null}
+      />
 
       {importResult && (
         <div className="flex items-start gap-2 rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/50 px-4 py-2.5 text-sm">

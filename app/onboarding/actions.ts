@@ -109,18 +109,18 @@ export async function submitOnboarding(
     // Resubmissions already have a subscription row from their first
     // attempt (institution_id is unique on school_subscriptions) — only
     // brand-new institutions need one created.
-    const starter = PLANS.find((p) => p.id === "starter")!;
+    const freePlan = PLANS.find((p) => p.id === "free")!;
     const renewsOn = new Date();
     renewsOn.setDate(renewsOn.getDate() + 30);
 
     await supabaseAdmin.from("school_subscriptions").insert({
       institution_id: institution.id,
-      plan_id: starter.id,
-      plan_name: starter.name,
+      plan_id: freePlan.id,
+      plan_name: freePlan.name,
       status: "active",
       schools_used: 1,
-      max_schools: starter.schools ?? 1,
-      monthly_fee: starter.price ?? 0,
+      max_schools: freePlan.schools ?? 1,
+      monthly_fee: freePlan.price ?? 0,
       renews_on: renewsOn.toISOString().slice(0, 10),
     });
 

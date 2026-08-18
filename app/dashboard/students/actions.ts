@@ -4,7 +4,10 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
+import { getStudentCapacity } from "@/lib/billing/plan-limits";
+import { logAuditEvent } from "@/lib/audit/log";
 import { enrollStudent, createLoginForExistingStudent, type EnrollStudentResult } from "@/lib/students/enroll";
 import { randomPassword } from "@/lib/auth/random-password";
 import type { LeaveType } from "../leaves/_data/leaves";
@@ -35,8 +38,12 @@ export interface AddStudentInput {
 }
 
 export async function addStudentManual(input: AddStudentInput): Promise<EnrollStudentResult> {
+  const { maxStudents, atCapacity } = await getStudentCapacity(await getCurrentInstitutionIdOrThrow());
+  if (atCapacity) throw new Error(`Your plan allows up to ${maxStudents} students. Upgrade your plan to add more.`);
+
+  const schoolId = await getCurrentSchoolIdOrThrow();
   const result = await enrollStudent({
-    schoolId: await getCurrentSchoolIdOrThrow(),
+    schoolId,
     fullName: input.fullName,
     dob: input.dob,
     gender: input.gender,
@@ -60,6 +67,13 @@ export async function addStudentManual(input: AddStudentInput): Promise<EnrollSt
     emergencyContactRelation: input.emergencyContactRelation,
     medicalConditions: input.medicalConditions,
     allergies: input.allergies,
+  });
+
+  await logAuditEvent({
+    schoolId,
+    action: "create",
+    module: "Students",
+    description: `Enrolled new student — ${input.fullName}`,
   });
 
   revalidatePath("/dashboard/students");
@@ -138,6 +152,13 @@ export async function updateStudent(input: UpdateStudentInput): Promise<void> {
     if (parentError) throw new Error(`Failed to update parent: ${parentError.message}`);
   }
 
+  await logAuditEvent({
+    schoolId,
+    action: "update",
+    module: "Students",
+    description: `Updated student record — ${input.fullName}`,
+  });
+
   revalidatePath("/dashboard/students");
   revalidatePath(`/dashboard/students/${input.studentId}`);
 }
@@ -201,19 +222,43 @@ export async function updateStudentLeaveStatus(
     .eq("id", leaveId);
 
   if (error) throw new Error(`Failed to update leave status: ${error.message}`);
+
+  const { data: student } = await supabaseAdmin
+    .from("students")
+    .select("school_id, full_name")
+    .eq("id", studentId)
+    .maybeSingle();
+  if (student) {
+    await logAuditEvent({
+      schoolId: student.school_id,
+      action: status === "approved" ? "approve" : "reject",
+      module: "Leave",
+      description: `${status === "approved" ? "Approved" : "Rejected"} leave request for ${student.full_name}`,
+    });
+  }
+
   revalidatePath(`/dashboard/students/${studentId}`);
   revalidatePath("/dashboard/leaves");
 }
 
 export async function setStudentActive(studentId: string, active: boolean): Promise<void> {
   const schoolId = await getCurrentSchoolIdOrThrow();
-  const { error } = await supabaseAdmin
+  const { data: student, error } = await supabaseAdmin
     .from("students")
     .update({ status: active ? "active" : "inactive" })
     .eq("id", studentId)
-    .eq("school_id", schoolId);
+    .eq("school_id", schoolId)
+    .select("full_name")
+    .single();
 
   if (error) throw new Error(`Failed to update student status: ${error.message}`);
+
+  await logAuditEvent({
+    schoolId,
+    action: active ? "update" : "delete",
+    module: "Students",
+    description: `${active ? "Reactivated" : "Deactivated"} student — ${student.full_name}`,
+  });
 
   revalidatePath("/dashboard/students");
   revalidatePath(`/dashboard/students/${studentId}`);
@@ -345,10 +390,17 @@ export async function bulkImportStudents(rows: BulkImportRow[]): Promise<BulkImp
   const schoolId = await getCurrentSchoolIdOrThrow();
   const academicYearId = await getCurrentAcademicYearId();
 
+  const { maxStudents, studentsUsed } = await getStudentCapacity(await getCurrentInstitutionIdOrThrow());
+  const remainingSlots = maxStudents === null ? Infinity : Math.max(0, maxStudents - studentsUsed);
+
   for (const row of rows) {
     const gradeLevel = parseInt(row.class, 10);
     if (!row.name || Number.isNaN(gradeLevel)) {
       outcome.failed.push({ row: row.name || "(unnamed)", reason: "Missing name or invalid class" });
+      continue;
+    }
+    if (outcome.succeeded >= remainingSlots) {
+      outcome.failed.push({ row: row.name, reason: `Your plan allows up to ${maxStudents} students — upgrade to import more.` });
       continue;
     }
     try {
@@ -368,6 +420,15 @@ export async function bulkImportStudents(rows: BulkImportRow[]): Promise<BulkImp
     } catch (e) {
       outcome.failed.push({ row: row.name, reason: e instanceof Error ? e.message : "Unknown error" });
     }
+  }
+
+  if (outcome.succeeded > 0) {
+    await logAuditEvent({
+      schoolId,
+      action: "create",
+      module: "Students",
+      description: `Bulk-imported ${outcome.succeeded} student${outcome.succeeded === 1 ? "" : "s"}`,
+    });
   }
 
   revalidatePath("/dashboard/students");

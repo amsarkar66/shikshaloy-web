@@ -4,9 +4,10 @@ import { revalidatePath } from "next/cache";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
-import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentSchoolId, getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { updateStaffType } from "@/lib/supabase/admin";
 import { BUILTIN_DEFAULTS, type ModulePerms } from "@/lib/settings/role-template-constants";
+import { logAuditEvent } from "@/lib/audit/log";
 
 export async function assignStaffTemplate(
   userId: string,
@@ -25,6 +26,19 @@ export async function assignStaffTemplate(
 
   const ok = await updateStaffType(userId, staffType, staffTemplateId);
   if (!ok) throw new Error("Failed to update staff type");
+
+  const schoolId = await getCurrentSchoolIdOrThrow();
+  const { data: staff } = await supabaseAdmin
+    .from("staff_members")
+    .select("full_name")
+    .eq("profile_id", userId)
+    .maybeSingle();
+  await logAuditEvent({
+    schoolId,
+    action: "update",
+    module: "Staff",
+    description: `Changed staff type for ${staff?.full_name ?? "a staff member"} to '${staffType}'`,
+  });
 
   revalidatePath("/dashboard/settings");
 }
@@ -76,6 +90,13 @@ export async function updateSchoolProfile(input: UpdateSchoolProfileInput): Prom
     if (ayError) throw new Error(`Failed to set current academic year: ${ayError.message}`);
   }
 
+  await logAuditEvent({
+    schoolId,
+    action: "update",
+    module: "Settings",
+    description: `Updated school profile settings`,
+  });
+
   revalidatePath("/dashboard/settings");
 }
 
@@ -108,6 +129,13 @@ export async function updateAcademicSettings(input: UpdateAcademicSettingsInput)
 
   if (error) throw new Error(`Failed to update academic settings: ${error.message}`);
 
+  await logAuditEvent({
+    schoolId,
+    action: "update",
+    module: "Settings",
+    description: `Updated academic settings`,
+  });
+
   revalidatePath("/dashboard/settings");
 }
 
@@ -121,6 +149,8 @@ export interface SaveRoleTemplateInput {
 }
 
 export async function saveRoleTemplate(input: SaveRoleTemplateInput): Promise<void> {
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
   const { error } = await supabaseAdmin
     .from("role_templates")
     .update({
@@ -132,6 +162,13 @@ export async function saveRoleTemplate(input: SaveRoleTemplateInput): Promise<vo
     .eq("id", input.id);
 
   if (error) throw new Error(`Failed to save role template: ${error.message}`);
+
+  await logAuditEvent({
+    schoolId,
+    action: "update",
+    module: "Settings",
+    description: `Updated role template '${input.name}'`,
+  });
 
   revalidatePath("/dashboard/settings");
 }
@@ -154,18 +191,36 @@ export async function createRoleTemplate(): Promise<{ id: string }> {
 
   if (error || !data) throw new Error(`Failed to create role template: ${error?.message}`);
 
+  await logAuditEvent({
+    schoolId,
+    action: "create",
+    module: "Settings",
+    description: `Created new role template`,
+  });
+
   revalidatePath("/dashboard/settings");
   return { id: data.id };
 }
 
 export async function deleteRoleTemplate(id: string): Promise<void> {
-  const { error } = await supabaseAdmin
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
+  const { data: template, error } = await supabaseAdmin
     .from("role_templates")
     .delete()
     .eq("id", id)
-    .eq("is_builtin", false);
+    .eq("is_builtin", false)
+    .select("name")
+    .single();
 
   if (error) throw new Error(`Failed to delete role template: ${error.message}`);
+
+  await logAuditEvent({
+    schoolId,
+    action: "delete",
+    module: "Settings",
+    description: `Deleted role template '${template?.name ?? id}'`,
+  });
 
   revalidatePath("/dashboard/settings");
 }
@@ -174,13 +229,24 @@ export async function restoreRoleTemplateDefaults(id: string, slug: string): Pro
   const permissions = BUILTIN_DEFAULTS[slug];
   if (!permissions) throw new Error("Not a built-in template");
 
-  const { error } = await supabaseAdmin
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
+  const { data: template, error } = await supabaseAdmin
     .from("role_templates")
     .update({ permissions, updated_at: new Date().toISOString() })
     .eq("id", id)
-    .eq("is_builtin", true);
+    .eq("is_builtin", true)
+    .select("name")
+    .single();
 
   if (error) throw new Error(`Failed to restore defaults: ${error.message}`);
+
+  await logAuditEvent({
+    schoolId,
+    action: "update",
+    module: "Settings",
+    description: `Restored default permissions for role template '${template?.name ?? slug}'`,
+  });
 
   revalidatePath("/dashboard/settings");
   return permissions;
@@ -217,6 +283,16 @@ export async function updateProfileBasic(input: UpdateProfileBasicInput): Promis
 
   if (error) throw new Error(`Failed to update profile: ${error.message}`);
 
+  const schoolId = await getCurrentSchoolId();
+  if (schoolId) {
+    await logAuditEvent({
+      schoolId,
+      action: "update",
+      module: "Settings",
+      description: `Updated account profile`,
+    });
+  }
+
   revalidatePath("/dashboard/settings");
 }
 
@@ -242,4 +318,14 @@ export async function changePassword(currentPassword: string, newPassword: strin
 
   const { error } = await supabaseAdmin.auth.admin.updateUserById(user.id, { password: newPassword });
   if (error) throw new Error(`Failed to update password: ${error.message}`);
+
+  const schoolId = await getCurrentSchoolId();
+  if (schoolId) {
+    await logAuditEvent({
+      schoolId,
+      action: "update",
+      module: "Settings",
+      description: `Changed account password`,
+    });
+  }
 }

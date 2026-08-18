@@ -5,6 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
+import { logAuditEvent } from "@/lib/audit/log";
+import { notifyRoles } from "@/lib/notifications/create";
+import { getUser } from "@/lib/supabase/server";
 
 async function requireFeeManagerRole() {
   const supabase = await createClient();
@@ -71,7 +74,31 @@ export async function recordFeePayment(
     remaining -= applied;
   }
 
+  const { data: student } = await supabaseAdmin
+    .from("students")
+    .select("full_name")
+    .eq("id", studentId)
+    .maybeSingle();
+  await logAuditEvent({
+    schoolId,
+    action: "update",
+    module: "Fees",
+    description: `Recorded ₹${amount.toLocaleString("en-IN")} payment for ${student?.full_name ?? "a student"} (${monthStr})`,
+  });
+
+  const { data: { user } } = await getUser();
+  await notifyRoles({
+    schoolId,
+    roles: ["admin", "super_admin"],
+    excludeProfileId: user?.id,
+    title: "Fee payment received",
+    description: `₹${amount.toLocaleString("en-IN")} received from ${student?.full_name ?? "a student"} (${monthStr})`,
+    link: `/dashboard/fees/${studentId}`,
+  });
+
   revalidatePath("/dashboard/fees");
+  revalidatePath(`/dashboard/fees/${studentId}`);
+  revalidatePath("/dashboard/fees/collect");
 }
 
 // ── Fee structure (what's charged per grade per category) ────────────────────
@@ -104,7 +131,15 @@ export async function createFeeStructure(input: FeeStructureInput): Promise<{ id
 
   if (error || !data) throw new Error(`Failed to create fee structure: ${error?.message}`);
 
+  await logAuditEvent({
+    schoolId,
+    action: "create",
+    module: "Fees",
+    description: `Added fee category '${input.category}' (₹${input.amount.toLocaleString("en-IN")}/${input.frequency})`,
+  });
+
   revalidatePath("/dashboard/fees");
+  revalidatePath("/dashboard/fees/structure");
   return { id: data.id };
 }
 
@@ -126,22 +161,40 @@ export async function updateFeeStructure(id: string, input: FeeStructureInput): 
 
   if (error) throw new Error(`Failed to update fee structure: ${error.message}`);
 
+  await logAuditEvent({
+    schoolId,
+    action: "update",
+    module: "Fees",
+    description: `Updated fee category '${input.category}' (₹${input.amount.toLocaleString("en-IN")}/${input.frequency})`,
+  });
+
   revalidatePath("/dashboard/fees");
+  revalidatePath("/dashboard/fees/structure");
 }
 
 export async function deleteFeeStructure(id: string): Promise<void> {
   await requireFeeManagerRole();
   const schoolId = await getCurrentSchoolIdOrThrow();
 
-  const { error } = await supabaseAdmin
+  const { data: structure, error } = await supabaseAdmin
     .from("fee_structures")
     .delete()
     .eq("id", id)
-    .eq("school_id", schoolId);
+    .eq("school_id", schoolId)
+    .select("category")
+    .single();
 
   if (error) throw new Error(`Failed to delete fee structure: ${error.message}`);
 
+  await logAuditEvent({
+    schoolId,
+    action: "delete",
+    module: "Fees",
+    description: `Removed fee category '${structure.category}'`,
+  });
+
   revalidatePath("/dashboard/fees");
+  revalidatePath("/dashboard/fees/structure");
 }
 
 // ── Monthly fee generation ────────────────────────────────────────────────────
@@ -151,20 +204,54 @@ interface StudentGradeRow {
   sections: { grade_id: string | null } | null;
 }
 
+// Fee structures bill on their own cadence relative to the academic year's start
+// month: monthly categories every month, quarterly every 3rd month, annual once
+// (the start month only) — so "amount" is always the amount due for that billing
+// event, never prorated.
+function monthOffset(startDate: string, monthStr: string): number {
+  const [startYear, startMonth] = startDate.split("-").map(Number);
+  const [targetYear, targetMonth] = monthStr.split("-").map(Number);
+  return (targetYear - startYear) * 12 + (targetMonth - startMonth);
+}
+
+function frequencyAppliesToMonth(frequency: "monthly" | "quarterly" | "annual", offset: number): boolean {
+  if (offset < 0) return false;
+  if (frequency === "monthly") return true;
+  if (frequency === "quarterly") return offset % 3 === 0;
+  return offset === 0; // annual
+}
+
 export async function generateMonthlyFees(monthStr: string): Promise<{ created: number }> {
   await requireFeeManagerRole();
   const schoolId = await getCurrentSchoolIdOrThrow();
 
   const academicYearId = await getCurrentAcademicYearId();
 
-  const { data: structures } = await supabaseAdmin
-    .from("fee_structures")
-    .select("grade_id, category, amount")
-    .eq("school_id", schoolId)
-    .eq("academic_year_id", academicYearId);
+  const [{ data: structures }, { data: academicYear }] = await Promise.all([
+    supabaseAdmin
+      .from("fee_structures")
+      .select("grade_id, category, amount, frequency")
+      .eq("school_id", schoolId)
+      .eq("academic_year_id", academicYearId),
+    supabaseAdmin
+      .from("academic_years")
+      .select("start_date")
+      .eq("id", academicYearId)
+      .single(),
+  ]);
 
   if (!structures || structures.length === 0) {
     throw new Error("No fee structure configured yet — add fee categories first.");
+  }
+  if (!academicYear?.start_date) {
+    throw new Error("Current academic year has no start date set — check Settings.");
+  }
+
+  const offset = monthOffset(academicYear.start_date, monthStr);
+  const dueStructures = structures.filter((s) => frequencyAppliesToMonth(s.frequency as "monthly" | "quarterly" | "annual", offset));
+
+  if (dueStructures.length === 0) {
+    return { created: 0 };
   }
 
   const [{ data: students }, { data: existing }] = await Promise.all([
@@ -195,7 +282,7 @@ export async function generateMonthlyFees(monthStr: string): Promise<{ created: 
 
   for (const s of (students ?? []) as unknown as StudentGradeRow[]) {
     const gradeId = s.sections?.grade_id ?? null;
-    for (const structure of structures) {
+    for (const structure of dueStructures) {
       const applies = structure.grade_id === null || structure.grade_id === gradeId;
       if (!applies) continue;
       const key = `${s.id}|${structure.category}`;
@@ -216,8 +303,16 @@ export async function generateMonthlyFees(monthStr: string): Promise<{ created: 
   if (rowsToInsert.length > 0) {
     const { error } = await supabaseAdmin.from("fee_payments").insert(rowsToInsert);
     if (error) throw new Error(`Failed to generate fees: ${error.message}`);
+
+    await logAuditEvent({
+      schoolId,
+      action: "create",
+      module: "Fees",
+      description: `Generated ${rowsToInsert.length} fee record${rowsToInsert.length === 1 ? "" : "s"} for ${monthStr}`,
+    });
   }
 
   revalidatePath("/dashboard/fees");
+  revalidatePath("/dashboard/fees/structure");
   return { created: rowsToInsert.length };
 }

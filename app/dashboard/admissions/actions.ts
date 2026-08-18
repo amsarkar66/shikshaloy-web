@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
+import { getStudentCapacity } from "@/lib/billing/plan-limits";
 import { enrollStudent, type ParentLogin } from "@/lib/students/enroll";
+import { logAuditEvent } from "@/lib/audit/log";
+import { notifyRoles } from "@/lib/notifications/create";
+import { getUser } from "@/lib/supabase/server";
 import type { AdmissionStatus } from "./_data/admissions";
 
 export type PrimaryContact = "father" | "mother" | "guardian";
@@ -129,17 +134,44 @@ export async function createApplication(input: NewApplicationInput): Promise<str
     if (docError) throw new Error(`Application created, but failed to save documents: ${docError.message}`);
   }
 
+  await logAuditEvent({
+    schoolId,
+    action: "create",
+    module: "Admissions",
+    description: `New admission application — ${input.applicantName} (${applicationNo})`,
+  });
+
+  const { data: { user } } = await getUser();
+  await notifyRoles({
+    schoolId,
+    roles: ["admin", "super_admin", "staff"],
+    excludeProfileId: user?.id,
+    title: "New admission application",
+    description: `${input.applicantName} applied for Class ${input.applyingForGrade}`,
+    link: `/dashboard/admissions/${data.id}`,
+  });
+
   revalidatePath("/dashboard/admissions");
   return data.id;
 }
 
 export async function updateApplicationStatus(applicationId: string, status: AdmissionStatus, reason?: string) {
-  const { error } = await supabaseAdmin
+  const { data: app, error } = await supabaseAdmin
     .from("admission_applications")
     .update({ status, status_reason: reason?.trim() || null, updated_at: new Date().toISOString() })
-    .eq("id", applicationId);
+    .eq("id", applicationId)
+    .select("school_id, applicant_name")
+    .single();
 
   if (error) throw new Error(error.message);
+
+  const action = status === "approved" ? "approve" : status === "rejected" ? "reject" : "update";
+  await logAuditEvent({
+    schoolId: app.school_id,
+    action,
+    module: "Admissions",
+    description: `${app.applicant_name}'s application marked '${status}'${reason ? ` — ${reason.trim()}` : ""}`,
+  });
 
   revalidatePath("/dashboard/admissions");
   revalidatePath(`/dashboard/admissions/${applicationId}`);
@@ -273,8 +305,12 @@ export async function enrollApplication(applicationId: string): Promise<EnrollRe
 
   if (fetchError || !app) throw new Error(fetchError?.message ?? "Application not found");
 
+  const { maxStudents, atCapacity } = await getStudentCapacity(await getCurrentInstitutionIdOrThrow());
+  if (atCapacity) throw new Error(`Your plan allows up to ${maxStudents} students. Upgrade your plan to enroll more.`);
+
+  const schoolId = await getCurrentSchoolIdOrThrow();
   const result = await enrollStudent({
-    schoolId: await getCurrentSchoolIdOrThrow(),
+    schoolId,
     fullName: app.applicant_name,
     dob: app.dob,
     gender: app.gender,
@@ -292,6 +328,13 @@ export async function enrollApplication(applicationId: string): Promise<EnrollRe
     .eq("id", applicationId);
 
   if (updateError) throw new Error(updateError.message);
+
+  await logAuditEvent({
+    schoolId,
+    action: "create",
+    module: "Admissions",
+    description: `Enrolled ${app.applicant_name} from admission application`,
+  });
 
   revalidatePath("/dashboard/admissions");
   revalidatePath(`/dashboard/admissions/${applicationId}`);

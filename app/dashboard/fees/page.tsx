@@ -2,10 +2,9 @@ import { IndianRupee, CheckCircle2, AlertCircle } from "lucide-react";
 import { getUser } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
-import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 import { getParentContext } from "@/lib/parents/context";
 import FeesClient from "./_components/FeesClient";
-import type { FeeStudent, FeePaymentRow, FeeStructure, GradeOption } from "./_data/fees";
+import type { FeeStudent, FeePaymentRow } from "./_data/fees";
 import { STATUS_BADGE, formatCurrency, formatMonth, formatDate } from "./_data/fees";
 
 interface FeeStudentRow {
@@ -141,9 +140,8 @@ export default async function FeesPage() {
   }
 
   const schoolId = await getCurrentSchoolIdOrThrow();
-  const academicYearId = await getCurrentAcademicYearId();
 
-  const [{ data: studentRows }, { data: paymentRows }, { data: structureRows }, { data: gradeRows }] = await Promise.all([
+  const [{ data: studentRows }, { data: paymentRows }] = await Promise.all([
     supabaseAdmin
       .from("students")
       .select(`
@@ -159,19 +157,6 @@ export default async function FeesPage() {
       .select("id, student_id, month_str, category, amount_due, amount_paid, status, paid_date, receipt_no, payment_mode")
       .eq("school_id", schoolId)
       .order("month_str"),
-
-    supabaseAdmin
-      .from("fee_structures")
-      .select("id, grade_id, category, amount, frequency, is_optional, grades ( level )")
-      .eq("school_id", schoolId)
-      .eq("academic_year_id", academicYearId)
-      .order("category"),
-
-    supabaseAdmin
-      .from("grades")
-      .select("id, level")
-      .eq("school_id", schoolId)
-      .order("level"),
   ]);
 
   const students: FeeStudent[] = ((studentRows ?? []) as unknown as FeeStudentRow[]).map((s) => ({
@@ -198,20 +183,5 @@ export default async function FeesPage() {
     paymentMode: p.payment_mode,
   }));
 
-  const grades: GradeOption[] = (gradeRows ?? []).map((g) => ({ id: g.id, level: g.level }));
-
-  const structures: FeeStructure[] = ((structureRows ?? []) as unknown as {
-    id: string; grade_id: string | null; category: string; amount: number;
-    frequency: string | null; is_optional: boolean | null; grades: { level: number | null } | null;
-  }[]).map((s) => ({
-    id: s.id,
-    gradeId: s.grade_id,
-    gradeLevel: s.grades?.level ?? null,
-    category: s.category,
-    amount: Number(s.amount ?? 0),
-    frequency: (s.frequency as FeeStructure["frequency"]) ?? "monthly",
-    isOptional: s.is_optional ?? false,
-  }));
-
-  return <FeesClient students={students} payments={payments} structures={structures} grades={grades} />;
+  return <FeesClient students={students} payments={payments} />;
 }

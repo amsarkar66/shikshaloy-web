@@ -7,6 +7,7 @@ export interface Route {
   id: string;
   routeNo: string;
   routeName: string;
+  driverId: string | null;
   driverPhone: string | null;
   stops: string[];
   studentCount: number;
@@ -23,6 +24,7 @@ export interface Vehicle {
   capacity: number;
   year: number;
   status: VehicleStatus;
+  driverId: string | null;
   hasDriver: boolean;
   fuelType: FuelType;
   lastService: string | null;

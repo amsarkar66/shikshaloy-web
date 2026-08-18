@@ -7,7 +7,7 @@ export default async function DocumentsPage() {
   const schoolId = await getCurrentSchoolIdOrThrow();
   const { data: rows } = await supabaseAdmin
     .from("documents")
-    .select("id, title, category, audience, file_kind, size_kb, uploaded_by, uploaded_date")
+    .select("id, title, category, audience, file_kind, size_kb, uploaded_by, uploaded_date, file_url, file_name")
     .eq("school_id", schoolId)
     .order("uploaded_date", { ascending: false });
 
@@ -20,6 +20,8 @@ export default async function DocumentsPage() {
     sizeKb: d.size_kb,
     uploadedBy: d.uploaded_by,
     uploadedDate: d.uploaded_date,
+    fileUrl: d.file_url,
+    fileName: d.file_name,
   }));
 
   return <DocumentsClient docs={docs} />;

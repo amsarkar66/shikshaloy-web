@@ -428,10 +428,6 @@ function PayrollTable({
   }, [rows, query, typeFilter, statusFilter]);
 
   const hasFilter = query || typeFilter !== "all" || statusFilter !== "all";
-  const totals = useMemo(() => ({
-    gross: filtered.reduce((a, r) => a + r.record.gross, 0),
-    net: filtered.reduce((a, r) => a + r.record.net, 0),
-  }), [filtered]);
 
   return (
     <div className="space-y-4">
@@ -461,15 +457,17 @@ function PayrollTable({
         </div>
       </div>
 
-      <p className="text-xs text-gray-500 dark:text-zinc-500">
-        Showing <span className="font-medium text-gray-700 dark:text-zinc-300">{filtered.length}</span> of{" "}
-        <span className="font-medium text-gray-700 dark:text-zinc-300">{active.length}</span> staff
-        {hasFilter && <span className="ml-2 text-primary-600 dark:text-primary-400 font-medium">· Filters active</span>}
-        <span className="ml-4">Total gross: <span className="font-medium text-gray-700 dark:text-zinc-300">{formatCurrency(totals.gross)}</span></span>
-        <span className="ml-3">Total net: <span className="font-medium text-primary-600 dark:text-primary-400">{formatCurrency(totals.net)}</span></span>
-      </p>
-
-      <Table>
+      <Table
+        footer={
+          <div className="border-t border-gray-200 dark:border-zinc-700 px-4 py-3">
+            <p className="text-xs text-gray-500 dark:text-zinc-400">
+              Showing <span className="font-medium text-gray-700 dark:text-zinc-300">{filtered.length}</span> of{" "}
+              <span className="font-medium text-gray-700 dark:text-zinc-300">{active.length}</span> staff
+              {hasFilter && <span className="ml-2 text-primary-600 dark:text-primary-400 font-medium">· Filters active</span>}
+            </p>
+          </div>
+        }
+      >
         <TableHead>
           <Th position="first">Employee</Th>
           <Th>Type</Th>
@@ -563,7 +561,7 @@ export default function PayrollClient({
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div>
           <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Payroll</h1>
-          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Process and track staff salaries</p>
+          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Staff salary and payroll processing</p>
         </div>
         <div className="sm:ml-auto flex items-center gap-2 flex-wrap">
           {months.length > 0 && <MonthNav months={months} index={monthIndex} onChange={handleMonthChange} />}

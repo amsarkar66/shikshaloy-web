@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  Printer, Download, Share2, Star, Info, Users, Briefcase, IdCard as IdCardIcon, MoreVertical,
+  Printer, Download, Share2, Star, Info, Users, Briefcase, IdCard as IdCardIcon, MoreHorizontal,
 } from "lucide-react";
 import type { CardPerson, PersonType } from "../_data/people";
 import { IdCard } from "./id-card";
@@ -166,12 +166,31 @@ export default function IdCardsClient({
     <div className="w-full px-6 py-6 lg:h-full lg:flex lg:flex-col print:h-auto print:p-0">
       <div className="print:hidden flex flex-col gap-5 lg:flex-1 lg:min-h-0">
         <div className="shrink-0 space-y-1.5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div>
-              <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">ID Card Generator</h1>
-              <p className="text-sm text-gray-500 dark:text-zinc-400">Design, preview and print ID cards for students and staff.</p>
+              <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">ID Cards</h1>
+              <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Generate student and staff ID cards</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex gap-2 sm:ml-auto">
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
+                  title="More actions"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" sideOffset={6} className="w-48">
+                  <DropdownMenuItem className="cursor-pointer" disabled={previewPeople.length === 0 || downloading} onClick={handleDownload}>
+                    <Download className="h-3.5 w-3.5" /> {downloading ? "Generating…" : `Download${previewPeople.length > 1 ? ` (${previewPeople.length})` : ""}`}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="cursor-pointer" disabled={previewPeople.length === 0} onClick={handleShare}>
+                    <Share2 className="h-3.5 w-3.5" /> Share
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="cursor-pointer" onClick={handleSaveTemplate}>
+                    <Star className="h-3.5 w-3.5" /> Save Template
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <FancyButton
                 onClick={handlePrint}
                 disabled={previewPeople.length === 0}
@@ -179,28 +198,6 @@ export default function IdCardsClient({
               >
                 <Printer className="h-3.5 w-3.5" /> Print{previewPeople.length > 1 ? ` (${previewPeople.length})` : ""}
               </FancyButton>
-              <button
-                onClick={handleDownload}
-                disabled={previewPeople.length === 0 || downloading}
-                title="Download as a PDF (A4)"
-                className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 disabled:opacity-40 px-4 text-sm font-medium text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
-              >
-                <Download className="h-3.5 w-3.5" />
-                {downloading ? "Generating…" : `Download${previewPeople.length > 1 ? ` (${previewPeople.length})` : ""}`}
-              </button>
-              <DropdownMenu>
-                <DropdownMenuTrigger className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors">
-                  <MoreVertical className="h-4 w-4" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" sideOffset={6} className="w-44">
-                  <DropdownMenuItem className="cursor-pointer" disabled={previewPeople.length === 0} onClick={handleShare}>
-                    <Share2 /> Share
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="cursor-pointer" onClick={handleSaveTemplate}>
-                    <Star /> Save Template
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
             </div>
           </div>
           {(saveMessage || shareMessage) && (

@@ -1,7 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import HostelClient from "./_components/HostelClient";
-import type { HostelRoom, HostelStudent } from "./_data/hostel";
+import type { HostelRoom, HostelStudent, WardenOption, EligibleStudentOption } from "./_data/hostel";
 
 interface HostelRoomRow {
   id: string;
@@ -18,6 +18,7 @@ interface HostelRoomRow {
 interface HostelAllotmentRow {
   id: string;
   room_id: string;
+  student_id: string;
   join_date: string;
   monthly_fee: number | null;
   fee_status: string | null;
@@ -30,10 +31,17 @@ interface HostelAllotmentRow {
   } | null;
 }
 
+interface EligibleStudentRow {
+  id: string;
+  full_name: string | null;
+  roll_no: string | null;
+  sections: { name: string | null; grades: { level: number | null } | null } | null;
+}
+
 export default async function HostelPage() {
   const schoolId = await getCurrentSchoolIdOrThrow();
 
-  const [{ data: roomRows }, { data: allotmentRows }] = await Promise.all([
+  const [{ data: roomRows }, { data: allotmentRows }, { data: wardenRows }, { data: studentRows }] = await Promise.all([
     supabaseAdmin
       .from("hostel_rooms")
       .select("id, room_no, block, floor, type, capacity, warden_id, amenities, status")
@@ -43,11 +51,26 @@ export default async function HostelPage() {
     supabaseAdmin
       .from("hostel_allotments")
       .select(`
-        id, room_id, join_date, monthly_fee, fee_status,
+        id, room_id, student_id, join_date, monthly_fee, fee_status,
         students ( full_name, roll_no, phone, sections ( name, grades ( level ) ), student_parents ( parents ( full_name ) ) )
       `)
       .eq("school_id", schoolId)
       .eq("is_active", true),
+
+    supabaseAdmin
+      .from("profiles")
+      .select("id, full_name")
+      .eq("school_id", schoolId)
+      .eq("role", "staff")
+      .eq("status", "active")
+      .order("full_name"),
+
+    supabaseAdmin
+      .from("students")
+      .select("id, full_name, roll_no, sections ( name, grades ( level ) )")
+      .eq("school_id", schoolId)
+      .eq("status", "active")
+      .order("full_name"),
   ]);
 
   const occupiedByRoom: Record<string, number> = {};
@@ -62,6 +85,11 @@ export default async function HostelPage() {
     blockById[r.id] = r.block ?? "";
   }
 
+  const wardenNameById: Record<string, string> = {};
+  for (const w of wardenRows ?? []) {
+    wardenNameById[w.id] = w.full_name ?? "Unnamed staff";
+  }
+
   const rooms: HostelRoom[] = ((roomRows ?? []) as unknown as HostelRoomRow[]).map((r) => ({
     id: r.id,
     roomNo: r.room_no ?? "",
@@ -70,7 +98,8 @@ export default async function HostelPage() {
     type: (r.type ?? "single") as HostelRoom["type"],
     capacity: r.capacity ?? 0,
     occupied: occupiedByRoom[r.id] ?? 0,
-    warden: r.warden_id ? "Assigned" : "Unassigned",
+    warden: r.warden_id ? (wardenNameById[r.warden_id] ?? "Assigned") : "Unassigned",
+    wardenId: r.warden_id,
     amenities: Array.isArray(r.amenities) ? r.amenities : [],
     status: (r.status ?? "available") as HostelRoom["status"],
   }));
@@ -92,5 +121,32 @@ export default async function HostelPage() {
 
   const blocks = Array.from(new Set(rooms.map((r) => r.block))).sort();
 
-  return <HostelClient rooms={rooms} students={students} blocks={blocks} />;
+  const wardens: WardenOption[] = (wardenRows ?? []).map((w) => ({
+    id: w.id,
+    name: w.full_name ?? "Unnamed staff",
+  }));
+
+  const housedStudentIds = new Set(
+    ((allotmentRows ?? []) as unknown as HostelAllotmentRow[]).map((a) => a.student_id),
+  );
+
+  const eligibleStudents: EligibleStudentOption[] = ((studentRows ?? []) as unknown as EligibleStudentRow[])
+    .filter((s) => !housedStudentIds.has(s.id))
+    .map((s) => ({
+      id: s.id,
+      name: s.full_name ?? "Unnamed student",
+      rollNo: s.roll_no ?? "",
+      classNum: String(s.sections?.grades?.level ?? ""),
+      section: s.sections?.name ?? "",
+    }));
+
+  return (
+    <HostelClient
+      rooms={rooms}
+      students={students}
+      blocks={blocks}
+      wardens={wardens}
+      eligibleStudents={eligibleStudents}
+    />
+  );
 }

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getUser } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
+import { getSchoolCapacity } from "@/lib/billing/plan-limits";
 import SchoolsClient from "./_components/SchoolsClient";
 import type { School } from "./_data/schools";
 
@@ -12,6 +13,7 @@ export default async function SchoolsPage() {
   if (!user) redirect("/login");
 
   const institutionId = await getCurrentInstitutionIdOrThrow();
+  const { maxSchools, atCapacity: atSchoolCapacity } = await getSchoolCapacity(institutionId);
 
   const { data: schoolRows } = await supabaseAdmin
     .from("schools")
@@ -100,5 +102,5 @@ export default async function SchoolsPage() {
     };
   });
 
-  return <SchoolsClient schools={schools} />;
+  return <SchoolsClient schools={schools} atSchoolCapacity={atSchoolCapacity} maxSchools={maxSchools} />;
 }

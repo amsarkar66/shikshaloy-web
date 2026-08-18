@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { PLANS, formatCurrency, type PlanId, type SubscriptionStatus } from "../_data/billing";
-import { createRazorpayOrder, verifyRazorpayPayment, submitOfflinePayment } from "../actions";
+import { createRazorpayOrder, verifyRazorpayPayment, submitOfflinePayment, switchToFreePlan } from "../actions";
 
 declare global {
   interface Window {
@@ -29,9 +29,10 @@ function loadRazorpayScript(): Promise<boolean> {
 type Step = "select" | "pay" | "success";
 type PayMethod = "razorpay" | "offline";
 
-function PlanPickCard({ plan, isCurrent, onSelect }: {
+function PlanPickCard({ plan, isCurrent, disabled, onSelect }: {
   plan: (typeof PLANS)[number];
   isCurrent: boolean;
+  disabled?: boolean;
   onSelect: () => void;
 }) {
   const Icon = plan.icon;
@@ -40,7 +41,7 @@ function PlanPickCard({ plan, isCurrent, onSelect }: {
     <button
       type="button"
       onClick={onSelect}
-      disabled={isCurrent}
+      disabled={isCurrent || disabled}
       className={`relative rounded-2xl border bg-white dark:bg-zinc-800/50 p-4 flex flex-col gap-3 text-left transition-all ${
         isCurrent
           ? "border-gray-200 dark:border-zinc-800 opacity-60 cursor-default"
@@ -79,9 +80,10 @@ function PlanPickCard({ plan, isCurrent, onSelect }: {
   );
 }
 
-function EnterprisePickCard({ plan, isCurrent, onSelect }: {
+function EnterprisePickCard({ plan, isCurrent, disabled, onSelect }: {
   plan: (typeof PLANS)[number];
   isCurrent: boolean;
+  disabled?: boolean;
   onSelect: () => void;
 }) {
   const Icon = plan.icon;
@@ -90,7 +92,7 @@ function EnterprisePickCard({ plan, isCurrent, onSelect }: {
     <button
       type="button"
       onClick={onSelect}
-      disabled={isCurrent}
+      disabled={isCurrent || disabled}
       className={`w-full rounded-2xl border bg-gradient-to-r from-primary-50 to-white dark:from-primary-500/5 dark:to-transparent p-4 flex items-center gap-4 text-left transition-all ${
         isCurrent
           ? "border-gray-200 dark:border-zinc-800 opacity-60 cursor-default"
@@ -180,6 +182,19 @@ export default function ChangePlanModal({
     setSelectedPlanId(id);
     setPayMethod(null);
     setError(null);
+
+    if (plan.price === 0) {
+      startTransition(async () => {
+        try {
+          await switchToFreePlan();
+          setStep("success");
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Couldn't switch plan");
+        }
+      });
+      return;
+    }
+
     setStep("pay");
   }
 
@@ -293,6 +308,7 @@ export default function ChangePlanModal({
                     key={plan.id}
                     plan={plan}
                     isCurrent={plan.id === currentPlanId && !isReactivating}
+                    disabled={isPending}
                     onSelect={() => handlePickPlan(plan.id)}
                   />
                 ))}
@@ -300,8 +316,14 @@ export default function ChangePlanModal({
               <EnterprisePickCard
                 plan={enterprisePlan}
                 isCurrent={enterprisePlan.id === currentPlanId && !isReactivating}
+                disabled={isPending}
                 onSelect={() => handlePickPlan(enterprisePlan.id)}
               />
+              {error && (
+                <div className="flex items-center gap-2 rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50/60 dark:bg-red-500/5 px-3 py-2 text-xs text-red-600 dark:text-red-400">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> {error}
+                </div>
+              )}
             </div>
           )}
 
@@ -385,7 +407,7 @@ export default function ChangePlanModal({
 
           {step === "success" && (
             <div className="flex flex-col items-center gap-3 py-8 text-center">
-              {payMethod === "razorpay" ? (
+              {payMethod === "razorpay" || selectedPlan.price === 0 ? (
                 <>
                   <PartyPopper className="h-10 w-10 text-emerald-500" />
                   <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Plan updated!</p>

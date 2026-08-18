@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { Sidebar } from "./sidebar";
 import { DashboardHeader } from "./dashboard-header";
+import { CommandMenu } from "./command-menu";
 
 export function DashboardShell({
   role, user, orgName, orgLogoUrl, schools, activeSchoolId, children,
@@ -17,6 +18,7 @@ export function DashboardShell({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [commandMenuOpen, setCommandMenuOpen] = useState(false);
 
   return (
     <div className="dashboard-shell flex h-screen overflow-hidden bg-slate-50 dark:bg-zinc-900 text-gray-900 dark:text-zinc-50 print:h-auto print:overflow-visible">
@@ -38,9 +40,13 @@ export function DashboardShell({
             orgName={orgName}
             orgLogoUrl={orgLogoUrl}
             onMenuClick={() => setSidebarOpen(true)}
+            onSearchClick={() => setCommandMenuOpen(true)}
           />
         </div>
         <main className="flex-1 overflow-y-auto print:overflow-visible">{children}</main>
+      </div>
+      <div className="print:hidden">
+        <CommandMenu role={role} user={user} open={commandMenuOpen} onOpenChange={setCommandMenuOpen} />
       </div>
     </div>
   );

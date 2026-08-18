@@ -288,11 +288,13 @@ export default function AcademicCalendarClient({ initialEvents }: { initialEvent
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div>
           <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Academic Calendar</h1>
-          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Academic year 2026–27 · April 2026 – March 2027</p>
+          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Terms, holidays, and exam windows</p>
         </div>
-        <button className="sm:ml-auto flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
-          <Download className="h-3.5 w-3.5"/> Export Calendar
-        </button>
+        <div className="flex gap-2 sm:ml-auto">
+          <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
+            <Download className="h-3.5 w-3.5"/> Export Calendar
+          </button>
+        </div>
       </div>
 
       <StatsRow events={initialEvents}/>

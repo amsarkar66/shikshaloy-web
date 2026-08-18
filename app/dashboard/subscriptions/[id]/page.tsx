@@ -69,7 +69,7 @@ export default async function SubscriptionDetailPage({
       subscription={
         subscription
           ? {
-              planId: subscription.plan_id ?? "starter",
+              planId: subscription.plan_id ?? "free",
               planName: subscription.plan_name ?? "—",
               status: (subscription.status as SubscriptionStatus) ?? "active",
               schoolsUsed: subscription.schools_used ?? 0,

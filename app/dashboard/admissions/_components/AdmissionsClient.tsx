@@ -237,65 +237,68 @@ function ApplicationList({
   }
 
   return (
-    <div className="space-y-3">
-      <Table>
-        <TableHead>
-          <SortableTh field="applicationNo" position="first">App No</SortableTh>
-          <SortableTh field="applicantName">Applicant</SortableTh>
-          <SortableTh field="applyingForClass">Class</SortableTh>
-          <Th>Parent / Guardian</Th>
-          <SortableTh field="submittedDate">Submitted</SortableTh>
-          <SortableTh field="status">Status</SortableTh>
-          <Th position="last" align="right">Action</Th>
-        </TableHead>
-        <TableBody>
-          {pageApps.length===0?(
-            <TableEmptyRow colSpan={7} icon={Users} message="No applications found" />
-          ):pageApps.map((app) => (
-            <Tr key={app.id}>
-              <Td position="first" className="font-mono text-xs text-gray-500 dark:text-zinc-400 whitespace-nowrap">{app.applicationNo}</Td>
-              <Td>
-                <div className="flex items-center gap-2.5">
-                  {app.photoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={app.photoUrl} alt={app.applicantName} className="h-8 w-8 shrink-0 rounded-full object-cover border border-gray-200 dark:border-zinc-700" />
-                  ) : (
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 dark:bg-zinc-700 text-xs font-semibold text-gray-500 dark:text-zinc-400">
-                      {app.applicantName.split(" ").map((n)=>n[0]).slice(0,2).join("").toUpperCase()}
-                    </div>
-                  )}
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-zinc-100 whitespace-nowrap">{app.applicantName}</p>
-                    <p className="text-xs text-gray-400 dark:text-zinc-500">{app.gender} · Age {calcAge(app.dob, app.academicYear)}</p>
-                  </div>
-                </div>
-              </Td>
-              <Td><span className="inline-flex items-center justify-center h-7 w-7 rounded-lg bg-primary-500/10 text-xs font-bold text-primary-600 dark:text-primary-400">{app.applyingForClass}</span></Td>
-              <Td><p className="text-sm text-gray-700 dark:text-zinc-300 whitespace-nowrap">{app.parentName}</p><p className="text-xs text-gray-400 dark:text-zinc-500">{app.parentPhone}</p></Td>
-              <Td className="text-xs text-gray-500 dark:text-zinc-400 whitespace-nowrap">{formatDate(app.submittedDate)}</Td>
-              <Td><span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${STATUS_BADGE[app.status]}`}>{STATUS_LABEL[app.status]}</span></Td>
-              <Td position="last" align="right">
-                <RowActionsMenu
-                  app={app}
-                  open={openMenuId === app.id}
-                  onToggle={() => setOpenMenuId(openMenuId === app.id ? null : app.id)}
-                  onClose={() => setOpenMenuId(null)}
-                  onEnrolled={onEnrolled}
-                />
-              </Td>
-            </Tr>
-          ))}
-        </TableBody>
-      </Table>
-      <div className="flex items-center justify-between text-xs text-gray-500 dark:text-zinc-400">
-        <span>{sorted.length===0?"No results":`Showing ${(page-1)*PAGE_SIZE+1}–${Math.min(page*PAGE_SIZE,sorted.length)} of ${sorted.length}`}</span>
-        <div className="flex items-center gap-1">
-          <button onClick={()=>setPage((p)=>Math.max(1,p-1))} disabled={page===1} className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"><ChevronLeft className="h-3.5 w-3.5"/></button>
-          {Array.from({length:totalPages},(_,i)=>i+1).map((p)=><button key={p} onClick={()=>setPage(p)} className={`flex h-7 w-7 items-center justify-center rounded-lg border text-xs font-medium transition-colors ${page===p?"bg-primary-500 border-primary-500 text-white":"border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-700"}`}>{p}</button>)}
-          <button onClick={()=>setPage((p)=>Math.min(totalPages,p+1))} disabled={page===totalPages} className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"><ChevronRight className="h-3.5 w-3.5"/></button>
+    <Table
+      footer={
+        <div className="flex items-center justify-between border-t border-gray-200 dark:border-zinc-700 px-4 py-3">
+          <span className="text-xs text-gray-500 dark:text-zinc-400">{sorted.length===0?"No results":`Showing ${(page-1)*PAGE_SIZE+1}–${Math.min(page*PAGE_SIZE,sorted.length)} of ${sorted.length}`}</span>
+          {totalPages>1&&(
+            <div className="flex items-center gap-1">
+              <button onClick={()=>setPage((p)=>Math.max(1,p-1))} disabled={page===1} className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"><ChevronLeft className="h-3.5 w-3.5"/></button>
+              {Array.from({length:totalPages},(_,i)=>i+1).map((p)=><button key={p} onClick={()=>setPage(p)} className={`flex h-7 w-7 items-center justify-center rounded-lg border text-xs font-medium transition-colors ${page===p?"bg-primary-500 border-primary-500 text-white":"border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-700"}`}>{p}</button>)}
+              <button onClick={()=>setPage((p)=>Math.min(totalPages,p+1))} disabled={page===totalPages} className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"><ChevronRight className="h-3.5 w-3.5"/></button>
+            </div>
+          )}
         </div>
-      </div>
-    </div>
+      }
+    >
+      <TableHead>
+        <SortableTh field="applicationNo" position="first">App No</SortableTh>
+        <SortableTh field="applicantName">Applicant</SortableTh>
+        <SortableTh field="applyingForClass">Class</SortableTh>
+        <Th>Parent / Guardian</Th>
+        <SortableTh field="submittedDate">Submitted</SortableTh>
+        <SortableTh field="status">Status</SortableTh>
+        <Th position="last" align="right">Action</Th>
+      </TableHead>
+      <TableBody>
+        {pageApps.length===0?(
+          <TableEmptyRow colSpan={7} icon={Users} message="No applications found" />
+        ):pageApps.map((app) => (
+          <Tr key={app.id}>
+            <Td position="first" className="font-mono text-xs text-gray-500 dark:text-zinc-400 whitespace-nowrap">{app.applicationNo}</Td>
+            <Td>
+              <div className="flex items-center gap-2.5">
+                {app.photoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={app.photoUrl} alt={app.applicantName} className="h-8 w-8 shrink-0 rounded-full object-cover border border-gray-200 dark:border-zinc-700" />
+                ) : (
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 dark:bg-zinc-700 text-xs font-semibold text-gray-500 dark:text-zinc-400">
+                    {app.applicantName.split(" ").map((n)=>n[0]).slice(0,2).join("").toUpperCase()}
+                  </div>
+                )}
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-zinc-100 whitespace-nowrap">{app.applicantName}</p>
+                  <p className="text-xs text-gray-400 dark:text-zinc-500">{app.gender} · Age {calcAge(app.dob, app.academicYear)}</p>
+                </div>
+              </div>
+            </Td>
+            <Td><span className="inline-flex items-center justify-center h-7 w-7 rounded-lg bg-primary-500/10 text-xs font-bold text-primary-600 dark:text-primary-400">{app.applyingForClass}</span></Td>
+            <Td><p className="text-sm text-gray-700 dark:text-zinc-300 whitespace-nowrap">{app.parentName}</p><p className="text-xs text-gray-400 dark:text-zinc-500">{app.parentPhone}</p></Td>
+            <Td className="text-xs text-gray-500 dark:text-zinc-400 whitespace-nowrap">{formatDate(app.submittedDate)}</Td>
+            <Td><span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${STATUS_BADGE[app.status]}`}>{STATUS_LABEL[app.status]}</span></Td>
+            <Td position="last" align="right">
+              <RowActionsMenu
+                app={app}
+                open={openMenuId === app.id}
+                onToggle={() => setOpenMenuId(openMenuId === app.id ? null : app.id)}
+                onClose={() => setOpenMenuId(null)}
+                onEnrolled={onEnrolled}
+              />
+            </Td>
+          </Tr>
+        ))}
+      </TableBody>
+    </Table>
   );
 }
 
@@ -332,13 +335,7 @@ export default function AdmissionsClient({ initialApps }: { initialApps: Applica
       )}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div><h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Admissions</h1><p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Manage student applications and enrolments</p></div>
-        <div className="sm:ml-auto flex items-center gap-2">
-          <div className="relative">
-            <select value={yearFilter} onChange={(e)=>setYear(e.target.value)} className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
-              {ACADEMIC_YEARS.map((y)=><option key={y} value={y}>{y}</option>)}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
-          </div>
+        <div className="flex gap-2 sm:ml-auto">
           <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5"/> Export</button>
           <FancyButton href="/dashboard/admissions/new" size="sm" className="shrink-0"><Plus className="h-4 w-4"/> New Application</FancyButton>
         </div>
@@ -349,6 +346,12 @@ export default function AdmissionsClient({ initialApps }: { initialApps: Applica
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-zinc-500 pointer-events-none"/>
           <input value={query} onChange={(e)=>setQuery(e.target.value)} placeholder="Search name, app no, parent…" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 dark:focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"/>
+        </div>
+        <div className="relative">
+          <select value={yearFilter} onChange={(e)=>setYear(e.target.value)} className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+            {ACADEMIC_YEARS.map((y)=><option key={y} value={y}>{y}</option>)}
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
         </div>
         <div className="relative">
           <select value={statusFilter} onChange={(e)=>setStatus(e.target.value)} className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">

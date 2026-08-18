@@ -9,17 +9,18 @@ export default async function BillingPage() {
   const [{ data: subRow }, { data: invoiceRows }, { data: schoolRows }, { data: institutionRow }] = await Promise.all([
     supabaseAdmin
       .from("school_subscriptions")
-      .select("plan_id, plan_name, status, schools_used, max_schools, monthly_fee, renews_on, payment_method_summary")
+      .select("plan_id, plan_name, status, schools_used, max_schools, monthly_fee, renews_on, payment_method_summary, razorpay_method, razorpay_method_detail")
       .eq("institution_id", institutionId)
       .single(),
 
     supabaseAdmin
       .from("subscription_invoices")
       .select(
-        "id, invoice_no, period_label, plan_id, plan_name, amount, status, issued_date, payment_method, offline_reference, offline_note, offline_receipt_url, verified_at"
+        "id, invoice_no, period_label, plan_id, plan_name, amount, status, issued_date, payment_method, payment_method_summary, razorpay_method, razorpay_method_detail, offline_reference, offline_note, offline_receipt_url, verified_at, created_at"
       )
       .eq("institution_id", institutionId)
-      .order("issued_date", { ascending: false }),
+      .order("issued_date", { ascending: false })
+      .order("created_at", { ascending: false }),
 
     supabaseAdmin.from("schools").select("id").eq("institution_id", institutionId),
 
@@ -42,6 +43,8 @@ export default async function BillingPage() {
         monthlyFee: Number(subRow.monthly_fee),
         renewsOn: subRow.renews_on,
         paymentMethodSummary: subRow.payment_method_summary,
+        razorpayMethod: subRow.razorpay_method,
+        razorpayMethodDetail: subRow.razorpay_method_detail,
       }
     : null;
 
@@ -55,6 +58,9 @@ export default async function BillingPage() {
     status: inv.status,
     issuedDate: inv.issued_date,
     paymentMethod: inv.payment_method,
+    paymentMethodSummary: inv.payment_method_summary,
+    razorpayMethod: inv.razorpay_method,
+    razorpayMethodDetail: inv.razorpay_method_detail,
     offlineReference: inv.offline_reference,
     offlineNote: inv.offline_note,
     offlineReceiptUrl: inv.offline_receipt_url,

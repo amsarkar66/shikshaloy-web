@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   MessageSquare, Search, Plus, X, Send,
   CheckCheck, MoreVertical, Phone, Info,
-  Circle, ArrowLeft, ChevronDown,
+  Circle, ArrowLeft,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import {
@@ -159,54 +160,128 @@ function EmptyState({ totalConvs, unread, onCompose }: { totalConvs: number; unr
   );
 }
 
-function ComposeModal({ contacts, onClose, onSent }: { contacts: Contact[]; onClose: () => void; onSent: () => void }) {
-  const [to, setTo] = useState("");
-  const [body, setBody] = useState("");
+type ComposeStep = "pick" | "chat";
+
+function ComposeModal({
+  contacts, existingConversations, onClose, onOpenExisting, onCreated,
+}: {
+  contacts: Contact[];
+  existingConversations: Conversation[];
+  onClose: () => void;
+  onOpenExisting: (conversationId: string) => void;
+  onCreated: (conversationId: string) => void;
+}) {
+  const [step, setStep] = useState<ComposeStep>("pick");
+  const [query, setQuery] = useState("");
+  const [contact, setContact] = useState<Contact | null>(null);
+  const [text, setText] = useState("");
   const [isPending, startTransition] = useTransition();
 
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase();
+    return contacts.filter((c) => !q || c.name.toLowerCase().includes(q));
+  }, [contacts, query]);
+
+  function handlePick(c: Contact) {
+    const existing = existingConversations.find((conv) => conv.contact.profileId === c.profileId);
+    if (existing) {
+      onOpenExisting(existing.id);
+      onClose();
+      return;
+    }
+    setContact(c);
+    setStep("chat");
+  }
+
   function handleSend() {
-    if (!to || !body.trim()) return;
+    if (!contact || !text.trim()) return;
+    const body = text.trim();
+    setText("");
     startTransition(async () => {
-      await startConversation(to, body.trim());
-      onSent();
+      const id = await startConversation(contact.profileId, body);
+      onCreated(id);
       onClose();
     });
+  }
+
+  function handleKey(e: React.KeyboardEvent) {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-md rounded-2xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-gray-100 dark:border-zinc-800 px-5 py-4">
-          <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">New Message</p>
-          <button onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"><X className="h-4 w-4" /></button>
-        </div>
-        <div className="p-5 space-y-4">
-          <div>
-            <label className="text-xs font-medium text-gray-500 dark:text-zinc-400 block mb-1.5">To</label>
-            {contacts.length === 0 ? (
-              <p className="text-xs text-gray-400 dark:text-zinc-500">No contacts available yet — accounts need to be set up for messaging.</p>
-            ) : (
+      <div className="relative flex h-[32rem] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-2xl">
+        {step === "pick" ? (
+          <>
+            <div className="flex shrink-0 items-center justify-between border-b border-gray-100 dark:border-zinc-800 px-5 py-4">
+              <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Select recipient</p>
+              <button onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="shrink-0 px-4 pt-3 pb-1">
               <div className="relative">
-                <select value={to} onChange={(e) => setTo(e.target.value)} className="h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
-                  <option value="">Select recipient…</option>
-                  {contacts.map((c) => <option key={c.profileId} value={c.profileId}>{c.name} ({ROLE_LABEL[c.role]})</option>)}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400 dark:text-zinc-500" />
+                <input
+                  autoFocus
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search people…"
+                  className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 pl-8 pr-3 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 dark:focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                />
               </div>
-            )}
-          </div>
-          <div>
-            <label className="text-xs font-medium text-gray-500 dark:text-zinc-400 block mb-1.5">Message</label>
-            <textarea rows={5} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Write your message…" className="w-full resize-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2.5 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
-          </div>
-        </div>
-        <div className="flex items-center gap-2 border-t border-gray-100 dark:border-zinc-800 px-5 py-4">
-          <FancyButton onClick={handleSend} disabled={!to || !body.trim() || isPending} size="sm">
-            <Send className="h-3.5 w-3.5" /> {isPending ? "Sending…" : "Send"}
-          </FancyButton>
-          <button onClick={onClose} className="flex h-9 items-center px-3 text-sm font-medium text-gray-500 dark:text-zinc-400 hover:text-gray-800 dark:hover:text-zinc-200 transition-colors">Cancel</button>
-        </div>
+            </div>
+            <div className="flex-1 overflow-y-auto px-2 py-2">
+              {filtered.length === 0 ? (
+                <p className="py-10 text-center text-xs text-gray-400 dark:text-zinc-500">
+                  {contacts.length === 0 ? "No contacts available yet — accounts need to be set up for messaging." : "No matches"}
+                </p>
+              ) : filtered.map((c) => (
+                <button key={c.profileId} onClick={() => handlePick(c)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-gray-50 dark:hover:bg-zinc-800/60">
+                  <Avatar name={c.name} role={c.role} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-gray-900 dark:text-zinc-100">{c.name}</p>
+                    <span className={`mt-0.5 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${ROLE_BADGE[c.role]}`}>{ROLE_LABEL[c.role]}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </>
+        ) : contact && (
+          <>
+            <div className="flex h-14 shrink-0 items-center gap-3 border-b border-gray-200 dark:border-zinc-800 px-4">
+              <button onClick={() => { setStep("pick"); setContact(null); }} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"><ArrowLeft className="h-4 w-4" /></button>
+              <Avatar name={contact.name} role={contact.role} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-sm font-semibold text-gray-900 dark:text-zinc-50">{contact.name}</p>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${ROLE_BADGE[contact.role]}`}>{ROLE_LABEL[contact.role]}</span>
+                </div>
+              </div>
+              <button onClick={onClose} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 py-5">
+              <p className="py-10 text-center text-sm text-gray-400 dark:text-zinc-500">No messages yet. Say hello!</p>
+            </div>
+            <div className="shrink-0 border-t border-gray-200 dark:border-zinc-800 px-4 py-3">
+              <div className="flex items-end gap-2">
+                <textarea
+                  autoFocus
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  onKeyDown={handleKey}
+                  placeholder={`Message ${contact.name}…`}
+                  rows={1}
+                  className="flex-1 resize-none rounded-xl border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 px-4 py-2.5 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 dark:focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 max-h-28 overflow-y-auto"
+                  style={{ minHeight: 40 }}
+                />
+                <button onClick={handleSend} disabled={!text.trim() || isPending} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-500 hover:bg-primary-600 text-white transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed">
+                  <Send className="h-4 w-4" />
+                </button>
+              </div>
+              <p className="mt-1.5 pl-1 text-[10px] text-gray-400 dark:text-zinc-600">Sending this will start the conversation</p>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -228,6 +303,7 @@ export default function MessagesClient({
   contacts: Contact[];
   myProfileId: string | null;
 }) {
+  const router = useRouter();
   const [selectedId, setSelected] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<TabValue>("all");
@@ -252,7 +328,7 @@ export default function MessagesClient({
   }
 
   function refresh() {
-    window.location.reload();
+    router.refresh();
   }
 
   if (!myProfileId) {
@@ -305,7 +381,15 @@ export default function MessagesClient({
         )}
       </div>
 
-      {composing && <ComposeModal contacts={contacts} onClose={() => setComposing(false)} onSent={refresh} />}
+      {composing && (
+        <ComposeModal
+          contacts={contacts}
+          existingConversations={conversations}
+          onClose={() => setComposing(false)}
+          onOpenExisting={(id) => setSelected(id)}
+          onCreated={(id) => { setSelected(id); refresh(); }}
+        />
+      )}
     </div>
   );
 }

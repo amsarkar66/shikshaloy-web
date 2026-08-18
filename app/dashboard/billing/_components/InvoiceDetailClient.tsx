@@ -4,14 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft, Printer, Download, Loader2,
-  MapPin, Phone, Mail, Globe, CreditCard,
+  MapPin, Phone, Mail, Globe,
   CheckCircle2, Clock, XCircle, Receipt, ShieldCheck,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import {
   STATUS_BADGE, STATUS_LABEL, PAYMENT_METHOD_LABEL, formatCurrency, formatDate,
-  type InvoiceStatus, type PaymentMethod,
+  type InvoiceStatus, type PaymentMethod, type RazorpayMethod,
 } from "@/app/dashboard/billing/_data/billing";
+import { PaymentMethodIcon } from "./PaymentMethodIcon";
 
 export interface InvoiceDetail {
   id: string;
@@ -34,6 +35,8 @@ export interface InvoiceDetail {
   };
   paymentMethodSummary: string | null;
   paymentMethod?: PaymentMethod | null;
+  razorpayMethod?: RazorpayMethod | null;
+  razorpayMethodDetail?: string | null;
   offlineReference?: string | null;
   offlineReceiptUrl?: string | null;
   verifiedAt?: string | null;
@@ -185,24 +188,41 @@ export default function InvoiceDetailClient({
               { label: "Invoice date", value: formatDate(invoice.issuedDate) },
               { label: "Billing period", value: invoice.period },
               { label: "Plan", value: invoice.plan },
-              { label: "Payment method", value: invoice.paymentMethodSummary ?? "—" },
             ].map((f) => (
               <div key={f.label}>
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">{f.label}</p>
                 <p className="text-sm font-semibold text-gray-900 dark:text-zinc-100 mt-0.5">{f.value}</p>
               </div>
             ))}
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Payment method</p>
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-gray-900 dark:text-zinc-100 mt-0.5 sm:justify-end">
+                {invoice.paymentMethodSummary && (
+                  <PaymentMethodIcon
+                    razorpayMethod={invoice.razorpayMethod}
+                    razorpayMethodDetail={invoice.razorpayMethodDetail}
+                    summary={invoice.paymentMethodSummary}
+                    className="h-3.5 w-3.5 text-gray-400"
+                  />
+                )}{" "}
+                {invoice.paymentMethodSummary ?? "—"}
+              </p>
+            </div>
           </div>
         </div>
 
         {/* Line items */}
         <div className="px-8 py-6">
           <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-zinc-800">
-            <table className="w-full text-sm">
+            <table className="w-full table-fixed text-sm">
               <thead className="bg-gray-50 dark:bg-zinc-800/80 border-b border-gray-200 dark:border-zinc-700">
                 <tr>
-                  {["Description", "Billing period", "Amount"].map((h) => (
-                    <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">{h}</th>
+                  {[
+                    { label: "Description", width: "w-1/2", align: "text-left" },
+                    { label: "Billing period", width: "w-[30%]", align: "text-left" },
+                    { label: "Amount", width: "w-[20%]", align: "text-right" },
+                  ].map((h) => (
+                    <th key={h.label} className={`${h.width} px-4 py-2.5 ${h.align} text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400`}>{h.label}</th>
                   ))}
                 </tr>
               </thead>
@@ -213,17 +233,17 @@ export default function InvoiceDetailClient({
                     <p className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5">Shikshaloy platform subscription fee</p>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600 dark:text-zinc-400 whitespace-nowrap">{invoice.period}</td>
-                  <td className="px-4 py-3 text-sm font-medium tabular-nums text-gray-800 dark:text-zinc-200">{formatCurrency(invoice.amount)}</td>
+                  <td className="px-4 py-3 text-right text-sm font-medium tabular-nums text-gray-800 dark:text-zinc-200">{formatCurrency(invoice.amount)}</td>
                 </tr>
               </tbody>
               <tfoot className="bg-gray-50 dark:bg-zinc-800/80 border-t border-gray-200 dark:border-zinc-700">
                 <tr>
                   <td colSpan={2} className="px-4 py-2.5 text-right text-sm text-gray-500 dark:text-zinc-400">Subtotal</td>
-                  <td className="px-4 py-2.5 text-sm font-medium tabular-nums text-gray-700 dark:text-zinc-300">{formatCurrency(invoice.amount)}</td>
+                  <td className="px-4 py-2.5 text-right text-sm font-medium tabular-nums text-gray-700 dark:text-zinc-300">{formatCurrency(invoice.amount)}</td>
                 </tr>
                 <tr>
                   <td colSpan={2} className="px-4 py-3 text-right text-sm font-bold text-gray-900 dark:text-zinc-100">Total</td>
-                  <td className="px-4 py-3 text-base font-extrabold tabular-nums text-gray-900 dark:text-zinc-100">{formatCurrency(invoice.amount)}</td>
+                  <td className="px-4 py-3 text-right text-base font-extrabold tabular-nums text-gray-900 dark:text-zinc-100">{formatCurrency(invoice.amount)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -248,7 +268,13 @@ export default function InvoiceDetailClient({
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Paid via</p>
               <p className="flex items-center gap-1.5 text-sm font-semibold text-gray-800 dark:text-zinc-200 mt-0.5">
-                <CreditCard className="h-3.5 w-3.5 text-gray-400" /> {invoice.paymentMethodSummary}
+                <PaymentMethodIcon
+                  razorpayMethod={invoice.razorpayMethod}
+                  razorpayMethodDetail={invoice.razorpayMethodDetail}
+                  summary={invoice.paymentMethodSummary}
+                  className="h-3.5 w-3.5 text-gray-400"
+                />{" "}
+                {invoice.paymentMethodSummary}
               </p>
             </div>
           )}
@@ -270,21 +296,23 @@ export default function InvoiceDetailClient({
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Reference</p>
                 <p className="font-mono text-sm text-gray-800 dark:text-zinc-200 mt-0.5">{invoice.offlineReference}</p>
               </div>
-              {invoice.offlineReceiptUrl && (
-                <a
-                  href={invoice.offlineReceiptUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
-                >
-                  View uploaded receipt
-                </a>
-              )}
-              {invoice.verifiedAt && (
-                <div className="ml-auto flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                  <ShieldCheck className="h-3.5 w-3.5" /> Verified {formatDate(invoice.verifiedAt)}
-                </div>
-              )}
+              <div className="ml-auto flex flex-wrap items-center gap-4">
+                {invoice.offlineReceiptUrl && (
+                  <a
+                    href={invoice.offlineReceiptUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+                  >
+                    View uploaded receipt
+                  </a>
+                )}
+                {invoice.verifiedAt && (
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                    <ShieldCheck className="h-3.5 w-3.5" /> Verified {formatDate(invoice.verifiedAt)}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

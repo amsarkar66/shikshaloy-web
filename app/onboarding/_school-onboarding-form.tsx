@@ -10,6 +10,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { FieldLabel, Input, Select, FieldError, INDIAN_STATES } from "./_field-kit";
+import { AuthChrome } from "@/components/auth/auth-ui";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -474,26 +475,31 @@ export function SchoolOnboardingForm({
     setDone(false);
   }
 
+  const isAdditionalSchool = mode === "additional-school";
+
   if (done) {
-    return (
+    const successContent = (
       <div className="w-full max-w-xl mx-auto px-6 py-12">
         <SuccessScreen name={data.name} onAnother={reset} />
       </div>
     );
+    if (isAdditionalSchool) {
+      return (
+        <AuthChrome
+          maxWidthClassName="max-w-2xl"
+          topLeft={<BackToSchoolsLink />}
+          showGrid={false}
+          showThemeToggle={false}
+        >
+          {successContent}
+        </AuthChrome>
+      );
+    }
+    return successContent;
   }
 
-  return (
+  const formContent = (
     <div className="w-full max-w-2xl mx-auto px-6 py-8">
-
-      {mode === "additional-school" && (
-        <Link
-          href="/dashboard/schools"
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-50 transition-colors mb-6"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Back to Schools
-        </Link>
-      )}
 
       {/* Step indicators */}
       <div className="flex items-center gap-0 mb-8">
@@ -607,5 +613,31 @@ export function SchoolOnboardingForm({
         </div>
       </div>
     </div>
+  );
+
+  if (isAdditionalSchool) {
+    return (
+      <AuthChrome
+        maxWidthClassName="max-w-2xl"
+        topLeft={<BackToSchoolsLink />}
+        showGrid={false}
+        showThemeToggle={false}
+      >
+        {formContent}
+      </AuthChrome>
+    );
+  }
+  return formContent;
+}
+
+function BackToSchoolsLink() {
+  return (
+    <Link
+      href="/dashboard/schools"
+      className="absolute left-4 top-4 z-10 flex items-center gap-2 text-sm font-semibold text-gray-900 transition-opacity hover:opacity-80 dark:text-white sm:left-6 sm:top-6"
+    >
+      <ArrowLeft className="h-4 w-4" />
+      Back to Schools
+    </Link>
   );
 }

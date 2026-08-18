@@ -458,7 +458,7 @@ export default function LeavesClient({ initialLeaves, staffOptions, studentOptio
   }
 
   function reject(leave: Leave) {
-    setLeaves((prev) => prev.map((l) => (l.id === leave.id ? { ...l, status: "rejected", approvedBy: "You" } : l)));
+    setLeaves((prev) => prev.map((l) => (l.id === leave.id ? { ...l, status: "rejected" } : l)));
     startTransition(async () => { await persistStatus(leave, "rejected"); });
   }
 
@@ -467,14 +467,14 @@ export default function LeavesClient({ initialLeaves, staffOptions, studentOptio
       setAssignModalFor(leave);
       return;
     }
-    setLeaves((prev) => prev.map((l) => (l.id === leave.id ? { ...l, status: "approved", approvedBy: "You" } : l)));
+    setLeaves((prev) => prev.map((l) => (l.id === leave.id ? { ...l, status: "approved" } : l)));
     startTransition(async () => { await persistStatus(leave, "approved"); });
   }
 
   function confirmSubstitutes(plan: SubstitutePlan[]) {
     if (!assignModalFor) return;
     setSubPlans((prev) => ({ ...prev, [assignModalFor.id]: plan }));
-    setLeaves((prev) => prev.map((l) => (l.id === assignModalFor.id ? { ...l, status: "approved", approvedBy: "You" } : l)));
+    setLeaves((prev) => prev.map((l) => (l.id === assignModalFor.id ? { ...l, status: "approved" } : l)));
     startTransition(async () => { await persistStatus(assignModalFor, "approved"); });
     setAssignModalFor(null);
   }

@@ -6,7 +6,7 @@ import {
   Calendar, CalendarDays, ChevronLeft, ChevronRight,
   Plus, Download, Clock, MapPin, Users, Sun,
   ClipboardCheck, Trophy, Star, BookOpen, List, CalendarCheck2,
-  Globe, Loader2,
+  Globe, Loader2, MoreHorizontal,
 } from "lucide-react";
 import {
   TYPE_LABEL, TYPE_COLOR, TYPE_BADGE, AUDIENCE_LABEL,
@@ -18,6 +18,7 @@ import { type PtmSession } from "../../ptm/_data/ptm";
 import { ScheduleModal, BookingsModal } from "../../ptm/_components/PtmModals";
 import { toggleEventPublic } from "../actions";
 import { FancyButton } from "@/components/ui/fancy-button";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -631,18 +632,25 @@ export default function EventsClient({
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div>
           <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Events &amp; Calendar</h1>
-          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">School events, holidays, and schedule for 2026-27 — including Parent-Teacher Meetings</p>
+          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">School events and important dates</p>
         </div>
-        <div className="sm:ml-auto flex items-center gap-2">
-          <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
-            <Download className="h-3.5 w-3.5" /> Export
-          </button>
-          <button
-            onClick={() => setScheduleOpen(true)}
-            className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"
-          >
-            <CalendarCheck2 className="h-3.5 w-3.5" /> Schedule PTM
-          </button>
+        <div className="flex gap-2 sm:ml-auto">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"
+              title="More actions"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" sideOffset={8} className="w-48">
+              <DropdownMenuItem className="cursor-pointer">
+                <Download className="h-3.5 w-3.5" /> Export
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer" onClick={() => setScheduleOpen(true)}>
+                <CalendarCheck2 className="h-3.5 w-3.5" /> Schedule PTM
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <FancyButton size="sm">
             <Plus className="h-4 w-4" /> Add Event
           </FancyButton>

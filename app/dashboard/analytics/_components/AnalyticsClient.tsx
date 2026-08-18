@@ -7,64 +7,89 @@ import {
 import type { FeeMonth, ClassAttendance, SubjectPerf, GradeSlice } from "../_data/analytics";
 
 // ── Chart: grouped bar (fee collection) ───────────────────────────────────────
+// Same hand-rolled SVG + HTML-label-overlay style as the fee-collection
+// page's TrendChart, for a consistent look across both due-vs-collected
+// charts. Bars/gridlines stretch full-width via preserveAspectRatio="none";
+// axis labels are plain HTML positioned at matching percentage offsets
+// (rather than SVG <text>) so they stay a fixed, undistorted size instead of
+// scaling with the non-uniformly-stretched SVG.
+
+function formatLakh(v: number) {
+  return v === 0 ? "₹0" : `₹${v.toFixed(v < 10 ? 2 : 1)}L`;
+}
 
 function FeeBarChart({ data }: { data: FeeMonth[] }) {
   const W = 900;
-  const H = 160;
-  const PAD_L = 36;
-  const PAD_R = 8;
-  const PAD_T = 12;
+  const H = 180;
+  const PAD_L = 2;
+  const PAD_R = 2;
+  const PAD_T = 18;
   const PAD_B = 24;
+  const LABEL_GAP = 3;
   const chartW = W - PAD_L - PAD_R;
   const chartH = H - PAD_T - PAD_B;
-  const maxVal = Math.max(...data.map((d) => d.due), 0.1) * 1.1;
+  const maxVal = Math.max(...data.map((d) => d.due), 1) * 1.1;
   const barGroupW = chartW / Math.max(data.length, 1);
   const barW = barGroupW * 0.32;
-  const gap  = barGroupW * 0.06;
+  const gap = barGroupW * 0.06;
   const yTicks = [0, maxVal / 2, maxVal];
 
-  function xGroupStart(i: number) {
-    return PAD_L + i * barGroupW + barGroupW * 0.1;
-  }
+  function xGroupStart(i: number) { return PAD_L + i * barGroupW + barGroupW * 0.1; }
   function barH(v: number) { return (v / maxVal) * chartH; }
   function yTop(v: number) { return PAD_T + chartH - barH(v); }
-  function yOf(v: number)  { return PAD_T + (1 - v / maxVal) * chartH; }
+  function yOf(v: number) { return PAD_T + (1 - v / maxVal) * chartH; }
+  function pctX(x: number) { return (x / W) * 100; }
+  function pctY(y: number) { return (y / H) * 100; }
 
   if (data.length === 0) {
     return <p className="py-10 text-center text-sm text-gray-400 dark:text-zinc-500">No fee payment data yet</p>;
   }
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: H }}>
-      {yTicks.map((t) => (
-        <g key={t}>
-          <line x1={PAD_L} y1={yOf(t)} x2={W - PAD_R} y2={yOf(t)}
-            stroke="currentColor" strokeWidth="0.5"
-            className="text-gray-100 dark:text-zinc-800" />
-          <text x={PAD_L - 4} y={yOf(t) + 3.5} textAnchor="end" fontSize="9"
-            className="fill-gray-400 dark:fill-zinc-600">
-            ₹{t.toFixed(1)}L
-          </text>
-        </g>
-      ))}
+    <div className="relative w-full" style={{ height: H }}>
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
+        {yTicks.map((t) => (
+          <line
+            key={t}
+            x1={PAD_L} y1={yOf(t)} x2={W - PAD_R} y2={yOf(t)}
+            stroke="currentColor" strokeWidth="0.5" vectorEffect="non-scaling-stroke"
+            className="text-gray-100 dark:text-zinc-800"
+          />
+        ))}
+        {data.map((d, i) => {
+          const x1 = xGroupStart(i);
+          const x2 = x1 + barW + gap;
+          return (
+            <g key={d.month}>
+              <rect x={x1} y={yTop(d.due)} width={barW} height={barH(d.due)} rx="2" fill="currentColor" className="text-gray-200 dark:text-zinc-700" />
+              <rect x={x2} y={yTop(d.collected)} width={barW} height={barH(d.collected)} rx="2" fill="#6366f1" />
+            </g>
+          );
+        })}
+      </svg>
 
+      {yTicks.map((t) => (
+        <span
+          key={t}
+          className="absolute -translate-y-full whitespace-nowrap text-left text-[9px] text-gray-400 dark:text-zinc-600"
+          style={{ left: 0, top: `${pctY(yOf(t) - LABEL_GAP)}%` }}
+        >
+          {formatLakh(t)}
+        </span>
+      ))}
       {data.map((d, i) => {
         const x1 = xGroupStart(i);
-        const x2 = x1 + barW + gap;
         return (
-          <g key={d.month}>
-            <rect x={x1} y={yTop(d.due)} width={barW} height={barH(d.due)}
-              rx="2" fill="currentColor" className="text-gray-200 dark:text-zinc-700" />
-            <rect x={x2} y={yTop(d.collected)} width={barW} height={barH(d.collected)}
-              rx="2" fill="#6366f1" />
-            <text x={x1 + barW + gap / 2} y={H - 6} textAnchor="middle" fontSize="9"
-              className="fill-gray-400 dark:fill-zinc-600">
-              {d.month}
-            </text>
-          </g>
+          <span
+            key={d.month}
+            className="absolute bottom-0 -translate-x-1/2 whitespace-nowrap text-[9px] text-gray-400 dark:text-zinc-600"
+            style={{ left: `${pctX(x1 + barW + gap / 2)}%` }}
+          >
+            {d.month}
+          </span>
         );
       })}
-    </svg>
+    </div>
   );
 }
 
@@ -125,23 +150,21 @@ function DonutChart({ data }: { data: GradeSlice[] }) {
 // ── KPI card ──────────────────────────────────────────────────────────────────
 
 function KpiCard({
-  label, value, sub, icon: Icon, accent,
+  label, value, icon: Icon, accent,
 }: {
   label:  string;
   value:  string;
-  sub:    string;
   icon:   React.ElementType;
   accent: string;
 }) {
   return (
-    <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5 flex flex-col gap-4">
-      <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${accent}`}>
+    <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-4 flex items-center gap-4">
+      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${accent}`}>
         <Icon className="h-5 w-5" />
       </div>
       <div>
-        <p className="text-2xl font-bold tracking-tight text-gray-900 dark:text-zinc-50">{value}</p>
-        <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-zinc-400">{label}</p>
-        <p className="mt-1 text-[11px] text-gray-400 dark:text-zinc-500">{sub}</p>
+        <p className="text-xl font-bold text-gray-900 dark:text-zinc-50">{value}</p>
+        <p className="text-xs text-gray-500 dark:text-zinc-400">{label}</p>
       </div>
     </div>
   );
@@ -238,10 +261,10 @@ export default function AnalyticsClient({
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div>
           <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Analytics</h1>
-          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">School-wide performance overview — {academicYear}</p>
+          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Trends and performance insights</p>
         </div>
 
-        <div className="sm:ml-auto flex items-center gap-2">
+        <div className="flex gap-2 sm:ml-auto">
           <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
             <Download className="h-3.5 w-3.5" /> Export
           </button>
@@ -253,28 +276,24 @@ export default function AnalyticsClient({
         <KpiCard
           label="Total Students"
           value={kpi.totalStudents.toLocaleString("en-IN")}
-          sub="Currently enrolled"
           icon={Users}
           accent="text-blue-500 bg-blue-500/10"
         />
         <KpiCard
           label="Avg Attendance"
           value={`${kpi.avgAttendance}%`}
-          sub="Across all students"
           icon={ClipboardCheck}
           accent="text-emerald-500 bg-emerald-500/10"
         />
         <KpiCard
           label="Fee Collection Rate"
           value={`${kpi.feeCollectionRate}%`}
-          sub="Paid vs due, this year"
           icon={IndianRupee}
           accent="text-primary-500 bg-primary-500/10"
         />
         <KpiCard
           label="Overall Pass Rate"
           value={`${kpi.overallPassRate}%`}
-          sub="Latest examination"
           icon={GraduationCap}
           accent="text-violet-500 bg-violet-500/10"
         />

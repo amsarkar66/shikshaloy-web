@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getUser } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
+import { getAllSupportRequests } from "@/lib/support/actions";
 import SupportClient, { type PlatformGrievance } from "./_components/SupportClient";
 
 export const dynamic = "force-dynamic";
@@ -14,12 +15,13 @@ export default async function SupportPage() {
   const role = user.user_metadata?.role as string | undefined;
   if (role !== "kernel") redirect("/dashboard");
 
-  const [{ data }, { data: schools }] = await Promise.all([
+  const [{ data }, { data: schools }, supportRequests] = await Promise.all([
     supabaseAdmin
       .from("grievances")
       .select("id, school_id, name, email, phone, category, subject, message, status, resolution_notes, created_at")
       .order("created_at", { ascending: false }),
     supabaseAdmin.from("schools").select("id, name"),
+    getAllSupportRequests(),
   ]);
 
   const schoolsById = new Map((schools ?? []).map((s) => [s.id, s.name]));
@@ -38,5 +40,5 @@ export default async function SupportPage() {
     createdAt: g.created_at,
   }));
 
-  return <SupportClient initialData={grievances} />;
+  return <SupportClient initialData={grievances} initialSupportRequests={supportRequests} />;
 }

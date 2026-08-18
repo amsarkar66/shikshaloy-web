@@ -1,6 +1,8 @@
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
+import { getStudentCapacity } from "@/lib/billing/plan-limits";
 import StudentsClient from "./_components/StudentsClient";
 import type { Student } from "./_components/StudentsClient";
 import type { SectionOption } from "./_components/add-student-modal";
@@ -29,6 +31,8 @@ interface StudentSectionOptionRow {
 export default async function StudentsPage() {
   const schoolId = await getCurrentSchoolIdOrThrow();
   const academicYearId = await getCurrentAcademicYearId();
+  const institutionId = await getCurrentInstitutionIdOrThrow();
+  const { maxStudents, atCapacity: atStudentCapacity } = await getStudentCapacity(institutionId);
 
   const [{ data }, { data: sectionRows }] = await Promise.all([
     supabaseAdmin
@@ -70,5 +74,12 @@ export default async function StudentsPage() {
     .map((s) => ({ id: s.id, name: s.name ?? "", gradeLevel: s.grades?.level ?? 0 }))
     .sort((a: SectionOption, b: SectionOption) => a.gradeLevel - b.gradeLevel || a.name.localeCompare(b.name));
 
-  return <StudentsClient students={students} sections={sections} />;
+  return (
+    <StudentsClient
+      students={students}
+      sections={sections}
+      atStudentCapacity={atStudentCapacity}
+      maxStudents={maxStudents}
+    />
+  );
 }

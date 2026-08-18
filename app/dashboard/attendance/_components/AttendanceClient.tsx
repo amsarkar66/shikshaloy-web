@@ -440,20 +440,27 @@ export default function AttendanceClient({
 
   return (
     <div className="w-full px-6 py-6 space-y-5">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <DateNav dateStr={dateStr} onChange={handleDateChange}/>
-        {allowStaffTab && (
-        <div className="flex rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-0.5">
-          {(["students","staff"] as const).map((t)=>(
-            <button key={t} onClick={()=>handleTabChange(t)} className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${tab===t?"bg-primary-500 text-white shadow-sm":"text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
-              {t==="students"?<Users className="h-3.5 w-3.5"/>:<UserCheck className="h-3.5 w-3.5"/>}
-              {t==="students"?"Students":"Staff"}
-            </button>
-          ))}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Attendance</h1>
+          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Daily attendance records</p>
         </div>
-        )}
-        <button className="sm:ml-auto flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5"/> Export</button>
+        <div className="sm:ml-auto flex items-center gap-2 flex-wrap">
+          <DateNav dateStr={dateStr} onChange={handleDateChange}/>
+          <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5"/> Export</button>
+        </div>
       </div>
+
+      {allowStaffTab && (
+      <div className="flex rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-0.5 w-fit">
+        {(["students","staff"] as const).map((t)=>(
+          <button key={t} onClick={()=>handleTabChange(t)} className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${tab===t?"bg-primary-500 text-white shadow-sm":"text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
+            {t==="students"?<Users className="h-3.5 w-3.5"/>:<UserCheck className="h-3.5 w-3.5"/>}
+            {t==="students"?"Students":"Staff"}
+          </button>
+        ))}
+      </div>
+      )}
 
       {tab==="students"&&<StatsRow {...schoolStats}/>}
 

@@ -1187,16 +1187,13 @@ export function SettingsPageClient({ role, data }: { role: string; data: Setting
 
   const roleLabel = ROLE_LABELS[role] ?? role;
 
-  const subtitle =
-    role === "admin"       ? "Manage your school profile, academic configuration, staff permissions, and account." :
-    role === "super_admin" ? "Manage your institution profile, staff permissions, notifications, and account."     :
-    "Manage your notification preferences and account settings.";
-
   return (
     <div className="w-full px-6 py-6 space-y-6">
-      <div>
-        <h2 className="text-xl font-bold text-gray-900 dark:text-zinc-50">Settings</h2>
-        <p className="mt-0.5 text-sm text-gray-500 dark:text-zinc-400">{subtitle}</p>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Settings</h1>
+          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Account and preferences</p>
+        </div>
       </div>
 
       <div className="flex gap-1 border-b border-gray-200 dark:border-zinc-800">

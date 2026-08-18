@@ -184,6 +184,18 @@ export default function ClassesClient({
 
   return (
     <div className="w-full px-6 py-6 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Classes</h1>
+          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Manage class sections</p>
+        </div>
+        <div className="flex gap-2 sm:ml-auto">
+          {canManage && (
+            <FancyButton onClick={() => setModalClassNum(null)} size="sm"><Plus className="h-4 w-4"/> Add Section</FancyButton>
+          )}
+        </div>
+      </div>
+
       <StatsRow sections={initialSections}/>
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 min-w-0">
@@ -198,9 +210,6 @@ export default function ClassesClient({
           ))}
         </div>
         {hasFilter&&<button onClick={()=>{setQuery("");setClassFilter("all");}} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><X className="h-3.5 w-3.5"/> Clear</button>}
-        {canManage && (
-          <FancyButton onClick={() => setModalClassNum(null)} size="sm" className="sm:ml-auto shrink-0"><Plus className="h-4 w-4"/> Add Section</FancyButton>
-        )}
       </div>
       <p className="text-xs text-gray-500 dark:text-zinc-500 -mt-2">Showing <span className="font-medium text-gray-700 dark:text-zinc-300">{filtered.length}</span> of <span className="font-medium text-gray-700 dark:text-zinc-300">{initialSections.length}</span> sections{hasFilter&&<span className="ml-2 text-primary-600 dark:text-primary-400 font-medium">· Filters active</span>}</p>
       {visibleClasses.length===0?(

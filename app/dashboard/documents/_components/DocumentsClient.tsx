@@ -2,8 +2,8 @@
 
 import { useMemo, useState, useTransition } from "react";
 import {
-  FolderOpen, FileText, FileSpreadsheet, FileImage, File,
-  Search, Upload, Download, X, Trash2, Megaphone, ShieldCheck, ClipboardList, Bell, ChevronDown,
+  FolderOpen, File,
+  Search, Upload, Download, X, Trash2, Megaphone, ShieldCheck, ClipboardList, Bell, ChevronDown, Loader2,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import {
@@ -11,6 +11,7 @@ import {
   type SchoolDocument, type DocCategory, type DocAudience, type FileKind,
 } from "../_data/documents";
 import { uploadDocument, deleteDocument } from "../actions";
+import { uploadSchoolDocumentFile } from "@/lib/documents/document-actions";
 
 const CATEGORY_ICON: Record<DocCategory, React.ElementType> = {
   Circular: Megaphone,
@@ -19,12 +20,74 @@ const CATEGORY_ICON: Record<DocCategory, React.ElementType> = {
   Notice: Bell,
 };
 
-const FILE_ICON: Record<FileKind, React.ElementType> = {
-  pdf: FileText,
-  doc: FileText,
-  xlsx: FileSpreadsheet,
-  image: FileImage,
-};
+// Custom-provided icons live in public/file-icons/. We have one icon per
+// real extension where it was supplied; doc covers both doc and docx, xls
+// covers xlsx too (same app, same color), and jpg/jpeg fall back to the
+// generic "image" icon since no dedicated jpg artwork was provided.
+// Anything else falls back via FIV_FALLBACK_EXTENSION, keyed off the
+// coarser FileKind for older rows uploaded before file_name existed.
+const FILE_ICON_ASSETS = new Set(["pdf", "doc", "xls", "csv", "png", "webp", "image"]);
+const EXTENSION_ALIASES: Record<string, string> = { docx: "doc", xlsx: "xls", jpg: "image", jpeg: "image" };
+const FIV_FALLBACK_EXTENSION: Record<FileKind, string> = { pdf: "pdf", doc: "doc", xlsx: "xls", image: "image" };
+
+function fileIconNameOf(d: Pick<SchoolDocument, "fileKind" | "fileName">): string {
+  const nameExt = d.fileName?.split(".").pop()?.toLowerCase();
+  if (nameExt) {
+    const resolved = EXTENSION_ALIASES[nameExt] ?? nameExt;
+    if (FILE_ICON_ASSETS.has(resolved)) return resolved;
+  }
+  return FIV_FALLBACK_EXTENSION[d.fileKind];
+}
+
+function DocFileIcon({
+  doc, size = 20, className,
+}: {
+  doc: Pick<SchoolDocument, "fileKind" | "fileName">;
+  size?: number;
+  className?: string;
+}) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`/file-icons/${fileIconNameOf(doc)}.svg`}
+      alt=""
+      width={size}
+      height={size}
+      className={className}
+      style={{ width: size, height: size }}
+    />
+  );
+}
+
+function fileKindOf(name: string): FileKind {
+  const ext = name.split(".").pop()?.toLowerCase() ?? "";
+  if (["xlsx", "xls", "csv"].includes(ext)) return "xlsx";
+  if (["png", "jpg", "jpeg", "gif", "webp"].includes(ext)) return "image";
+  if (["doc", "docx"].includes(ext)) return "doc";
+  return "pdf";
+}
+
+// Downloads via a blob so the browser always saves the file (with the
+// original name) instead of just navigating to the Supabase Storage URL,
+// which browsers otherwise often open inline rather than downloading.
+async function downloadDocumentFile(doc: SchoolDocument) {
+  if (!doc.fileUrl) return;
+  try {
+    const res = await fetch(doc.fileUrl);
+    if (!res.ok) throw new Error("Download failed");
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = doc.fileName || doc.title;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(blobUrl);
+  } catch {
+    window.open(doc.fileUrl, "_blank", "noopener,noreferrer");
+  }
+}
 
 function UploadModal({
   onClose, onUploaded,
@@ -36,29 +99,35 @@ function UploadModal({
   const [category, setCategory] = useState<DocCategory>("Circular");
   const [audience, setAudience] = useState<DocAudience>("All");
   const [file, setFile] = useState<globalThis.File | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-
-  function fileKindOf(name: string): FileKind {
-    const ext = name.split(".").pop()?.toLowerCase() ?? "";
-    if (["xlsx", "xls", "csv"].includes(ext)) return "xlsx";
-    if (["png", "jpg", "jpeg", "gif"].includes(ext)) return "image";
-    if (["doc", "docx"].includes(ext)) return "doc";
-    return "pdf";
-  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title) return;
+    if (!title || !file) {
+      setError("Please select a file to upload.");
+      return;
+    }
+    setError(null);
     startTransition(async () => {
-      await uploadDocument({
-        title,
-        category,
-        audience,
-        fileKind: file ? fileKindOf(file.name) : "pdf",
-        sizeKb: file ? Math.max(1, Math.round(file.size / 1024)) : 100,
-      });
-      onUploaded();
-      onClose();
+      try {
+        const formData = new FormData();
+        formData.append("document", file);
+        const { fileUrl, fileName } = await uploadSchoolDocumentFile(formData);
+        await uploadDocument({
+          title,
+          category,
+          audience,
+          fileKind: fileKindOf(file.name),
+          sizeKb: Math.max(1, Math.round(file.size / 1024)),
+          fileUrl,
+          fileName,
+        });
+        onUploaded();
+        onClose();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Upload failed");
+      }
     });
   }
 
@@ -96,14 +165,89 @@ function UploadModal({
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">File</label>
-            <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="w-full text-sm text-gray-600 dark:text-zinc-400 file:mr-3 file:rounded-lg file:border-0 file:bg-primary-500 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-primary-600" />
+            <input
+              type="file"
+              required
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.webp"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              className="w-full text-sm text-gray-600 dark:text-zinc-400 file:mr-3 file:rounded-lg file:border-0 file:bg-primary-500 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-primary-600"
+            />
           </div>
+          {error && <p className="text-xs text-red-500 dark:text-red-400">{error}</p>}
         </div>
         <div className="flex justify-end gap-2 border-t border-gray-200 dark:border-zinc-800 px-5 py-4">
           <button type="button" onClick={onClose} className="h-9 rounded-lg border border-gray-200 dark:border-zinc-700 px-4 text-sm text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800">Cancel</button>
-          <FancyButton type="submit" disabled={isPending} size="sm"><Upload className="h-4 w-4" /> {isPending ? "Uploading…" : "Upload"}</FancyButton>
+          <FancyButton type="submit" disabled={isPending} size="sm">
+            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} {isPending ? "Uploading…" : "Upload"}
+          </FancyButton>
         </div>
       </form>
+    </div>
+  );
+}
+
+function PreviewModal({
+  doc, onClose,
+}: {
+  doc: SchoolDocument;
+  onClose: () => void;
+}) {
+  const [downloading, setDownloading] = useState(false);
+
+  async function handleDownload() {
+    setDownloading(true);
+    try {
+      await downloadDocumentFile(doc);
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="flex max-h-[85vh] w-full max-w-3xl flex-col rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xl">
+        <div className="flex items-center justify-between gap-3 border-b border-gray-200 dark:border-zinc-800 px-5 py-4">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-50 dark:bg-zinc-800/60">
+              <DocFileIcon doc={doc} size={20} />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-gray-900 dark:text-zinc-50">{doc.title}</p>
+              <p className="truncate text-xs text-gray-400 dark:text-zinc-500">
+                {doc.category} · {formatSize(doc.sizeKb)} · {formatDate(doc.uploadedDate)}
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose} className="shrink-0 text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200"><X className="h-4 w-4" /></button>
+        </div>
+
+        <div className="flex-1 overflow-auto bg-gray-50 dark:bg-zinc-950 p-4">
+          {!doc.fileUrl ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-20 text-center">
+              <File className="h-8 w-8 text-gray-300 dark:text-zinc-600" />
+              <p className="text-sm font-medium text-gray-500 dark:text-zinc-400">No file was attached to this document.</p>
+            </div>
+          ) : doc.fileKind === "image" ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={doc.fileUrl} alt={doc.title} className="mx-auto max-h-[65vh] w-auto rounded-lg object-contain" />
+          ) : doc.fileKind === "pdf" ? (
+            <iframe src={doc.fileUrl} title={doc.title} className="h-[65vh] w-full rounded-lg border border-gray-200 dark:border-zinc-800 bg-white" />
+          ) : (
+            <div className="flex flex-col items-center justify-center gap-2 py-20 text-center">
+              <DocFileIcon doc={doc} size={48} />
+              <p className="text-sm font-medium text-gray-500 dark:text-zinc-400">Preview isn&rsquo;t available for this file type.</p>
+              <p className="text-xs text-gray-400 dark:text-zinc-500">Download it to view the full document.</p>
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-gray-200 dark:border-zinc-800 px-5 py-4">
+          <button type="button" onClick={onClose} className="h-9 rounded-lg border border-gray-200 dark:border-zinc-700 px-4 text-sm text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800">Close</button>
+          <FancyButton type="button" onClick={handleDownload} disabled={!doc.fileUrl || downloading} size="sm">
+            {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Download
+          </FancyButton>
+        </div>
+      </div>
     </div>
   );
 }
@@ -112,6 +256,8 @@ export default function DocumentsClient({ docs }: { docs: SchoolDocument[] }) {
   const [category, setCategory] = useState<"all" | DocCategory>("all");
   const [query, setQuery] = useState("");
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState<SchoolDocument | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
   const filtered = useMemo(() => {
@@ -130,16 +276,28 @@ export default function DocumentsClient({ docs }: { docs: SchoolDocument[] }) {
     window.location.reload();
   }
 
+  async function handleDownloadClick(doc: SchoolDocument) {
+    if (!doc.fileUrl) return;
+    setDownloadingId(doc.id);
+    try {
+      await downloadDocumentFile(doc);
+    } finally {
+      setDownloadingId(null);
+    }
+  }
+
   return (
     <div className="w-full px-6 py-6 space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div>
           <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Documents &amp; Circulars</h1>
-          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Central repository for circulars, policies and forms.</p>
+          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Policy and compliance documents</p>
         </div>
-        <FancyButton onClick={() => setUploadOpen(true)} size="sm" className="sm:ml-auto">
-          <Upload className="h-4 w-4" /> Upload
-        </FancyButton>
+        <div className="flex gap-2 sm:ml-auto">
+          <FancyButton onClick={() => setUploadOpen(true)} size="sm">
+            <Upload className="h-4 w-4" /> Upload
+          </FancyButton>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-5">
@@ -192,21 +350,30 @@ export default function DocumentsClient({ docs }: { docs: SchoolDocument[] }) {
               </div>
             ) : (
               filtered.map((d) => {
-                const FileIcon = FILE_ICON[d.fileKind];
+                const isDownloading = downloadingId === d.id;
                 return (
                   <div key={d.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-zinc-700/30 transition-colors">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-500/10 text-primary-600 dark:text-primary-400">
-                      <FileIcon className="h-4.5 w-4.5" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-gray-900 dark:text-zinc-100">{d.title}</p>
+                    <button
+                      onClick={() => setPreviewDoc(d)}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-50 dark:bg-zinc-800/60"
+                      title="Preview"
+                    >
+                      <DocFileIcon doc={d} size={22} />
+                    </button>
+                    <button onClick={() => setPreviewDoc(d)} className="min-w-0 flex-1 text-left">
+                      <p className="truncate text-sm font-medium text-gray-900 dark:text-zinc-100 hover:underline">{d.title}</p>
                       <p className="truncate text-xs text-gray-400 dark:text-zinc-500">
                         {d.category} · {d.audience} · {formatSize(d.sizeKb)} · {d.uploadedBy} · {formatDate(d.uploadedDate)}
                       </p>
-                    </div>
+                    </button>
                     <div className="flex items-center gap-1 shrink-0">
-                      <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors" title="Download">
-                        <Download className="h-3.5 w-3.5" />
+                      <button
+                        onClick={() => handleDownloadClick(d)}
+                        disabled={!d.fileUrl || isDownloading}
+                        className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        title={d.fileUrl ? "Download" : "No file attached"}
+                      >
+                        {isDownloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
                       </button>
                       <button onClick={() => remove(d.id)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-500 transition-colors" title="Delete">
                         <Trash2 className="h-3.5 w-3.5" />
@@ -222,6 +389,10 @@ export default function DocumentsClient({ docs }: { docs: SchoolDocument[] }) {
 
       {uploadOpen && (
         <UploadModal onClose={() => setUploadOpen(false)} onUploaded={refresh} />
+      )}
+
+      {previewDoc && (
+        <PreviewModal doc={previewDoc} onClose={() => setPreviewDoc(null)} />
       )}
     </div>
   );

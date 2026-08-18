@@ -1,5 +1,5 @@
-import { DetailSkeleton } from "../../_components/dashboard-skeleton";
+import { InvoiceDetailSkeleton } from "../../_components/dashboard-skeleton";
 
 export default function Loading() {
-  return <DetailSkeleton />;
+  return <InvoiceDetailSkeleton />;
 }
