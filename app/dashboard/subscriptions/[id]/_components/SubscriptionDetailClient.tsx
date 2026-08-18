@@ -123,7 +123,7 @@ function InvoiceTable({ invoices }: { invoices: Invoice[] }) {
           <thead className="bg-gray-50 dark:bg-zinc-800/80 border-b border-gray-100 dark:border-zinc-700/50">
             <tr>
               {["Invoice", "Period", "Plan", "Amount", "Status"].map((h) => (
-                <th key={h} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 whitespace-nowrap">{h}</th>
+                <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 whitespace-nowrap">{h}</th>
               ))}
             </tr>
           </thead>

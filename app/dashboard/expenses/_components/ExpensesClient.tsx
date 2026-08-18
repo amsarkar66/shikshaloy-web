@@ -385,9 +385,10 @@ function ExpenseTable({
 
   return (
     <div className="space-y-4">
-      <div className="flex rounded-lg border border-gray-200 dark:border-zinc-700 overflow-hidden w-fit">
+      <div className="flex gap-1 border-b border-gray-200 dark:border-zinc-800">
         {(["list", "budget"] as const).map((v) => (
-          <button key={v} onClick={() => setView(v)} className={`h-8 px-4 text-xs font-medium capitalize transition-colors ${view === v ? "bg-primary-500 text-white" : "bg-white dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
+          <button key={v} onClick={() => setView(v)} className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${view === v ? "border-primary-500 text-primary-600 dark:text-primary-400" : "border-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 hover:border-gray-300 dark:hover:border-zinc-600"}`}>
+            {v === "budget" ? <BarChart2 className="h-4 w-4" /> : <Receipt className="h-4 w-4" />}
             {v === "budget" ? "Budget View" : "Expense List"}
           </button>
         ))}

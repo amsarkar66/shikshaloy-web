@@ -85,7 +85,7 @@ function FeeReceipt({
                 <thead className="bg-gray-50 dark:bg-zinc-800/80 border-b border-gray-200 dark:border-zinc-700">
                   <tr>
                     {["Category", "Amount", "Paid", "Balance"].map((h) => (
-                      <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">{h}</th>
+                      <th key={h} className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -368,7 +368,7 @@ export default function StudentFeeDetailClient({
             <thead className="bg-gray-50 dark:bg-zinc-800/80 border-b border-gray-100 dark:border-zinc-700/50">
               <tr>
                 {["Category", "Monthly Amount", "Paid", "Balance"].map((h) => (
-                  <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">{h}</th>
+                  <th key={h} className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">{h}</th>
                 ))}
               </tr>
             </thead>

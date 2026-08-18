@@ -47,7 +47,7 @@ export function Th({
 }) {
   return (
     <th
-      className={`${cellPadding(position)} ${textAlign(align)} text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 whitespace-nowrap`}
+      className={`${cellPadding(position)} ${textAlign(align)} text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 whitespace-nowrap`}
     >
       {children}
     </th>

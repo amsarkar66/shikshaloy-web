@@ -30,6 +30,32 @@ const STATUS_BADGE: Record<string, string> = {
   late:    "bg-amber-500/10 text-amber-600 dark:text-amber-400",
 };
 
+const TREND_DAYS = 14;
+
+// Builds a fixed-length daily attendance-rate series (oldest → newest, today
+// included) from raw status rows, so the Overview trend chart always has one
+// bar per day even on days nothing was marked yet.
+function buildAttendanceTrend(rows: { date: string; status: string }[], totalEnrolled: number): { date: string; rate: number }[] {
+  const byDate = new Map<string, { present: number; late: number }>();
+  for (const r of rows) {
+    const entry = byDate.get(r.date) ?? { present: 0, late: 0 };
+    if (r.status === "present") entry.present += 1;
+    if (r.status === "late") entry.late += 1;
+    byDate.set(r.date, entry);
+  }
+
+  const days: { date: string; rate: number }[] = [];
+  for (let i = TREND_DAYS - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().split("T")[0];
+    const entry = byDate.get(dateStr);
+    const rate = entry && totalEnrolled > 0 ? Math.round(((entry.present + entry.late) / totalEnrolled) * 100) : 0;
+    days.push({ date: dateStr, rate });
+  }
+  return days;
+}
+
 async function StudentAttendance({ userId }: { userId: string }) {
   const student = await getStudentContext(userId);
 
@@ -117,8 +143,11 @@ async function TeacherAttendance({ userId }: { userId: string }) {
   }
 
   const today = new Date().toISOString().split("T")[0];
+  const trendStart = new Date();
+  trendStart.setDate(trendStart.getDate() - (TREND_DAYS - 1));
+  const trendStartStr = trendStart.toISOString().split("T")[0];
 
-  const [{ data: sectionRows }, { data: studentRows }, { data: studentAttRows }] = await Promise.all([
+  const [{ data: sectionRows }, { data: studentRows }, { data: studentAttRows }, { data: trendRows }] = await Promise.all([
     supabaseAdmin
       .from("sections")
       .select("id, name, room, capacity, avg_attendance, status, grades ( level ), profiles ( full_name )")
@@ -136,6 +165,13 @@ async function TeacherAttendance({ userId }: { userId: string }) {
       .select("student_id, status")
       .in("section_id", teacher.sectionIds)
       .eq("date", today),
+
+    supabaseAdmin
+      .from("student_attendance")
+      .select("date, status")
+      .in("section_id", teacher.sectionIds)
+      .gte("date", trendStartStr)
+      .lte("date", today),
   ]);
 
   const enrolledCount: Record<string, number> = {};
@@ -152,6 +188,9 @@ async function TeacherAttendance({ userId }: { userId: string }) {
     enrolled: enrolledCount[s.id] ?? 0,
   })).sort((a, b) => +a.classNum - +b.classNum || a.section.localeCompare(b.section));
 
+  const classLabelBySection: Record<string, { classNum: string; section: string }> = {};
+  for (const s of sections) classLabelBySection[s.id] = { classNum: s.classNum, section: s.section };
+
   const studentsBySection: Record<string, AttendanceStudent[]> = {};
   for (const st of studentRows ?? []) {
     if (!st.section_id) continue;
@@ -161,6 +200,9 @@ async function TeacherAttendance({ userId }: { userId: string }) {
       name:       st.full_name ?? "Unknown",
       rollNo:     st.roll_no ?? "",
       attendance: Math.round(Number(st.attendance_pct ?? 0)),
+      sectionId:  st.section_id,
+      classNum:   classLabelBySection[st.section_id]?.classNum ?? "?",
+      section:    classLabelBySection[st.section_id]?.section ?? "",
     });
   }
 
@@ -169,6 +211,8 @@ async function TeacherAttendance({ userId }: { userId: string }) {
     todayAttendance[r.student_id] = r.status as AttendanceStatus;
   }
 
+  const attendanceHistory = buildAttendanceTrend((trendRows ?? []) as { date: string; status: string }[], studentRows?.length ?? 0);
+
   return (
     <AttendanceClient
       initialSections={sections}
@@ -176,6 +220,7 @@ async function TeacherAttendance({ userId }: { userId: string }) {
       initialStaff={[]}
       todayAttendance={todayAttendance}
       todayStaffAttendance={{}}
+      attendanceHistory={attendanceHistory}
       allowStaffTab={false}
     />
   );
@@ -230,6 +275,9 @@ export default async function AttendancePage() {
   const today = new Date().toISOString().split("T")[0];
   const academicYearId = await getCurrentAcademicYearId();
   const schoolId = await getCurrentSchoolIdOrThrow();
+  const trendStart = new Date();
+  trendStart.setDate(trendStart.getDate() - (TREND_DAYS - 1));
+  const trendStartStr = trendStart.toISOString().split("T")[0];
 
   const [
     { data: sectionRows },
@@ -237,6 +285,7 @@ export default async function AttendancePage() {
     { data: staffRows },
     { data: studentAttRows },
     { data: staffAttRows },
+    { data: trendRows },
   ] = await Promise.all([
     supabaseAdmin
       .from("sections")
@@ -269,6 +318,13 @@ export default async function AttendancePage() {
       .select("staff_id, status")
       .eq("school_id", schoolId)
       .eq("date", today),
+
+    supabaseAdmin
+      .from("student_attendance")
+      .select("date, status")
+      .eq("school_id", schoolId)
+      .gte("date", trendStartStr)
+      .lte("date", today),
   ]);
 
   // Count enrolled per section
@@ -286,6 +342,9 @@ export default async function AttendancePage() {
     enrolled: enrolledCount[s.id] ?? 0,
   })).sort((a, b) => +a.classNum - +b.classNum || a.section.localeCompare(b.section));
 
+  const classLabelBySection: Record<string, { classNum: string; section: string }> = {};
+  for (const s of sections) classLabelBySection[s.id] = { classNum: s.classNum, section: s.section };
+
   // Group students by section
   const studentsBySection: Record<string, AttendanceStudent[]> = {};
   for (const st of studentRows ?? []) {
@@ -296,6 +355,9 @@ export default async function AttendancePage() {
       name:       st.full_name ?? "Unknown",
       rollNo:     st.roll_no ?? "",
       attendance: Math.round(Number(st.attendance_pct ?? 0)),
+      sectionId:  st.section_id,
+      classNum:   classLabelBySection[st.section_id]?.classNum ?? "?",
+      section:    classLabelBySection[st.section_id]?.section ?? "",
     });
   }
 
@@ -320,6 +382,8 @@ export default async function AttendancePage() {
     todayStaffAttendance[r.staff_id] = r.status as StaffAttendanceStatus;
   }
 
+  const attendanceHistory = buildAttendanceTrend((trendRows ?? []) as { date: string; status: string }[], studentRows?.length ?? 0);
+
   return (
     <AttendanceClient
       initialSections={sections}
@@ -327,6 +391,7 @@ export default async function AttendancePage() {
       initialStaff={staff}
       todayAttendance={todayAttendance}
       todayStaffAttendance={todayStaffAttendance}
+      attendanceHistory={attendanceHistory}
     />
   );
 }

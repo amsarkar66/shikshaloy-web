@@ -752,29 +752,29 @@ export default function StudentsClient({
       >
         <TableHead>
           <Th position="first">
-            <button onClick={() => toggleSort("name")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
+            <button onClick={() => toggleSort("name")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
               Student <SortIcon field="name" active={sortField === "name"} dir={sortDir} />
             </button>
           </Th>
           <Th>
-            <button onClick={() => toggleSort("class")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
+            <button onClick={() => toggleSort("class")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
               Class <SortIcon field="class" active={sortField === "class"} dir={sortDir} />
             </button>
           </Th>
           <Th>Gender</Th>
           <Th>Parent / Guardian</Th>
           <Th>
-            <button onClick={() => toggleSort("attendance")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
+            <button onClick={() => toggleSort("attendance")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
               Attendance <SortIcon field="attendance" active={sortField === "attendance"} dir={sortDir} />
             </button>
           </Th>
           <Th>
-            <button onClick={() => toggleSort("feeStatus")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
+            <button onClick={() => toggleSort("feeStatus")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
               Fee Status <SortIcon field="feeStatus" active={sortField === "feeStatus"} dir={sortDir} />
             </button>
           </Th>
           <Th>
-            <button onClick={() => toggleSort("joinedDate")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
+            <button onClick={() => toggleSort("joinedDate")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
               Joined <SortIcon field="joinedDate" active={sortField === "joinedDate"} dir={sortDir} />
             </button>
           </Th>

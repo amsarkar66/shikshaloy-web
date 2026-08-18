@@ -469,10 +469,10 @@ export default async function ChildDetailPage({ params }: { params: Promise<{ id
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800">
-                  <th className="py-2.5 pl-5 pr-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Subject</th>
-                  <th className="px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Score</th>
-                  <th className="py-2.5 pl-3 pr-5 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Progress</th>
-                  <th className="py-2.5 pl-3 pr-5 text-center text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Grade</th>
+                  <th className="py-2.5 pl-5 pr-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Subject</th>
+                  <th className="px-3 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Score</th>
+                  <th className="py-2.5 pl-3 pr-5 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Progress</th>
+                  <th className="py-2.5 pl-3 pr-5 text-center text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Grade</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-zinc-700/50">

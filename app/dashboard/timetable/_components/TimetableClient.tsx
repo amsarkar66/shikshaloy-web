@@ -86,7 +86,7 @@ function TimetableGrid({ tt, rowItems }: { tt: ClassTimetable; rowItems: RowItem
             <th className="w-16 py-3 px-3 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500 whitespace-nowrap">Period</th>
             <th className="w-20 py-3 px-2 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500 whitespace-nowrap">Time</th>
             {DAYS.map((day, i) => (
-              <th key={day} className={`py-3 px-2 text-center text-xs font-semibold tracking-wide transition-colors ${i === todayIdx ? "text-primary-600 dark:text-primary-400" : "text-gray-600 dark:text-zinc-300"}`}>
+              <th key={day} className={`py-3 px-2 text-center text-[11px] font-semibold tracking-wide transition-colors ${i === todayIdx ? "text-primary-600 dark:text-primary-400" : "text-gray-600 dark:text-zinc-300"}`}>
                 <span className="inline-flex items-center gap-1">
                   {day}
                   {i === todayIdx && <span className="h-1.5 w-1.5 rounded-full bg-primary-500 inline-block" />}
@@ -183,11 +183,11 @@ function TeacherSummaryTable({ summaries, onSelect }: { summaries: TeacherSummar
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800">
-              <th className="py-3 pl-4 pr-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Teacher</th>
-              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Subjects</th>
-              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Classes</th>
-              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Periods / wk</th>
-              <th className="py-3 pl-3 pr-4 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Schedule</th>
+              <th className="py-3 pl-4 pr-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Teacher</th>
+              <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Subjects</th>
+              <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Classes</th>
+              <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Periods / wk</th>
+              <th className="py-3 pl-3 pr-4 text-right text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Schedule</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-zinc-700/50">

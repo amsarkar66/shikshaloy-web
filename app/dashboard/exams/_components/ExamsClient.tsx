@@ -262,7 +262,7 @@ function GradeCard({ result, exam, onClose }: { result: StudentExamResult; exam:
                 <thead className="bg-gray-50 dark:bg-zinc-800/80 border-b border-gray-200 dark:border-zinc-700">
                   <tr>
                     {["Subject", "Max Marks", "Marks Obtained", "Percentage", "Grade", "Status"].map((h) => (
-                      <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">{h}</th>
+                      <th key={h} className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -498,6 +498,8 @@ export default function ExamsClient({
         </div>
       </div>
 
+      <ExamStatsRow exams={yearExams} />
+
       <div className="flex rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-0.5 w-fit">
         {(["exams", "results"] as Tab[]).map((t) => (
           <button key={t} onClick={() => setTab(t)} className={`flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${tab === t ? "bg-primary-500 text-white shadow-sm" : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
@@ -509,7 +511,6 @@ export default function ExamsClient({
 
       {tab === "exams" && (
         <>
-          <ExamStatsRow exams={yearExams} />
           <div className="flex items-center gap-1.5 flex-wrap">
             {STATUS_FILTER_OPTIONS.map((f) => {
               const count = f.value === "all" ? yearExams.length : yearExams.filter((e) => e.status === f.value).length;

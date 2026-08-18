@@ -188,12 +188,12 @@ export default function SubjectsClient({ initialSubjects }: { initialSubjects: S
         )}
       >
         <TableHead>
-          <Th position="first"><button onClick={()=>toggleSort("name")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Subject <SortIcon active={sortField==="name"} dir={sortDir}/></button></Th>
+          <Th position="first"><button onClick={()=>toggleSort("name")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Subject <SortIcon active={sortField==="name"} dir={sortDir}/></button></Th>
           <Th>Classes</Th>
           <Th>Teacher</Th>
-          <Th><button onClick={()=>toggleSort("type")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Type <SortIcon active={sortField==="type"} dir={sortDir}/></button></Th>
-          <Th><button onClick={()=>toggleSort("weeklyPeriods")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Periods/wk <SortIcon active={sortField==="weeklyPeriods"} dir={sortDir}/></button></Th>
-          <Th><button onClick={()=>toggleSort("status")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Status <SortIcon active={sortField==="status"} dir={sortDir}/></button></Th>
+          <Th><button onClick={()=>toggleSort("type")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Type <SortIcon active={sortField==="type"} dir={sortDir}/></button></Th>
+          <Th><button onClick={()=>toggleSort("weeklyPeriods")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Periods/wk <SortIcon active={sortField==="weeklyPeriods"} dir={sortDir}/></button></Th>
+          <Th><button onClick={()=>toggleSort("status")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Status <SortIcon active={sortField==="status"} dir={sortDir}/></button></Th>
           <Th position="last" align="right">Actions</Th>
         </TableHead>
         <TableBody>

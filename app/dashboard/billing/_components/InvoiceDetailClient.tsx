@@ -222,7 +222,7 @@ export default function InvoiceDetailClient({
                     { label: "Billing period", width: "w-[30%]", align: "text-left" },
                     { label: "Amount", width: "w-[20%]", align: "text-right" },
                   ].map((h) => (
-                    <th key={h.label} className={`${h.width} px-4 py-2.5 ${h.align} text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400`}>{h.label}</th>
+                    <th key={h.label} className={`${h.width} px-4 py-2.5 ${h.align} text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400`}>{h.label}</th>
                   ))}
                 </tr>
               </thead>

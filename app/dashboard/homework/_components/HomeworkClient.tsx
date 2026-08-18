@@ -310,18 +310,18 @@ export default function HomeworkClient({
       >
         <TableHead>
           <Th position="first">
-            <button onClick={() => toggleSort("title")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
+            <button onClick={() => toggleSort("title")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
               Assignment <SortIcon active={sortField === "title"} dir={sortDir} />
             </button>
           </Th>
           <Th>Class</Th>
           <Th>
-            <button onClick={() => toggleSort("dueDate")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
+            <button onClick={() => toggleSort("dueDate")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
               Due Date <SortIcon active={sortField === "dueDate"} dir={sortDir} />
             </button>
           </Th>
           <Th>
-            <button onClick={() => toggleSort("submission")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
+            <button onClick={() => toggleSort("submission")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
               Submissions <SortIcon active={sortField === "submission"} dir={sortDir} />
             </button>
           </Th>

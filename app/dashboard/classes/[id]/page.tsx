@@ -192,12 +192,12 @@ export default async function ClassRosterPage({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800">
-                  <th className="py-3 pl-4 pr-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Student</th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Gender</th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Phone</th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Attendance</th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Fee Status</th>
-                  <th className="py-3 pl-3 pr-4 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Actions</th>
+                  <th className="py-3 pl-4 pr-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Student</th>
+                  <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Gender</th>
+                  <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Phone</th>
+                  <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Attendance</th>
+                  <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Fee Status</th>
+                  <th className="py-3 pl-3 pr-4 text-right text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-zinc-700/50">

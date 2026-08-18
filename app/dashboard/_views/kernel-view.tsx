@@ -214,7 +214,7 @@ export async function KernelView() {
               <thead>
                 <tr className="border-b border-gray-200 dark:border-zinc-800">
                   {["Institution", "Contact", "Location", "Email", "Status", "Date"].map((h) => (
-                    <th key={h} className={`py-3 text-xs font-semibold uppercase tracking-wider text-primary-500 dark:text-zinc-500 ${h === "Institution" ? "pl-4 pr-3" : h === "Date" ? "pl-3 pr-4" : "px-3"}`}>
+                    <th key={h} className={`py-3 text-[11px] font-semibold uppercase tracking-wider text-primary-500 dark:text-zinc-500 ${h === "Institution" ? "pl-4 pr-3" : h === "Date" ? "pl-3 pr-4" : "px-3"}`}>
                       {h}
                     </th>
                   ))}

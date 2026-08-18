@@ -165,10 +165,10 @@ export default function ParentsClient({ initialParents }: { initialParents: Pare
         )}
       >
         <TableHead>
-          <Th position="first"><button onClick={()=>toggleSort("name")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Parent <SortIcon active={sortField==="name"} dir={sortDir}/></button></Th>
+          <Th position="first"><button onClick={()=>toggleSort("name")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Parent <SortIcon active={sortField==="name"} dir={sortDir}/></button></Th>
           <Th>Contact</Th>
-          <Th><button onClick={()=>toggleSort("children")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Children <SortIcon active={sortField==="children"} dir={sortDir}/></button></Th>
-          <Th><button onClick={()=>toggleSort("feeStatus")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Fee Status <SortIcon active={sortField==="feeStatus"} dir={sortDir}/></button></Th>
+          <Th><button onClick={()=>toggleSort("children")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Children <SortIcon active={sortField==="children"} dir={sortDir}/></button></Th>
+          <Th><button onClick={()=>toggleSort("feeStatus")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Fee Status <SortIcon active={sortField==="feeStatus"} dir={sortDir}/></button></Th>
           <Th position="last" align="right">Actions</Th>
         </TableHead>
         <TableBody>

@@ -854,9 +854,9 @@ function PermissionsTab({ initialTemplates }: { initialTemplates: Template[] }) 
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-100 dark:border-zinc-700/50">
-                    <th className="pb-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Module</th>
-                    <th className="pb-3 w-24 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">View</th>
-                    <th className="pb-3 w-24 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Manage</th>
+                    <th className="pb-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Module</th>
+                    <th className="pb-3 w-24 text-center text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">View</th>
+                    <th className="pb-3 w-24 text-center text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Manage</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -964,9 +964,9 @@ function NotificationsTab({ prefs, profileId }: { prefs: NotifState | null; prof
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 dark:border-zinc-700/50">
-                <th className="pb-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Event</th>
-                <th className="pb-3 w-20 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Email</th>
-                <th className="pb-3 w-20 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">SMS</th>
+                <th className="pb-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Event</th>
+                <th className="pb-3 w-20 text-center text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Email</th>
+                <th className="pb-3 w-20 text-center text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">SMS</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-zinc-700/50">

@@ -344,13 +344,13 @@ export default function CertificatesClient({
         }
       >
         <TableHead>
-          <Th position="first"><button onClick={()=>toggleSort("studentName")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Student <SortIcon active={sortField==="studentName"} dir={sortDir}/></button></Th>
-          <Th><button onClick={()=>toggleSort("class")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Class <SortIcon active={sortField==="class"} dir={sortDir}/></button></Th>
-          <Th><button onClick={()=>toggleSort("certType")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Certificate <SortIcon active={sortField==="certType"} dir={sortDir}/></button></Th>
+          <Th position="first"><button onClick={()=>toggleSort("studentName")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Student <SortIcon active={sortField==="studentName"} dir={sortDir}/></button></Th>
+          <Th><button onClick={()=>toggleSort("class")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Class <SortIcon active={sortField==="class"} dir={sortDir}/></button></Th>
+          <Th><button onClick={()=>toggleSort("certType")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Certificate <SortIcon active={sortField==="certType"} dir={sortDir}/></button></Th>
           <Th>Purpose</Th>
-          <Th><button onClick={()=>toggleSort("requestedOn")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Requested <SortIcon active={sortField==="requestedOn"} dir={sortDir}/></button></Th>
+          <Th><button onClick={()=>toggleSort("requestedOn")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Requested <SortIcon active={sortField==="requestedOn"} dir={sortDir}/></button></Th>
           <Th>Issued On</Th>
-          <Th><button onClick={()=>toggleSort("status")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Status <SortIcon active={sortField==="status"} dir={sortDir}/></button></Th>
+          <Th><button onClick={()=>toggleSort("status")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Status <SortIcon active={sortField==="status"} dir={sortDir}/></button></Th>
           <Th position="last" align="right">Actions</Th>
         </TableHead>
         <TableBody>

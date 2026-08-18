@@ -175,12 +175,12 @@ function RoomsTab({ rooms, blocks, onView, onEdit }: { rooms: HostelRoom[]; bloc
         }
       >
         <TableHead>
-          <Th position="first"><button onClick={() => toggleSort("roomNo")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Room <SortIcon active={sortField === "roomNo"} dir={sortDir} /></button></Th>
-          <Th><button onClick={() => toggleSort("block")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Block / Floor <SortIcon active={sortField === "block"} dir={sortDir} /></button></Th>
-          <Th><button onClick={() => toggleSort("type")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Type <SortIcon active={sortField === "type"} dir={sortDir} /></button></Th>
+          <Th position="first"><button onClick={() => toggleSort("roomNo")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Room <SortIcon active={sortField === "roomNo"} dir={sortDir} /></button></Th>
+          <Th><button onClick={() => toggleSort("block")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Block / Floor <SortIcon active={sortField === "block"} dir={sortDir} /></button></Th>
+          <Th><button onClick={() => toggleSort("type")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Type <SortIcon active={sortField === "type"} dir={sortDir} /></button></Th>
           <Th>Warden</Th>
           <Th>Amenities</Th>
-          <Th><button onClick={() => toggleSort("occupancy")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Occupancy <SortIcon active={sortField === "occupancy"} dir={sortDir} /></button></Th>
+          <Th><button onClick={() => toggleSort("occupancy")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Occupancy <SortIcon active={sortField === "occupancy"} dir={sortDir} /></button></Th>
           <Th>Status</Th>
           <Th position="last" align="right">Actions</Th>
         </TableHead>
@@ -340,13 +340,13 @@ function StudentsTab({ students, blocks, onEdit }: { students: HostelStudent[]; 
         }
       >
         <TableHead>
-          <Th position="first"><button onClick={() => toggleSort("name")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Student <SortIcon active={sortField === "name"} dir={sortDir} /></button></Th>
-          <Th><button onClick={() => toggleSort("class")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Class <SortIcon active={sortField === "class"} dir={sortDir} /></button></Th>
-          <Th><button onClick={() => toggleSort("room")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Room <SortIcon active={sortField === "room"} dir={sortDir} /></button></Th>
+          <Th position="first"><button onClick={() => toggleSort("name")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Student <SortIcon active={sortField === "name"} dir={sortDir} /></button></Th>
+          <Th><button onClick={() => toggleSort("class")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Class <SortIcon active={sortField === "class"} dir={sortDir} /></button></Th>
+          <Th><button onClick={() => toggleSort("room")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Room <SortIcon active={sortField === "room"} dir={sortDir} /></button></Th>
           <Th>Parent / Guardian</Th>
           <Th>Join Date</Th>
           <Th>Monthly Fee</Th>
-          <Th><button onClick={() => toggleSort("feeStatus")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Fee Status <SortIcon active={sortField === "feeStatus"} dir={sortDir} /></button></Th>
+          <Th><button onClick={() => toggleSort("feeStatus")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Fee Status <SortIcon active={sortField === "feeStatus"} dir={sortDir} /></button></Th>
           <Th position="last" align="right">Actions</Th>
         </TableHead>
         <TableBody>

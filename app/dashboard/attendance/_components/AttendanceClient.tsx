@@ -5,6 +5,7 @@ import {
   UserCheck, UserX, Clock, TrendingUp,
   ChevronLeft, ChevronRight, ChevronDown, Download,
   ArrowLeft, CheckSquare, Users,
+  LayoutGrid, Search, X, BarChart3, GraduationCap,
 } from "lucide-react";
 import { deptColor } from "../../staff/_data/staff";
 import { Table, TableHead, TableBody, Th, Td, Tr } from "@/components/ui/data-table";
@@ -27,6 +28,9 @@ export interface AttendanceStudent {
   name:       string;
   rollNo:     string;
   attendance: number;
+  sectionId:  string;
+  classNum:   string;
+  section:    string;
 }
 
 export interface AttendanceStaff {
@@ -106,6 +110,174 @@ function StatsRow({ present, absent, late, rate }: { present: number; absent: nu
   );
 }
 
+function StaffStatsRow({ present, absent, late, onLeave }: { present: number; absent: number; late: number; onLeave: number }) {
+  const items = [
+    { label:"Present",  value:present,  icon:UserCheck,  accent:"text-emerald-500 bg-emerald-500/10" },
+    { label:"Absent",   value:absent,   icon:UserX,      accent:"text-red-500     bg-red-500/10"     },
+    { label:"Late",     value:late,     icon:Clock,      accent:"text-amber-500   bg-amber-500/10"   },
+    { label:"On Leave", value:onLeave,  icon:TrendingUp, accent:"text-purple-500  bg-purple-500/10"  },
+  ];
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {items.map((s)=>(
+        <div key={s.label} className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-4 flex items-center gap-4">
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${s.accent}`}><s.icon className="h-5 w-5"/></div>
+          <div><p className="text-xl font-bold text-gray-900 dark:text-zinc-50">{s.value}</p><p className="text-xs text-gray-500 dark:text-zinc-400">{s.label}</p></div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Overview tab ──────────────────────────────────────────────────────────────
+
+function TrendBars({ history }: { history: { date: string; rate: number }[] }) {
+  if (history.every((h) => h.rate === 0)) {
+    return <p className="py-10 text-center text-sm text-gray-400 dark:text-zinc-500">No attendance history yet</p>;
+  }
+  return (
+    <div className="flex items-end gap-1.5 h-36">
+      {history.map((h, i) => {
+        const barColor = h.rate >= 90 ? "bg-emerald-500" : h.rate >= 80 ? "bg-amber-500" : h.rate > 0 ? "bg-red-500" : "bg-gray-100 dark:bg-zinc-800";
+        const showLabel = i === 0 || i === history.length - 1 || i % 3 === 0;
+        const label = new Date(h.date + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+        return (
+          <div key={h.date} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end" title={`${label}: ${h.rate}%`}>
+            <div className="w-full flex-1 flex items-end">
+              <div className={`w-full rounded-t-md ${barColor} transition-all`} style={{ height: `${Math.max(h.rate, 3)}%` }} />
+            </div>
+            <span className="text-[9px] text-gray-400 dark:text-zinc-500 whitespace-nowrap">{showLabel ? label : ""}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ClassWiseBars({ sections, studentsBySection, statusMap }: { sections: AttendanceSec[]; studentsBySection: Record<string, AttendanceStudent[]>; statusMap: Record<string, AttendanceStatus> }) {
+  if (sections.length === 0) {
+    return <p className="py-10 text-center text-sm text-gray-400 dark:text-zinc-500">No classes yet</p>;
+  }
+  return (
+    <div className="space-y-3">
+      {sections.map((sec) => {
+        const students = studentsBySection[sec.id] ?? [];
+        const present  = students.filter((st) => statusMap[st.id] === "present" || statusMap[st.id] === "late").length;
+        const total    = students.length;
+        const rate     = total > 0 ? Math.round((present / total) * 100) : 0;
+        return (
+          <div key={sec.id} className="flex items-center gap-3">
+            <span className="w-16 shrink-0 text-xs font-medium text-gray-700 dark:text-zinc-300">{sec.classNum}–{sec.section}</span>
+            <div className="flex-1 h-2 rounded-full bg-gray-100 dark:bg-zinc-700"><div className={`h-2 rounded-full ${rateBar(rate)}`} style={{ width: `${rate}%` }} /></div>
+            <span className={`w-10 text-right text-xs font-semibold tabular-nums ${rateColor(rate)}`}>{rate}%</span>
+            <span className="w-16 text-right text-[11px] text-gray-400 dark:text-zinc-500">{present}/{total}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+interface DonutSlice { key: string; label: string; value: number; color: string }
+
+function StatusDonut({ slices, centerLabel }: { slices: DonutSlice[]; centerLabel: string }) {
+  const total = slices.reduce((s, d) => s + d.value, 0);
+  const R = 48, cx = 64, cy = 64;
+  const circ = 2 * Math.PI * R;
+
+  if (total === 0) return <p className="py-10 text-center text-sm text-gray-400 dark:text-zinc-500">No data yet</p>;
+
+  let offset = circ * 0.25;
+  const arcs = slices.filter((s) => s.value > 0).map((s) => {
+    const dash = (s.value / total) * circ;
+    const a = { ...s, dash, offset };
+    offset += dash;
+    return a;
+  });
+
+  return (
+    <div className="flex items-center gap-6">
+      <div className="relative shrink-0">
+        <svg width="128" height="128" viewBox="0 0 128 128">
+          {arcs.map((a) => (
+            <circle key={a.key} cx={cx} cy={cy} r={R} fill="none"
+              stroke={a.color} strokeWidth="18"
+              strokeDasharray={`${Math.max(a.dash - 2, 0)} ${circ - a.dash + 2}`}
+              strokeDashoffset={-a.offset + circ * 0.25}
+              strokeLinecap="round"
+            />
+          ))}
+          <text x={cx} y={cy - 2} textAnchor="middle" fontSize="20" fontWeight="bold" fill="currentColor" className="fill-gray-900 dark:fill-zinc-50">{total}</text>
+          <text x={cx} y={cy + 14} textAnchor="middle" fontSize="8" fill="currentColor" className="fill-gray-400 dark:fill-zinc-500">{centerLabel}</text>
+        </svg>
+      </div>
+      <div className="grid gap-2 flex-1">
+        {slices.map((s) => (
+          <div key={s.key} className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: s.color }} />
+            <span className="text-xs text-gray-600 dark:text-zinc-400">{s.label}</span>
+            <span className="ml-auto text-xs font-semibold tabular-nums text-gray-800 dark:text-zinc-200">{s.value}</span>
+            <span className="w-9 text-right text-[11px] tabular-nums text-gray-400 dark:text-zinc-500">{total ? Math.round((s.value / total) * 100) : 0}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function OverviewTab({
+  history, sections, studentsBySection, statusMap, staff, staffStatusMap, allowStaffTab,
+}: {
+  history: { date: string; rate: number }[];
+  sections: AttendanceSec[];
+  studentsBySection: Record<string, AttendanceStudent[]>;
+  statusMap: Record<string, AttendanceStatus>;
+  staff: AttendanceStaff[];
+  staffStatusMap: Record<string, StaffAttendanceStatus>;
+  allowStaffTab: boolean;
+}) {
+  const activeStaff = useMemo(() => staff.filter((s) => s.status !== "inactive"), [staff]);
+  const staffSlices: DonutSlice[] = [
+    { key: "present",  label: "Present",  value: activeStaff.filter((s) => staffStatusMap[s.id] === "present").length,  color: "#10b981" },
+    { key: "late",     label: "Late",     value: activeStaff.filter((s) => staffStatusMap[s.id] === "late").length,     color: "#f59e0b" },
+    { key: "absent",   label: "Absent",   value: activeStaff.filter((s) => staffStatusMap[s.id] === "absent").length,   color: "#ef4444" },
+    { key: "on_leave", label: "On Leave", value: activeStaff.filter((s) => staffStatusMap[s.id] === "on_leave").length, color: "#a855f7" },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5">
+          <div className="mb-5 flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-gray-400 dark:text-zinc-500" />
+            <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Attendance Rate Trend</p>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-zinc-400 mb-4 -mt-3">Last {history.length} days · students</p>
+          <TrendBars history={history} />
+        </div>
+
+        <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5">
+          <div className="mb-5 flex items-center gap-2">
+            <GraduationCap className="h-4 w-4 text-gray-400 dark:text-zinc-500" />
+            <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Class-wise Today</p>
+          </div>
+          <ClassWiseBars sections={sections} studentsBySection={studentsBySection} statusMap={statusMap} />
+        </div>
+      </div>
+
+      {allowStaffTab && (
+        <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5">
+          <div className="mb-5 flex items-center gap-2">
+            <UserCheck className="h-4 w-4 text-gray-400 dark:text-zinc-500" />
+            <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Staff Attendance Today</p>
+          </div>
+          <StatusDonut slices={staffSlices} centerLabel="Staff" />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function OverviewTable({
   sections, studentsBySection, statusMap, onView,
 }: {
@@ -119,10 +291,10 @@ function OverviewTable({
       <TableHead>
         <Th position="first">Section</Th>
         <Th>Class Teacher</Th>
-        <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Total</th>
-        <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Present</th>
-        <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-red-500 dark:text-red-400">Absent</th>
-        <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">Late</th>
+        <th className="px-3 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Total</th>
+        <th className="px-3 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Present</th>
+        <th className="px-3 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-red-500 dark:text-red-400">Absent</th>
+        <th className="px-3 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">Late</th>
         <Th>Rate</Th>
         <Th position="last" align="right">Action</Th>
       </TableHead>
@@ -251,6 +423,75 @@ function DetailView({
   );
 }
 
+function StudentRoster({
+  studentsBySection, statusMap, onStatusChange, query, classFilter,
+}: {
+  studentsBySection: Record<string, AttendanceStudent[]>;
+  statusMap: Record<string, AttendanceStatus>;
+  onStatusChange: (id: string, sectionId: string, s: AttendanceStatus) => void;
+  query: string;
+  classFilter: string;
+}) {
+  const allStudents = useMemo(() => Object.values(studentsBySection).flat(), [studentsBySection]);
+
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase();
+    return allStudents.filter((st) => {
+      const matchQ = !q || st.name.toLowerCase().includes(q) || st.rollNo.toLowerCase().includes(q);
+      const matchC = classFilter === "all" || st.sectionId === classFilter;
+      return matchQ && matchC;
+    }).sort((a, b) => a.name.localeCompare(b.name));
+  }, [allStudents, query, classFilter]);
+
+  const counts = useMemo(() => ({
+    present: filtered.filter((st) => statusMap[st.id] === "present").length,
+    absent:  filtered.filter((st) => statusMap[st.id] === "absent").length,
+    late:    filtered.filter((st) => statusMap[st.id] === "late").length,
+  }), [filtered, statusMap]);
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
+        {filtered.length === 0 ? (
+          <div className="py-16 text-center"><Users className="h-8 w-8 text-gray-300 dark:text-zinc-600 mx-auto mb-2" /><p className="text-sm text-gray-500 dark:text-zinc-400">No students match this search</p></div>
+        ) : (
+          <>
+            <div className="divide-y divide-gray-100 dark:divide-zinc-700/50">
+              {filtered.map((st) => {
+                const status = statusMap[st.id] ?? "present";
+                return (
+                  <div key={st.id} className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 dark:hover:bg-zinc-700/30 transition-colors">
+                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ${uuidAvatarColor(st.id)}`}>{nameInitials(st.name)}</div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-gray-900 dark:text-zinc-100 leading-tight">{st.name}</p>
+                      <p className="text-xs text-gray-400 dark:text-zinc-500">{st.rollNo} · Class {st.classNum}–{st.section}</p>
+                    </div>
+                    <span className={`sm:hidden inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[status]}`}>{STATUS[status].label}</span>
+                    <div className="hidden sm:flex items-center gap-1">
+                      {(["present","late","absent"] as AttendanceStatus[]).map((s)=>(
+                        <button key={s} onClick={()=>onStatusChange(st.id,st.sectionId,s)} className={`h-7 rounded-lg border px-3 text-xs font-medium transition-colors ${status===s?STATUS[s].active:STATUS[s].ghost}`}>{STATUS[s].label}</button>
+                      ))}
+                    </div>
+                    <span className={`hidden sm:inline text-xs font-semibold tabular-nums w-10 text-right ${st.attendance>=90?"text-emerald-600 dark:text-emerald-400":st.attendance>=75?"text-amber-600 dark:text-amber-400":"text-red-600 dark:text-red-400"}`}>{st.attendance}%</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-zinc-700/50">
+              <p className="text-xs text-gray-400 dark:text-zinc-500">Showing <span className="font-medium text-gray-700 dark:text-zinc-300">{filtered.length}</span> of <span className="font-medium text-gray-700 dark:text-zinc-300">{allStudents.length}</span> students</p>
+              <div className="flex items-center gap-3 text-xs">
+                <span className="text-emerald-600 dark:text-emerald-400 font-medium">{counts.present} present</span>
+                <span className="text-red-600 dark:text-red-400 font-medium">{counts.absent} absent</span>
+                <span className="text-amber-600 dark:text-amber-400 font-medium">{counts.late} late</span>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function StaffAttendanceView({ staff, dateStr, staffStatusMap, setStaffStatus }: {
   staff: AttendanceStaff[];
   dateStr: string;
@@ -259,6 +500,7 @@ function StaffAttendanceView({ staff, dateStr, staffStatusMap, setStaffStatus }:
 }) {
   const activeStaff = useMemo(()=>staff.filter((s)=>s.status!=="inactive"),[staff]);
   const departments = useMemo(()=>["all",...Array.from(new Set(activeStaff.map((s)=>s.department))).sort()],[activeStaff]);
+  const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all"|"teaching"|"non_teaching">("all");
   const [deptFilter, setDeptFilter] = useState("all");
 
@@ -273,28 +515,23 @@ function StaffAttendanceView({ staff, dateStr, staffStatusMap, setStaffStatus }:
     onLeave: activeStaff.filter((s)=>staffStatusMap[s.id]==="on_leave").length,
   }),[activeStaff,staffStatusMap]);
 
-  const filtered = useMemo(()=>activeStaff.filter((s)=>{
-    const matchType = typeFilter==="all"||s.type===typeFilter;
-    const matchDept = deptFilter==="all"||s.department===deptFilter;
-    return matchType&&matchDept;
-  }),[activeStaff,typeFilter,deptFilter]);
+  const filtered = useMemo(()=>{
+    const q = query.toLowerCase();
+    return activeStaff.filter((s)=>{
+      const matchQ = !q || s.name.toLowerCase().includes(q) || s.employeeId.toLowerCase().includes(q);
+      const matchType = typeFilter==="all"||s.type===typeFilter;
+      const matchDept = deptFilter==="all"||s.department===deptFilter;
+      return matchQ&&matchType&&matchDept;
+    });
+  },[activeStaff,query,typeFilter,deptFilter]);
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          {label:"Present",value:counts.present, color:"text-emerald-600 dark:text-emerald-400",bg:"bg-emerald-500/10",icon:UserCheck },
-          {label:"Absent", value:counts.absent,  color:"text-red-600     dark:text-red-400",    bg:"bg-red-500/10",    icon:UserX      },
-          {label:"Late",   value:counts.late,    color:"text-amber-600   dark:text-amber-400",  bg:"bg-amber-500/10",  icon:Clock      },
-          {label:"On Leave",value:counts.onLeave,color:"text-purple-600  dark:text-purple-400", bg:"bg-purple-500/10", icon:TrendingUp },
-        ].map((s)=>(
-          <div key={s.label} className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-4 flex items-center gap-4">
-            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${s.bg}`}><s.icon className={`h-5 w-5 ${s.color}`}/></div>
-            <div><p className={`text-xl font-bold ${s.color}`}>{s.value}</p><p className="text-xs text-gray-500 dark:text-zinc-400">{s.label}</p></div>
-          </div>
-        ))}
-      </div>
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+        <div className="relative flex-1 min-w-0 w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500 pointer-events-none" />
+          <input value={query} onChange={(e)=>setQuery(e.target.value)} placeholder="Search staff or employee ID…" className="h-8 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-8 pr-3 text-xs text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
+        </div>
         <div className="flex items-center gap-1">
           {(["all","teaching","non_teaching"] as const).map((t)=>(
             <button key={t} onClick={()=>setTypeFilter(t)} className={`h-8 rounded-lg px-3 text-xs font-medium capitalize transition-colors ${typeFilter===t?"bg-primary-500 text-white shadow-sm":"border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
@@ -314,15 +551,6 @@ function StaffAttendanceView({ staff, dateStr, staffStatusMap, setStaffStatus }:
         </div>
       </div>
       <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-zinc-700/50">
-          <p className="text-xs text-gray-400 dark:text-zinc-500">Showing <span className="font-medium text-gray-700 dark:text-zinc-300">{filtered.length}</span> of <span className="font-medium text-gray-700 dark:text-zinc-300">{activeStaff.length}</span> staff members</p>
-          <div className="flex items-center gap-3 text-xs">
-            <span className="text-emerald-600 dark:text-emerald-400 font-medium">{counts.present} present</span>
-            <span className="text-red-600 dark:text-red-400 font-medium">{counts.absent} absent</span>
-            <span className="text-amber-600 dark:text-amber-400 font-medium">{counts.late} late</span>
-            <span className="text-purple-600 dark:text-purple-400 font-medium">{counts.onLeave} on leave</span>
-          </div>
-        </div>
         <div className="divide-y divide-gray-100 dark:divide-zinc-700/50">
           {filtered.map((st)=>{
             const status   = staffStatusMap[st.id] ?? "present";
@@ -348,6 +576,15 @@ function StaffAttendanceView({ staff, dateStr, staffStatusMap, setStaffStatus }:
             );
           })}
         </div>
+        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-zinc-700/50">
+          <p className="text-xs text-gray-400 dark:text-zinc-500">Showing <span className="font-medium text-gray-700 dark:text-zinc-300">{filtered.length}</span> of <span className="font-medium text-gray-700 dark:text-zinc-300">{activeStaff.length}</span> staff members</p>
+          <div className="flex items-center gap-3 text-xs">
+            <span className="text-emerald-600 dark:text-emerald-400 font-medium">{counts.present} present</span>
+            <span className="text-red-600 dark:text-red-400 font-medium">{counts.absent} absent</span>
+            <span className="text-amber-600 dark:text-amber-400 font-medium">{counts.late} late</span>
+            <span className="text-purple-600 dark:text-purple-400 font-medium">{counts.onLeave} on leave</span>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -359,6 +596,7 @@ export default function AttendanceClient({
   initialStaff,
   todayAttendance,
   todayStaffAttendance,
+  attendanceHistory,
   allowStaffTab = true,
 }: {
   initialSections:          AttendanceSec[];
@@ -366,9 +604,13 @@ export default function AttendanceClient({
   initialStaff:             AttendanceStaff[];
   todayAttendance:          Record<string, AttendanceStatus>;
   todayStaffAttendance:     Record<string, StaffAttendanceStatus>;
+  attendanceHistory:        { date: string; rate: number }[];
   allowStaffTab?:           boolean;
 }) {
-  const [tab,        setTab]     = useState<"students"|"staff">("students");
+  const [tab,        setTab]     = useState<"overview"|"students"|"staff">("overview");
+  const [studentsView, setStudentsView] = useState<"class"|"students">("class");
+  const [studentQuery, setStudentQuery] = useState("");
+  const [studentClassFilter, setStudentClassFilter] = useState("all");
   const [dateStr,    setDate]    = useState(todayStr);
   const [view,       setView]    = useState<"overview"|"detail">("overview");
   const [sectionId,  setSectionId] = useState("");
@@ -402,14 +644,15 @@ export default function AttendanceClient({
     setStaffStatusMap(smap);
   }
 
-  function handleTabChange(t: "students"|"staff") { setTab(t); setView("overview"); }
+  function handleTabChange(t: "overview"|"students"|"staff") { setTab(t); setView("overview"); }
+  function handleStudentsViewChange(v: "class"|"students") { setStudentsView(v); setView("overview"); }
   function openDetail(id: string) { setSectionId(id); setView("detail"); }
   function backToOverview()       { setView("overview"); }
 
-  const setStudentStatus  = useCallback((id: string, s: AttendanceStatus) => {
+  const setStudentStatus  = useCallback((id: string, secId: string, s: AttendanceStatus) => {
     setStatusMap((prev)=>({...prev,[id]:s}));
-    if (dateStr === todayStr()) void markStudentAttendance(id, sectionId, dateStr, s);
-  },[dateStr, sectionId]);
+    if (dateStr === todayStr()) void markStudentAttendance(id, secId, dateStr, s);
+  },[dateStr]);
 
   const setStaffStatusFn  = useCallback((id: string, s: StaffAttendanceStatus) => {
     setStaffStatusMap((prev)=>({...prev,[id]:s}));
@@ -436,7 +679,33 @@ export default function AttendanceClient({
     return {present,absent,late,rate};
   },[initialStudentsBySection,statusMap]);
 
+  const staffStats = useMemo(()=>{
+    const active = initialStaff.filter((s)=>s.status!=="inactive");
+    return {
+      present: active.filter((s)=>staffStatusMap[s.id]==="present").length,
+      absent:  active.filter((s)=>staffStatusMap[s.id]==="absent").length,
+      late:    active.filter((s)=>staffStatusMap[s.id]==="late").length,
+      onLeave: active.filter((s)=>staffStatusMap[s.id]==="on_leave").length,
+    };
+  },[initialStaff,staffStatusMap]);
+
   const activeSec = initialSections.find((s)=>s.id===sectionId);
+
+  const filteredSections = useMemo(() => {
+    const q = studentQuery.toLowerCase();
+    return initialSections.filter((sec) => {
+      const matchQ = !q || `${sec.classNum}${sec.section}`.toLowerCase().includes(q) || sec.teacher.toLowerCase().includes(q);
+      const matchC = studentClassFilter === "all" || sec.id === studentClassFilter;
+      return matchQ && matchC;
+    });
+  }, [initialSections, studentQuery, studentClassFilter]);
+
+  const activeSecStudents = useMemo(() => {
+    const students = initialStudentsBySection[sectionId] ?? [];
+    const q = studentQuery.toLowerCase();
+    if (!q) return students;
+    return students.filter((st) => st.name.toLowerCase().includes(q) || st.rollNo.toLowerCase().includes(q));
+  }, [initialStudentsBySection, sectionId, studentQuery]);
 
   return (
     <div className="w-full px-6 py-6 space-y-5">
@@ -451,26 +720,78 @@ export default function AttendanceClient({
         </div>
       </div>
 
-      {allowStaffTab && (
-      <div className="flex rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-0.5 w-fit">
-        {(["students","staff"] as const).map((t)=>(
-          <button key={t} onClick={()=>handleTabChange(t)} className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${tab===t?"bg-primary-500 text-white shadow-sm":"text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
-            {t==="students"?<Users className="h-3.5 w-3.5"/>:<UserCheck className="h-3.5 w-3.5"/>}
-            {t==="students"?"Students":"Staff"}
+      {tab==="staff"?<StaffStatsRow {...staffStats}/>:<StatsRow {...schoolStats}/>}
+
+      <div className="flex gap-1 border-b border-gray-200 dark:border-zinc-800">
+        <button onClick={()=>handleTabChange("overview")} className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${tab==="overview"?"border-primary-500 text-primary-600 dark:text-primary-400":"border-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 hover:border-gray-300 dark:hover:border-zinc-600"}`}>
+          <BarChart3 className="h-4 w-4" />Overview
+        </button>
+        <button onClick={()=>handleTabChange("students")} className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${tab==="students"?"border-primary-500 text-primary-600 dark:text-primary-400":"border-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 hover:border-gray-300 dark:hover:border-zinc-600"}`}>
+          <Users className="h-4 w-4" />Students
+        </button>
+        {allowStaffTab && (
+          <button onClick={()=>handleTabChange("staff")} className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${tab==="staff"?"border-primary-500 text-primary-600 dark:text-primary-400":"border-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 hover:border-gray-300 dark:hover:border-zinc-600"}`}>
+            <UserCheck className="h-4 w-4" />Staff
           </button>
-        ))}
+        )}
       </div>
+
+      {tab==="overview" && (
+        <OverviewTab
+          history={attendanceHistory}
+          sections={initialSections}
+          studentsBySection={initialStudentsBySection}
+          statusMap={statusMap}
+          staff={initialStaff}
+          staffStatusMap={staffStatusMap}
+          allowStaffTab={allowStaffTab}
+        />
       )}
 
-      {tab==="students"&&<StatsRow {...schoolStats}/>}
+      {tab==="students" && (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1 min-w-0">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-zinc-500 pointer-events-none" />
+              <input value={studentQuery} onChange={(e)=>setStudentQuery(e.target.value)} placeholder={studentsView==="class"?"Search class or teacher…":"Search student name or roll no…"} className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
+            </div>
+            {studentsView==="students" && (
+              <div className="relative">
+                <select value={studentClassFilter} onChange={(e)=>setStudentClassFilter(e.target.value)} className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+                  <option value="all">All Classes</option>
+                  {initialSections.map((sec) => <option key={sec.id} value={sec.id}>Class {sec.classNum}–{sec.section}</option>)}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+              </div>
+            )}
+            {(studentQuery || (studentsView==="students" && studentClassFilter!=="all")) && (
+              <button onClick={()=>{ setStudentQuery(""); setStudentClassFilter("all"); }} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
+                <X className="h-3.5 w-3.5" /> Clear
+              </button>
+            )}
+            <div className="sm:ml-auto flex rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-0.5 w-fit">
+              {(["class","students"] as const).map((v)=>(
+                <button key={v} onClick={()=>handleStudentsViewChange(v)} className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${studentsView===v?"bg-primary-500 text-white shadow-sm":"text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
+                  {v==="class"?<LayoutGrid className="h-3.5 w-3.5"/>:<Users className="h-3.5 w-3.5"/>}
+                  {v==="class"?"Class":"Students"}
+                </button>
+              ))}
+            </div>
+          </div>
 
-      {tab==="students"?(
-        view==="overview"?(
-          <OverviewTable sections={initialSections} studentsBySection={initialStudentsBySection} statusMap={statusMap} onView={openDetail}/>
-        ):activeSec?(
-          <DetailView sec={activeSec} students={initialStudentsBySection[sectionId]??[]} dateStr={dateStr} statusMap={statusMap} onStatusChange={setStudentStatus} onMarkAllPresent={markSectionAllPresent} onBack={backToOverview}/>
-        ):null
-      ):(
+          {studentsView==="class"?(
+            view==="overview"?(
+              <OverviewTable sections={filteredSections} studentsBySection={initialStudentsBySection} statusMap={statusMap} onView={openDetail}/>
+            ):activeSec?(
+              <DetailView sec={activeSec} students={activeSecStudents} dateStr={dateStr} statusMap={statusMap} onStatusChange={(id,s)=>setStudentStatus(id,sectionId,s)} onMarkAllPresent={markSectionAllPresent} onBack={backToOverview}/>
+            ):null
+          ):(
+            <StudentRoster studentsBySection={initialStudentsBySection} statusMap={statusMap} onStatusChange={setStudentStatus} query={studentQuery} classFilter={studentClassFilter}/>
+          )}
+        </div>
+      )}
+
+      {tab==="staff" && allowStaffTab && (
         <StaffAttendanceView staff={initialStaff} dateStr={dateStr} staffStatusMap={staffStatusMap} setStaffStatus={setStaffStatusFn}/>
       )}
     </div>

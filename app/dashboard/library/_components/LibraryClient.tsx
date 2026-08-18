@@ -535,20 +535,20 @@ export default function LibraryClient({
       >
         <TableHead>
           <Th position="first">
-            <button onClick={() => toggleSort("title")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Book <SortIcon active={sortField === "title"} dir={sortDir} /></button>
+            <button onClick={() => toggleSort("title")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Book <SortIcon active={sortField === "title"} dir={sortDir} /></button>
           </Th>
           <Th>
-            <button onClick={() => toggleSort("category")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Category <SortIcon active={sortField === "category"} dir={sortDir} /></button>
+            <button onClick={() => toggleSort("category")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Category <SortIcon active={sortField === "category"} dir={sortDir} /></button>
           </Th>
           <Th>Copies</Th>
           <Th>
-            <button onClick={() => toggleSort("available")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Available <SortIcon active={sortField === "available"} dir={sortDir} /></button>
+            <button onClick={() => toggleSort("available")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Available <SortIcon active={sortField === "available"} dir={sortDir} /></button>
           </Th>
           <Th>
-            <button onClick={() => toggleSort("issued")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Issued <SortIcon active={sortField === "issued"} dir={sortDir} /></button>
+            <button onClick={() => toggleSort("issued")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Issued <SortIcon active={sortField === "issued"} dir={sortDir} /></button>
           </Th>
           <Th>
-            <button onClick={() => toggleSort("overdue")} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Overdue <SortIcon active={sortField === "overdue"} dir={sortDir} /></button>
+            <button onClick={() => toggleSort("overdue")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Overdue <SortIcon active={sortField === "overdue"} dir={sortDir} /></button>
           </Th>
           <Th>Status</Th>
           <Th position="last" align="right">Actions</Th>
