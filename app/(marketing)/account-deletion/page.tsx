@@ -42,7 +42,7 @@ export default function AccountDeletionPage() {
               <a href="/privacy" className="font-semibold text-primary-600 hover:text-primary-700">
                 Privacy Policy
               </a>{" "}
-              for details on what we collect and how it's used.
+              for details on what we collect and how it&apos;s used.
             </p>
           </FadeIn>
         </div>
