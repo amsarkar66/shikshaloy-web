@@ -4,7 +4,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Award, GraduationCap, TrendingUp, FileText, Send, Loader2 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
-import { getGrade, gradeStyle, scoreColor, formatDate } from "../../exams/_data/exams";
+import { scoreColor, formatDate } from "../../exams/_data/exams";
+import { resolveGrade, gradeBandStyle, type GradeBand } from "@/lib/exams/grading";
 import { CERT_TYPE_LABEL, STATUS_BADGE, formatDate as formatCertDate, type CertType } from "../../certificates/_data/certificates";
 import { requestCertificate } from "../../certificates/actions";
 
@@ -75,7 +76,7 @@ function RequestCertificateForm({ studentId }: { studentId: string }) {
   );
 }
 
-export default function ParentReportsClient({ childrenData }: { childrenData: ChildReportData[] }) {
+export default function ParentReportsClient({ childrenData, gradeBands }: { childrenData: ChildReportData[]; gradeBands: GradeBand[] }) {
   const [selectedId, setSelectedId] = useState(childrenData[0]?.id ?? "");
   const child = childrenData.find((c) => c.id === selectedId) ?? childrenData[0];
 
@@ -146,7 +147,7 @@ export default function ParentReportsClient({ childrenData }: { childrenData: Ch
                 </div>
                 <div className="text-right">
                   <p className={`text-sm font-bold ${scoreColor(g.pct)}`}>{g.total}/{g.maxTotal} ({g.pct}%)</p>
-                  <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${gradeStyle(getGrade(g.pct))}`}>{getGrade(g.pct)}</span>
+                  <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${gradeBandStyle(resolveGrade(g.pct, gradeBands), gradeBands)}`}>{resolveGrade(g.pct, gradeBands)}</span>
                 </div>
               </div>
               <div className="divide-y divide-gray-100 dark:divide-zinc-700/50">
@@ -159,7 +160,7 @@ export default function ParentReportsClient({ childrenData }: { childrenData: Ch
                       ) : (
                         <>
                           <span className={`font-semibold ${scoreColor(r.max ? (r.marks / r.max) * 100 : 0)}`}>{r.marks}/{r.max}</span>
-                          <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${gradeStyle(r.grade)}`}>{r.grade}</span>
+                          <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${gradeBandStyle(r.grade, gradeBands)}`}>{r.grade}</span>
                         </>
                       )}
                     </div>

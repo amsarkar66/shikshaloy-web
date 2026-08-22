@@ -40,7 +40,7 @@ export default async function SettingsPage() {
     needsSchoolData
       ? supabaseAdmin
           .from("schools")
-          .select("id, name, tagline, address, city, state, phone, email, website, board, logo_url")
+          .select("id, name, tagline, address, city, state, phone, email, website, board, logo_url, principal_signature_url")
           .eq("id", schoolId)
           .maybeSingle()
       : Promise.resolve({ data: null }),
@@ -83,6 +83,7 @@ export default async function SettingsPage() {
           website: schoolResult.data.website ?? "",
           board: schoolResult.data.board ?? "",
           logoUrl: schoolResult.data.logo_url ?? null,
+          signatureUrl: schoolResult.data.principal_signature_url ?? null,
         }
       : null,
     academicYears: (academicYearsResult.data ?? []).map((ay) => ({

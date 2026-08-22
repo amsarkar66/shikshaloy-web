@@ -1,11 +1,11 @@
 import { StaggerChildren, StaggerItem } from "@/components/ui/fade-in";
-import { Users, Building2, ThumbsUp, HeadphonesIcon } from "lucide-react";
+import { LayoutGrid, Boxes, ShieldCheck, Clock } from "lucide-react";
 
 const stats = [
-  { value: "10,000+", label: "Students Enrolled", icon: Users },
-  { value: "500+", label: "Schools Onboarded", icon: Building2 },
-  { value: "98%", label: "Satisfaction Rate", icon: ThumbsUp },
-  { value: "24/7", label: "Support Available", icon: HeadphonesIcon },
+  { value: "7", label: "Role-Based Dashboards", icon: LayoutGrid },
+  { value: "40+", label: "Modules — Attendance to Payroll", icon: Boxes },
+  { value: "100%", label: "Data Scoped by School (RLS)", icon: ShieldCheck },
+  { value: "24/7", label: "Live Product Demo Access", icon: Clock },
 ];
 
 export function StatsSection() {

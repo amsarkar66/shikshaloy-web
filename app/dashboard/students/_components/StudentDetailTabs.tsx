@@ -74,6 +74,7 @@ interface PersonalInfo {
   gender: string;
   address: string;
   bloodGroup: string;
+  category: string;
   religion: string;
   caste: string;
   motherTongue: string;
@@ -549,6 +550,7 @@ export function StudentSidebar({
             ["Date of Birth", personal.dob],
             ["Gender",        personal.gender],
             ["Blood Group",   personal.bloodGroup],
+            ["Category",      personal.category],
             ["Religion",      personal.religion],
             ["Caste",         personal.caste],
             ["Mother Tongue", personal.motherTongue],

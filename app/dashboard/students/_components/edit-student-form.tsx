@@ -26,6 +26,7 @@ export interface EditableStudent {
   parentPhone: string;
   parentEmail: string;
   bloodGroup: string;
+  category: string;
   religion: string;
   caste: string;
   motherTongue: string;
@@ -83,6 +84,7 @@ export function EditStudentForm({ student, sections }: { student: EditableStuden
         parentPhone: form.parentPhone || null,
         parentEmail: form.parentEmail || null,
         bloodGroup: form.bloodGroup || null,
+        category: form.category || null,
         religion: form.religion || null,
         caste: form.caste || null,
         motherTongue: form.motherTongue || null,
@@ -213,6 +215,16 @@ export function EditStudentForm({ student, sections }: { student: EditableStuden
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Caste</label>
               <input className={inputClass} value={form.caste} onChange={(e) => update("caste", e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Category</label>
+              <div className="relative">
+                <select className={selectClass} value={form.category} onChange={(e) => update("category", e.target.value)}>
+                  <option value="">Select</option>
+                  {["General", "OBC", "SC", "ST", "EWS"].map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+              </div>
             </div>
             <div className="col-span-2">
               <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Language(s) Known</label>

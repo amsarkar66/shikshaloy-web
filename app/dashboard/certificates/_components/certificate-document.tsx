@@ -2,12 +2,13 @@ import { CERT_DOCUMENT_TITLE, certificateBody, formatDate } from "../_data/certi
 import type { Cert } from "./CertificatesClient";
 
 export function CertificateDocument({
-  cert, schoolName, schoolAddress, schoolLogoUrl, academicYear,
+  cert, schoolName, schoolAddress, schoolLogoUrl, schoolSignatureUrl, academicYear,
 }: {
   cert: Cert;
   schoolName: string;
   schoolAddress: string;
   schoolLogoUrl: string | null;
+  schoolSignatureUrl: string | null;
   academicYear: string;
 }) {
   const isRejected = cert.status === "rejected";
@@ -62,7 +63,12 @@ export function CertificateDocument({
           <p className="font-medium">{formatDate(cert.issuedOn ?? cert.requestedOn)}</p>
         </div>
         <div className="text-center">
-          <div className="mb-1 h-10 w-40 border-b border-gray-500" />
+          {schoolSignatureUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={schoolSignatureUrl} alt="Principal's signature" className="mb-1 h-10 w-40 object-contain object-bottom" />
+          ) : (
+            <div className="mb-1 h-10 w-40 border-b border-gray-500" />
+          )}
           <p className="text-sm font-medium">Principal</p>
         </div>
       </div>

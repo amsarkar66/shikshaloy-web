@@ -4,14 +4,15 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  Layers, Users, BookOpen, TrendingUp,
+  Layers, Layers2, Users, BookOpen, TrendingUp,
   Search, Plus, ChevronRight, Pencil,
   GraduationCap, X, DoorOpen,
 } from "lucide-react";
 import { attendanceColor, attendanceBar, capacityColor } from "../_data/classes";
 import { FancyButton } from "@/components/ui/fancy-button";
-import { AddSectionModal, type TeacherOption } from "./AddSectionModal";
+import { AddSectionModal, type TeacherOption, type StreamOption } from "./AddSectionModal";
 import { EditSectionModal } from "./EditSectionModal";
+import { StreamsPanel } from "./StreamsPanel";
 
 export interface ClassSection {
   id:             string;
@@ -19,6 +20,8 @@ export interface ClassSection {
   section:        string;
   teacher:        string;
   classTeacherId: string | null;
+  stream:         string;
+  streamId:       string | null;
   room:           string;
   capacity:       number;
   enrolled:       number;
@@ -83,7 +86,12 @@ function SectionCard({ sec, accent, canManage, onEdit }: { sec: ClassSection; ac
             <span className={`text-sm font-bold ${accent.text}`}>{sec.classNum}<span className="text-xs">–{sec.section}</span></span>
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-bold text-gray-900 dark:text-zinc-100 leading-tight">Class {sec.classNum}–{sec.section}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-sm font-bold text-gray-900 dark:text-zinc-100 leading-tight">Class {sec.classNum}–{sec.section}</p>
+              {sec.stream && (
+                <span className="shrink-0 rounded-full bg-violet-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-violet-600 dark:text-violet-400">{sec.stream}</span>
+              )}
+            </div>
             <p className="flex items-center gap-1 text-xs text-gray-400 dark:text-zinc-500"><DoorOpen className="h-3 w-3"/>{sec.room || "No room set"}</p>
           </div>
         </div>
@@ -139,10 +147,12 @@ function SectionCard({ sec, accent, canManage, onEdit }: { sec: ClassSection; ac
 export default function ClassesClient({
   initialSections,
   teachers = [],
+  streams = [],
   canManage = true,
 }: {
   initialSections: ClassSection[];
   teachers?: TeacherOption[];
+  streams?: StreamOption[];
   canManage?: boolean;
 }) {
   const router = useRouter();
@@ -150,6 +160,7 @@ export default function ClassesClient({
   const [classFilter, setClassFilter] = useState("all");
   const [modalClassNum, setModalClassNum] = useState<string | null | undefined>(undefined);
   const [editingSection, setEditingSection] = useState<ClassSection | null>(null);
+  const [streamsPanelOpen, setStreamsPanelOpen] = useState(false);
 
   const classNums = useMemo(
     () => [...new Set(initialSections.map((s) => s.classNum))].sort((a, b) => +a - +b),
@@ -190,6 +201,9 @@ export default function ClassesClient({
           <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Manage class sections</p>
         </div>
         <div className="flex gap-2 sm:ml-auto">
+          {canManage && (
+            <button onClick={() => setStreamsPanelOpen(true)} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Layers2 className="h-3.5 w-3.5"/> Manage Streams</button>
+          )}
           {canManage && (
             <FancyButton onClick={() => setModalClassNum(null)} size="sm"><Plus className="h-4 w-4"/> Add Section</FancyButton>
           )}
@@ -259,6 +273,7 @@ export default function ClassesClient({
           onClose={() => setModalClassNum(undefined)}
           onCreated={() => router.refresh()}
           teachers={teachers}
+          streams={streams}
           lockedClassNum={modalClassNum ?? null}
         />
       )}
@@ -267,8 +282,17 @@ export default function ClassesClient({
           section={editingSection}
           teacherId={editingSection.classTeacherId}
           teachers={teachers}
+          streams={streams}
+          streamId={editingSection.streamId}
           onClose={() => setEditingSection(null)}
           onSaved={() => router.refresh()}
+        />
+      )}
+      {canManage && (
+        <StreamsPanel
+          open={streamsPanelOpen}
+          onClose={() => setStreamsPanelOpen(false)}
+          onChanged={() => router.refresh()}
         />
       )}
     </div>

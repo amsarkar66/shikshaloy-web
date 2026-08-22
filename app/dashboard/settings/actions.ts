@@ -8,6 +8,7 @@ import { getCurrentSchoolId, getCurrentSchoolIdOrThrow } from "@/lib/supabase/sc
 import { updateStaffType } from "@/lib/supabase/admin";
 import { BUILTIN_DEFAULTS, type ModulePerms } from "@/lib/settings/role-template-constants";
 import { logAuditEvent } from "@/lib/audit/log";
+import { DEFAULT_REPORT_CARD_SETTINGS, type ReportCardSettings, type ReportCardVisibleFields } from "@/lib/report-cards/templates";
 
 export async function assignStaffTemplate(
   userId: string,
@@ -56,6 +57,7 @@ export interface UpdateSchoolProfileInput {
   website: string | null;
   board: string | null;
   logoUrl: string | null;
+  signatureUrl: string | null;
   currentAcademicYearId: string | null;
 }
 
@@ -75,6 +77,7 @@ export async function updateSchoolProfile(input: UpdateSchoolProfileInput): Prom
       website: input.website || null,
       board: input.board || null,
       logo_url: input.logoUrl || null,
+      principal_signature_url: input.signatureUrl || null,
     })
     .eq("id", schoolId);
 
@@ -137,6 +140,125 @@ export async function updateAcademicSettings(input: UpdateAcademicSettingsInput)
   });
 
   revalidatePath("/dashboard/settings");
+}
+
+// ── Grade bands ───────────────────────────────────────────────────────────────
+
+export interface GradeBandRow {
+  id: string;
+  label: string;
+  minPercent: number;
+}
+
+export async function listGradeBandsForSchool(): Promise<GradeBandRow[]> {
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
+  const { data } = await supabaseAdmin
+    .from("grade_bands")
+    .select("id, label, min_percent")
+    .eq("school_id", schoolId)
+    .order("min_percent", { ascending: false });
+
+  return (data ?? []).map((b) => ({ id: b.id, label: b.label, minPercent: Number(b.min_percent) }));
+}
+
+export async function createGradeBand(label: string, minPercent: number): Promise<{ id: string }> {
+  const trimmed = label.trim();
+  if (!trimmed) throw new Error("Grade label is required.");
+  if (!Number.isFinite(minPercent) || minPercent < 0 || minPercent > 100) throw new Error("Minimum % must be between 0 and 100.");
+
+  const schoolId = await getCurrentSchoolIdOrThrow();
+  const { data, error } = await supabaseAdmin
+    .from("grade_bands")
+    .insert({ school_id: schoolId, label: trimmed, min_percent: minPercent })
+    .select("id")
+    .single();
+
+  if (error) {
+    if (error.code === "23505") throw new Error(`A grade named "${trimmed}" already exists.`);
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/dashboard/settings");
+  return { id: data.id };
+}
+
+export async function updateGradeBand(id: string, label: string, minPercent: number): Promise<void> {
+  const trimmed = label.trim();
+  if (!trimmed) throw new Error("Grade label is required.");
+  if (!Number.isFinite(minPercent) || minPercent < 0 || minPercent > 100) throw new Error("Minimum % must be between 0 and 100.");
+
+  const schoolId = await getCurrentSchoolIdOrThrow();
+  const { error } = await supabaseAdmin
+    .from("grade_bands")
+    .update({ label: trimmed, min_percent: minPercent })
+    .eq("id", id)
+    .eq("school_id", schoolId);
+
+  if (error) {
+    if (error.code === "23505") throw new Error(`A grade named "${trimmed}" already exists.`);
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/dashboard/settings");
+}
+
+export async function deleteGradeBand(id: string): Promise<void> {
+  const schoolId = await getCurrentSchoolIdOrThrow();
+  const { error } = await supabaseAdmin
+    .from("grade_bands")
+    .delete()
+    .eq("id", id)
+    .eq("school_id", schoolId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/dashboard/settings");
+}
+
+// ── Report card template ─────────────────────────────────────────────────────
+
+export async function getReportCardSettings(): Promise<ReportCardSettings> {
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
+  const { data } = await supabaseAdmin
+    .from("report_card_settings")
+    .select("template_id, visible_fields, footer_note")
+    .eq("school_id", schoolId)
+    .maybeSingle();
+
+  if (!data) return DEFAULT_REPORT_CARD_SETTINGS;
+
+  return {
+    templateId: data.template_id,
+    visibleFields: data.visible_fields as ReportCardVisibleFields,
+    footerNote: data.footer_note,
+  };
+}
+
+export async function saveReportCardSettings(settings: ReportCardSettings): Promise<void> {
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
+  const { error } = await supabaseAdmin
+    .from("report_card_settings")
+    .upsert({
+      school_id: schoolId,
+      template_id: settings.templateId,
+      visible_fields: settings.visibleFields,
+      footer_note: settings.footerNote,
+      updated_at: new Date().toISOString(),
+    });
+
+  if (error) throw new Error(`Failed to save report card template: ${error.message}`);
+
+  await logAuditEvent({
+    schoolId,
+    action: "update",
+    module: "Settings",
+    description: `Updated report card template`,
+  });
+
+  revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard/exams");
 }
 
 // ── Role templates / permissions ──────────────────────────────────────────────

@@ -4,8 +4,10 @@ import { useState } from "react";
 import { X, Loader2, ChevronDown } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { updateSection } from "../actions";
-import type { TeacherOption } from "./AddSectionModal";
+import { type TeacherOption, type StreamOption } from "./AddSectionModal";
 import type { ClassSection } from "./ClassesClient";
+
+const NEW_STREAM = "__new__";
 
 interface EditSectionModalProps {
   section:   ClassSection;
@@ -13,6 +15,8 @@ interface EditSectionModalProps {
   onSaved:   () => void;
   teachers:  TeacherOption[];
   teacherId: string | null;
+  streams?:  StreamOption[];
+  streamId:  string | null;
 }
 
 const inputClass =
@@ -21,11 +25,13 @@ const inputClass =
 const selectClass =
   "h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20";
 
-export function EditSectionModal({ section, onClose, onSaved, teachers, teacherId }: EditSectionModalProps) {
+export function EditSectionModal({ section, onClose, onSaved, teachers, teacherId, streams = [], streamId: currentStreamId }: EditSectionModalProps) {
   const [name, setName] = useState(section.section);
   const [room, setRoom] = useState(section.room);
   const [capacity, setCapacity] = useState(String(section.capacity));
   const [classTeacherId, setClassTeacherId] = useState(teacherId ?? "");
+  const [streamId, setStreamId] = useState(currentStreamId ?? "");
+  const [newStreamName, setNewStreamName] = useState("");
   const [status, setStatus] = useState<"active" | "inactive">(section.status);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +51,8 @@ export function EditSectionModal({ section, onClose, onSaved, teachers, teacherI
         room: room || null,
         capacity: capacity ? Number(capacity) : null,
         classTeacherId: classTeacherId || null,
+        streamId: streamId === NEW_STREAM ? null : streamId || null,
+        newStreamName: streamId === NEW_STREAM ? newStreamName : null,
         status,
       });
       onSaved();
@@ -104,6 +112,29 @@ export function EditSectionModal({ section, onClose, onSaved, teachers, teacherI
                 </select>
                 <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
               </div>
+            </div>
+            <div className="col-span-2">
+              <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Stream</label>
+              {streamId === NEW_STREAM ? (
+                <input
+                  className={inputClass}
+                  value={newStreamName}
+                  onChange={(e) => setNewStreamName(e.target.value)}
+                  placeholder="e.g. Science"
+                  autoFocus
+                />
+              ) : (
+                <div className="relative">
+                  <select className={selectClass} value={streamId} onChange={(e) => setStreamId(e.target.value)}>
+                    <option value="">— None —</option>
+                    {streams.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                    <option value={NEW_STREAM}>+ Add new stream…</option>
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+                </div>
+              )}
             </div>
             <div className="col-span-2">
               <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Status</label>

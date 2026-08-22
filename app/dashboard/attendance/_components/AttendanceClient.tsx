@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
+import Link from "next/link";
 import {
   UserCheck, UserX, Clock, TrendingUp,
   ChevronLeft, ChevronRight, ChevronDown, Download,
   ArrowLeft, CheckSquare, Users,
-  LayoutGrid, Search, X, BarChart3, GraduationCap,
+  LayoutGrid, Search, X, BarChart3, GraduationCap, ScanLine, Radio,
 } from "lucide-react";
 import { deptColor } from "../../staff/_data/staff";
 import { Table, TableHead, TableBody, Th, Td, Tr } from "@/components/ui/data-table";
@@ -154,30 +155,6 @@ function TrendBars({ history }: { history: { date: string; rate: number }[] }) {
   );
 }
 
-function ClassWiseBars({ sections, studentsBySection, statusMap }: { sections: AttendanceSec[]; studentsBySection: Record<string, AttendanceStudent[]>; statusMap: Record<string, AttendanceStatus> }) {
-  if (sections.length === 0) {
-    return <p className="py-10 text-center text-sm text-gray-400 dark:text-zinc-500">No classes yet</p>;
-  }
-  return (
-    <div className="space-y-3">
-      {sections.map((sec) => {
-        const students = studentsBySection[sec.id] ?? [];
-        const present  = students.filter((st) => statusMap[st.id] === "present" || statusMap[st.id] === "late").length;
-        const total    = students.length;
-        const rate     = total > 0 ? Math.round((present / total) * 100) : 0;
-        return (
-          <div key={sec.id} className="flex items-center gap-3">
-            <span className="w-16 shrink-0 text-xs font-medium text-gray-700 dark:text-zinc-300">{sec.classNum}–{sec.section}</span>
-            <div className="flex-1 h-2 rounded-full bg-gray-100 dark:bg-zinc-700"><div className={`h-2 rounded-full ${rateBar(rate)}`} style={{ width: `${rate}%` }} /></div>
-            <span className={`w-10 text-right text-xs font-semibold tabular-nums ${rateColor(rate)}`}>{rate}%</span>
-            <span className="w-16 text-right text-[11px] text-gray-400 dark:text-zinc-500">{present}/{total}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 interface DonutSlice { key: string; label: string; value: number; color: string }
 
 function StatusDonut({ slices, centerLabel }: { slices: DonutSlice[]; centerLabel: string }) {
@@ -226,10 +203,9 @@ function StatusDonut({ slices, centerLabel }: { slices: DonutSlice[]; centerLabe
 }
 
 function OverviewTab({
-  history, sections, studentsBySection, statusMap, staff, staffStatusMap, allowStaffTab,
+  history, studentsBySection, statusMap, staff, staffStatusMap, allowStaffTab,
 }: {
   history: { date: string; rate: number }[];
-  sections: AttendanceSec[];
   studentsBySection: Record<string, AttendanceStudent[]>;
   statusMap: Record<string, AttendanceStatus>;
   staff: AttendanceStaff[];
@@ -242,6 +218,13 @@ function OverviewTab({
     { key: "late",     label: "Late",     value: activeStaff.filter((s) => staffStatusMap[s.id] === "late").length,     color: "#f59e0b" },
     { key: "absent",   label: "Absent",   value: activeStaff.filter((s) => staffStatusMap[s.id] === "absent").length,   color: "#ef4444" },
     { key: "on_leave", label: "On Leave", value: activeStaff.filter((s) => staffStatusMap[s.id] === "on_leave").length, color: "#a855f7" },
+  ];
+
+  const allStudents = useMemo(() => Object.values(studentsBySection).flat(), [studentsBySection]);
+  const studentSlices: DonutSlice[] = [
+    { key: "present", label: "Present", value: allStudents.filter((st) => statusMap[st.id] === "present").length, color: "#10b981" },
+    { key: "late",    label: "Late",    value: allStudents.filter((st) => statusMap[st.id] === "late").length,    color: "#f59e0b" },
+    { key: "absent",  label: "Absent",  value: allStudents.filter((st) => statusMap[st.id] === "absent").length,  color: "#ef4444" },
   ];
 
   return (
@@ -259,9 +242,9 @@ function OverviewTab({
         <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5">
           <div className="mb-5 flex items-center gap-2">
             <GraduationCap className="h-4 w-4 text-gray-400 dark:text-zinc-500" />
-            <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Class-wise Today</p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Students Today</p>
           </div>
-          <ClassWiseBars sections={sections} studentsBySection={studentsBySection} statusMap={statusMap} />
+          <StatusDonut slices={studentSlices} centerLabel="Students" />
         </div>
       </div>
 
@@ -367,6 +350,7 @@ function DetailView({
         </div>
         <div className="sm:ml-auto flex gap-2">
           <button onClick={onMarkAllPresent} className="flex h-8 items-center gap-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-500/10 px-3 text-xs font-medium text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors"><CheckSquare className="h-3.5 w-3.5"/> Mark All Present</button>
+          <Link href={`/dashboard/attendance/qr-sheet/${sec.id}`} target="_blank" className="flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><ScanLine className="h-3.5 w-3.5"/> QR Sheet</Link>
           <button className="flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5"/> Export</button>
         </div>
       </div>
@@ -716,6 +700,8 @@ export default function AttendanceClient({
         </div>
         <div className="sm:ml-auto flex items-center gap-2 flex-wrap">
           <DateNav dateStr={dateStr} onChange={handleDateChange}/>
+          <Link href="/dashboard/attendance/scan" className="flex h-9 items-center gap-1.5 rounded-lg bg-primary-500 hover:bg-primary-600 px-3 text-sm text-white transition-colors"><ScanLine className="h-3.5 w-3.5"/> Scan</Link>
+          <Link href="/dashboard/attendance/devices" className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Radio className="h-3.5 w-3.5"/> Devices</Link>
           <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5"/> Export</button>
         </div>
       </div>
@@ -739,7 +725,6 @@ export default function AttendanceClient({
       {tab==="overview" && (
         <OverviewTab
           history={attendanceHistory}
-          sections={initialSections}
           studentsBySection={initialStudentsBySection}
           statusMap={statusMap}
           staff={initialStaff}

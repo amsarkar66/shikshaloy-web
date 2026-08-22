@@ -43,6 +43,7 @@ import {
   Gauge,
   UserCog,
   LifeBuoy,
+  DoorOpen,
 } from "lucide-react";
 
 export type NavItem = { label: string; href: string; icon: React.ElementType; badge?: "soon" };
@@ -105,6 +106,7 @@ export const NAV: Record<string, NavGroup[]> = {
         { label: "Staff",           href: "/dashboard/staff",      icon: Users },
         { label: "Leave Approvals", href: "/dashboard/leaves",     icon: CalendarOff },
         { label: "Admissions",      href: "/dashboard/admissions", icon: UserPlus },
+        { label: "Front Desk",      href: "/dashboard/front-desk", icon: DoorOpen },
       ],
     },
     {
@@ -112,6 +114,7 @@ export const NAV: Record<string, NavGroup[]> = {
       items: [
         { label: "Academic Calendar", href: "/dashboard/academic-calendar", icon: CalendarRange },
         { label: "Exams & Results",   href: "/dashboard/exams",             icon: ClipboardCheck },
+        { label: "Grades",            href: "/dashboard/grades",            icon: BarChart3 },
       ],
     },
     {
@@ -168,6 +171,7 @@ export const NAV: Record<string, NavGroup[]> = {
         { label: "Subjects",           href: "/dashboard/subjects",           icon: BookMarked },
         { label: "Timetable",          href: "/dashboard/timetable",          icon: CalendarDays },
         { label: "Exams & Results",    href: "/dashboard/exams",              icon: ClipboardCheck },
+        { label: "Grades",             href: "/dashboard/grades",             icon: BarChart3 },
         { label: "Academic Calendar",  href: "/dashboard/academic-calendar",  icon: CalendarRange },
         { label: "Certificates",       href: "/dashboard/certificates",       icon: Award },
         { label: "Homework",          href: "/dashboard/homework",           icon: FileText },
@@ -184,6 +188,7 @@ export const NAV: Record<string, NavGroup[]> = {
       group: "Admissions",
       items: [
         { label: "Admissions", href: "/dashboard/admissions", icon: UserPlus },
+        { label: "Front Desk", href: "/dashboard/front-desk", icon: DoorOpen },
       ],
     },
     {
@@ -390,7 +395,10 @@ export const STAFF_TEMPLATE_NAV: Record<string, NavGroup[]> = {
     { items: [{ label: "Overview", href: "/dashboard", icon: LayoutDashboard }] },
     {
       group: "Front Desk",
-      items: [{ label: "Admissions", href: "/dashboard/admissions", icon: UserPlus }],
+      items: [
+        { label: "Admissions", href: "/dashboard/admissions", icon: UserPlus },
+        { label: "Front Desk", href: "/dashboard/front-desk", icon: DoorOpen },
+      ],
     },
     {
       group: "Communication",

@@ -11,8 +11,9 @@ import type { User } from "@supabase/supabase-js";
 const links = [
   { label: "Features", href: "/features" },
   { label: "Pricing", href: "/pricing" },
-  { label: "About", href: "#about" },
-  { label: "Contact", href: "#contact" },
+  { label: "Live Demo", href: "/demo" },
+  { label: "About", href: "/about" },
+  { label: "Contact", href: "/contact" },
 ];
 
 function getInitials(user: User): string {

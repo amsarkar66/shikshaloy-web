@@ -48,13 +48,13 @@ export function HeroSection() {
 
         <FadeIn delay={0.3}>
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <FancyButton href="/login" size="lg">
+            <FancyButton href="/signup" size="lg">
               Start your free trial
               <ArrowUpRightIcon className="size-5" />
             </FancyButton>
-            <FancyButton variant="white" size="lg" className="group">
+            <FancyButton href="/demo" variant="white" size="lg" className="group">
               <Play className="h-4 w-4 fill-current" />
-              Watch Demo
+              Try Live Demo
             </FancyButton>
           </div>
         </FadeIn>

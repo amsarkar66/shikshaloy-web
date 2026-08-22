@@ -26,6 +26,7 @@ import {
   type Template,
 } from "@/lib/settings/role-template-constants";
 import { LogoUpload } from "../../schools/_components/logo-upload";
+import { SignatureUpload } from "../../schools/_components/signature-upload";
 import { BannerManager } from "../../schools/_components/banner-upload";
 import {
   updateSchoolProfile, updateAcademicSettings,
@@ -34,6 +35,8 @@ import {
 } from "../actions";
 import { createAcademicYear } from "@/lib/academic-years/actions";
 import { PublishKeyPanel } from "./publish-key-panel";
+import { GradeBandsPanel } from "./GradeBandsPanel";
+import { ReportCardSettingsPanel } from "./ReportCardSettingsPanel";
 import type { PublishKeyRow } from "@/lib/publish-keys/actions";
 import type { SchoolBanner } from "@/lib/schools/banner-actions";
 
@@ -55,6 +58,7 @@ export interface SettingsData {
   school: {
     name: string; tagline: string; address: string; city: string; state: string;
     phone: string; email: string; website: string; board: string; logoUrl: string | null;
+    signatureUrl: string | null;
   } | null;
   academicYears: { id: string; name: string; startDate: string; isCurrent: boolean }[];
   academicSettings: {
@@ -328,6 +332,7 @@ function SchoolTab({ school, academicYears, banners }: { school: NonNullable<Set
   const [website,  setWebsite]  = useState(school.website);
   const [board,    setBoard]    = useState(school.board);
   const [logoUrl,  setLogoUrl]  = useState<string | null>(school.logoUrl);
+  const [signatureUrl, setSignatureUrl] = useState<string | null>(school.signatureUrl);
   const [yearId,   setYearId]   = useState(academicYears.find((a) => a.isCurrent)?.id ?? academicYears[0]?.id ?? "");
   const [saved,    setSaved]    = useState(false);
   const [busy,     setBusy]     = useState(false);
@@ -365,7 +370,7 @@ function SchoolTab({ school, academicYears, banners }: { school: NonNullable<Set
     try {
       await updateSchoolProfile({
         name, tagline, address, city, state, phone, email, website, board,
-        logoUrl, currentAcademicYearId: yearId || null,
+        logoUrl, signatureUrl, currentAcademicYearId: yearId || null,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
@@ -382,6 +387,10 @@ function SchoolTab({ school, academicYears, banners }: { school: NonNullable<Set
 
       <SectionCard title="School Logo" description="Displayed in reports, certificates, and the login screen.">
         <LogoUpload value={logoUrl} onChange={setLogoUrl} />
+      </SectionCard>
+
+      <SectionCard title="Principal's Signature" description="Stamped onto certificates and admit cards in place of a blank signature line.">
+        <SignatureUpload value={signatureUrl} onChange={setSignatureUrl} />
       </SectionCard>
 
       <SectionCard title="Website Banners" description="Rotates as a slideshow on your public website homepage.">
@@ -523,6 +532,8 @@ function AcademicTab({ settings }: { settings: SettingsData["academicSettings"] 
   const [saved,        setSaved]        = useState(false);
   const [busy,          setBusy]        = useState(false);
   const [error,         setError]       = useState<string | null>(null);
+  const [gradeBandsOpen, setGradeBandsOpen] = useState(false);
+  const [reportCardOpen, setReportCardOpen] = useState(false);
 
   function toggleDay(d: string) {
     setWorkingDays((prev) => prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]);
@@ -619,7 +630,37 @@ function AcademicTab({ settings }: { settings: SettingsData["academicSettings"] 
             <Select value={passMarks} onChange={setPassMarks} options={["33","35","40","45","50"].map((v) => ({ value: v, label: `${v}%` }))} />
           </div>
         </div>
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-gray-200 dark:border-zinc-700 px-4 py-3">
+          <div>
+            <p className="text-sm font-medium text-gray-900 dark:text-zinc-100">Grade Bands</p>
+            <p className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5">The A+/A/B+ cutoffs used on report cards, gradebook, and results.</p>
+          </div>
+          <button
+            onClick={() => setGradeBandsOpen(true)}
+            className="h-9 shrink-0 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"
+          >
+            Manage
+          </button>
+        </div>
       </SectionCard>
+
+      <SectionCard title="Report Card Template">
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 dark:border-zinc-700 px-4 py-3">
+          <div>
+            <p className="text-sm font-medium text-gray-900 dark:text-zinc-100">Grade Card Design</p>
+            <p className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5">Color theme, optional fields, and footer note for the printable exam Grade Card.</p>
+          </div>
+          <button
+            onClick={() => setReportCardOpen(true)}
+            className="h-9 shrink-0 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"
+          >
+            Customize
+          </button>
+        </div>
+      </SectionCard>
+
+      <GradeBandsPanel open={gradeBandsOpen} onClose={() => setGradeBandsOpen(false)} />
+      <ReportCardSettingsPanel open={reportCardOpen} onClose={() => setReportCardOpen(false)} />
 
       <SaveBar onSave={handleSave} saved={saved} busy={busy} />
     </div>

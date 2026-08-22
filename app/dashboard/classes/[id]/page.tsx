@@ -39,6 +39,7 @@ interface SectionRow {
   academic_year_id: string | null;
   grades: { level: number | null } | null;
   profiles: { full_name: string | null } | null;
+  streams: { name: string | null } | null;
 }
 
 interface RosterStudentRow {
@@ -68,7 +69,7 @@ export default async function ClassRosterPage({
 
   const { data: sectionRow } = await supabaseAdmin
     .from("sections")
-    .select("id, name, room, capacity, avg_attendance, status, academic_year_id, grades ( level ), profiles ( full_name )")
+    .select("id, name, room, capacity, avg_attendance, status, academic_year_id, grades ( level ), profiles ( full_name ), streams ( name )")
     .eq("id", id)
     .eq("school_id", schoolId)
     .maybeSingle();
@@ -125,6 +126,11 @@ export default async function ClassRosterPage({
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Class {classNum}–{sectionName}</h1>
+                {section.streams?.name && (
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400">
+                    {section.streams.name}
+                  </span>
+                )}
                 <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${isActive?"bg-emerald-500/10 text-emerald-600 dark:text-emerald-400":"bg-zinc-100 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400"}`}>
                   {isActive?"Active":"Inactive"}
                 </span>

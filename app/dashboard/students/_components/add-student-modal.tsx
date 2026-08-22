@@ -32,7 +32,7 @@ export function AddStudentModal({ open, onClose, sections, onCreated }: AddStude
     sectionId: sections[0]?.id ?? "", admissionNo: "", phone: "", address: "",
     parentName: "", parentPhone: "", parentEmail: "",
     photoUrl: null as string | null,
-    bloodGroup: "", religion: "", caste: "", motherTongue: "", language: "",
+    bloodGroup: "", category: "", religion: "", caste: "", motherTongue: "", language: "",
     emergencyContactName: "", emergencyContactPhone: "", emergencyContactRelation: "",
     medicalConditions: "", allergies: "",
   });
@@ -51,7 +51,7 @@ export function AddStudentModal({ open, onClose, sections, onCreated }: AddStude
       fullName: "", dob: "", gender: "Male", sectionId: sections[0]?.id ?? "", admissionNo: "",
       phone: "", address: "", parentName: "", parentPhone: "", parentEmail: "",
       photoUrl: null,
-      bloodGroup: "", religion: "", caste: "", motherTongue: "", language: "",
+      bloodGroup: "", category: "", religion: "", caste: "", motherTongue: "", language: "",
       emergencyContactName: "", emergencyContactPhone: "", emergencyContactRelation: "",
       medicalConditions: "", allergies: "",
     });
@@ -92,6 +92,7 @@ export function AddStudentModal({ open, onClose, sections, onCreated }: AddStude
         parentEmail: form.parentEmail || null,
         photoUrl: form.photoUrl,
         bloodGroup: form.bloodGroup || null,
+        category: form.category || null,
         religion: form.religion || null,
         caste: form.caste || null,
         motherTongue: form.motherTongue || null,
@@ -258,6 +259,16 @@ export function AddStudentModal({ open, onClose, sections, onCreated }: AddStude
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Caste</label>
                   <input className={inputClass} value={form.caste} onChange={(e) => update("caste", e.target.value)} />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Category</label>
+                  <div className="relative">
+                    <select className={selectClass} value={form.category} onChange={(e) => update("category", e.target.value)}>
+                      <option value="">Select</option>
+                      {["General", "OBC", "SC", "ST", "EWS"].map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+                  </div>
                 </div>
                 <div className="col-span-2">
                   <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Language(s) Known</label>

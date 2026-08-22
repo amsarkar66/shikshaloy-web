@@ -10,6 +10,7 @@ import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { DAYS, type Period, type RowItem, type ClassTimetable, type Day, type Slot } from "../../timetable/_data/timetable";
 import type { LeaveType, LeaveStatus } from "../../leaves/_data/leaves";
 import StudentDetailTabs, { StudentSidebar, type Guardian, type ExamRow, type FeeRow, type LibraryIssueRow, type LeaveRow } from "../_components/StudentDetailTabs";
+import AttendanceCredentialsCard from "../../attendance/_components/AttendanceCredentialsCard";
 import { StudentReportButton } from "../_components/StudentReportButton";
 import { StudentQuickStats } from "../_components/StudentQuickStats";
 
@@ -63,6 +64,7 @@ interface StudentDetailRow {
   academic_year_id: string | null;
   profile_id: string | null;
   blood_group: string | null;
+  category: string | null;
   religion: string | null;
   caste: string | null;
   mother_tongue: string | null;
@@ -256,7 +258,7 @@ export default async function StudentDetailPage({
       .select(`
         id, full_name, roll_no, admission_no, dob, gender, address, phone, photo_url,
         attendance_pct, fee_status, status, joined_date, section_id, academic_year_id, profile_id,
-        blood_group, religion, caste, mother_tongue, language,
+        blood_group, category, religion, caste, mother_tongue, language,
         emergency_contact_name, emergency_contact_phone, emergency_contact_relation,
         medical_conditions, allergies,
         sections ( name, grades ( level ) ),
@@ -434,6 +436,7 @@ export default async function StudentDetailPage({
     gender: s.gender ?? "—",
     address: s.address ?? "—",
     bloodGroup: s.blood_group ?? "—",
+    category: s.category ?? "—",
     religion: s.religion ?? "—",
     caste: s.caste ?? "—",
     motherTongue: s.mother_tongue ?? "—",
@@ -723,6 +726,7 @@ export default async function StudentDetailPage({
               gender: student.gender,
               address: student.address,
               bloodGroup: student.bloodGroup,
+              category: student.category,
               religion: student.religion,
               caste: student.caste,
               motherTongue: student.motherTongue,
@@ -736,6 +740,8 @@ export default async function StudentDetailPage({
             studentPhone={student.phone}
             siblings={siblings}
           />
+
+          <AttendanceCredentialsCard personType="student" personId={student.id} />
         </div>
 
         <div className="lg:col-span-2 space-y-5">

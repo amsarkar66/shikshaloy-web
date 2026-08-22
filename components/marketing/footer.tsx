@@ -2,10 +2,29 @@ import Link from "next/link";
 import { GraduationCap } from "lucide-react";
 
 const links = {
-  Product: ["Features", "Pricing", "Security", "Changelog"],
-  Company: ["About", "Blog", "Careers", "Contact"],
-  Roles: ["Super Admin", "Admin", "Teacher", "Parent", "Student"],
-  Legal: ["Privacy Policy", "Terms of Service", "Cookie Policy"],
+  Product: [
+    { label: "Features", href: "/features" },
+    { label: "Pricing", href: "/pricing" },
+    { label: "Live Demo", href: "/demo" },
+  ],
+  Company: [
+    { label: "About", href: "/about" },
+    { label: "Contact", href: "/contact" },
+  ],
+  Roles: [
+    { label: "Super Admin", href: "/demo#super_admin" },
+    { label: "Admin", href: "/demo#admin" },
+    { label: "Teacher", href: "/demo#teacher" },
+    { label: "Staff", href: "/demo#staff" },
+    { label: "Student", href: "/demo#student" },
+    { label: "Parent", href: "/demo#parent" },
+    { label: "Driver", href: "/demo#driver" },
+  ],
+  Legal: [
+    { label: "Privacy Policy", href: "/privacy" },
+    { label: "Terms of Service", href: "/terms" },
+    { label: "Account Deletion", href: "/account-deletion" },
+  ],
 };
 
 export function Footer() {
@@ -23,6 +42,15 @@ export function Footer() {
             <p className="text-sm leading-relaxed">
               Modern school management for the schools of tomorrow.
             </p>
+            <p className="mt-4 text-sm leading-relaxed">
+              <a href="mailto:support@shikshaloy.com" className="hover:text-white transition-colors">
+                support@shikshaloy.com
+              </a>
+              <br />
+              <a href="tel:+919932797131" className="hover:text-white transition-colors">
+                +91 99327 97131
+              </a>
+            </p>
           </div>
 
           {Object.entries(links).map(([category, items]) => (
@@ -30,12 +58,12 @@ export function Footer() {
               <h4 className="text-white font-semibold text-sm mb-4">{category}</h4>
               <ul className="space-y-2">
                 {items.map((item) => (
-                  <li key={item}>
+                  <li key={item.label}>
                     <Link
-                      href="#"
+                      href={item.href}
                       className="text-sm hover:text-white transition-colors"
                     >
-                      {item}
+                      {item.label}
                     </Link>
                   </li>
                 ))}

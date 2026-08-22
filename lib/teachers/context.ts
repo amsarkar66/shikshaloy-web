@@ -7,7 +7,7 @@ export interface TeacherContext {
   fullName: string;
   designation: string;
   classTeacherSectionIds: string[];
-  subjectAssignments: { sectionId: string; subjectId: string }[];
+  subjectAssignments: { sectionId: string; subjectId: string; sectionSubjectId: string; isElective: boolean }[];
   sectionIds: string[];
 }
 
@@ -22,11 +22,16 @@ export async function getTeacherContext(profileId: string): Promise<TeacherConte
 
   const [{ data: classTeacherSections }, { data: subjectAssignments }] = await Promise.all([
     supabaseAdmin.from("sections").select("id").eq("class_teacher_id", profileId),
-    supabaseAdmin.from("section_subjects").select("section_id, subject_id").eq("teacher_id", profileId),
+    supabaseAdmin.from("section_subjects").select("id, section_id, subject_id, subjects ( type )").eq("teacher_id", profileId),
   ]);
 
   const classTeacherSectionIds = (classTeacherSections ?? []).map((s) => s.id);
-  const assignments = (subjectAssignments ?? []).map((s) => ({ sectionId: s.section_id, subjectId: s.subject_id }));
+  const assignments = (subjectAssignments ?? []).map((s) => ({
+    sectionId: s.section_id,
+    subjectId: s.subject_id,
+    sectionSubjectId: s.id,
+    isElective: (s.subjects as unknown as { type: string | null } | null)?.type === "elective",
+  }));
   const sectionIds = Array.from(new Set([...classTeacherSectionIds, ...assignments.map((a) => a.sectionId)]));
 
   return {

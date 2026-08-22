@@ -27,8 +27,10 @@ interface SectionListRow {
   avg_attendance: number | null;
   status: string | null;
   class_teacher_id: string | null;
+  stream_id: string | null;
   grades: { level: number | null } | null;
   profiles: { full_name: string | null } | null;
+  streams: { name: string | null } | null;
 }
 
 async function StudentClasses({ userId }: { userId: string }) {
@@ -136,7 +138,7 @@ async function TeacherClasses({ userId }: { userId: string }) {
   const [{ data: sectionRows }, { data: ssRows }, { data: studentRows }] = await Promise.all([
     supabaseAdmin
       .from("sections")
-      .select("id, name, room, capacity, avg_attendance, status, class_teacher_id, grades ( level ), profiles ( full_name )")
+      .select("id, name, room, capacity, avg_attendance, status, class_teacher_id, stream_id, grades ( level ), profiles ( full_name ), streams ( name )")
       .in("id", teacher.sectionIds)
       .order("name"),
 
@@ -168,6 +170,8 @@ async function TeacherClasses({ userId }: { userId: string }) {
     section:       s.name ?? "",
     teacher:       s.profiles?.full_name ?? "",
     classTeacherId: s.class_teacher_id ?? null,
+    stream:        s.streams?.name ?? "",
+    streamId:      s.stream_id ?? null,
     room:          s.room ?? "",
     capacity:      s.capacity ?? 40,
     enrolled:      enrolledCount[s.id] ?? 0,
@@ -194,10 +198,10 @@ export default async function ClassesPage() {
   const schoolId = await getCurrentSchoolIdOrThrow();
   const academicYearId = await getCurrentAcademicYearId();
 
-  const [{ data: sectionRows }, { data: ssRows }, { data: studentRows }, { data: teacherRows }] = await Promise.all([
+  const [{ data: sectionRows }, { data: ssRows }, { data: studentRows }, { data: teacherRows }, { data: streamRows }] = await Promise.all([
     supabaseAdmin
       .from("sections")
-      .select("id, name, room, capacity, avg_attendance, status, class_teacher_id, grades ( level ), profiles ( full_name )")
+      .select("id, name, room, capacity, avg_attendance, status, class_teacher_id, stream_id, grades ( level ), profiles ( full_name ), streams ( name )")
       .eq("school_id", schoolId)
       .eq("academic_year_id", academicYearId)
       .order("name"),
@@ -220,6 +224,12 @@ export default async function ClassesPage() {
       .eq("role", "teacher")
       .eq("status", "active")
       .order("full_name"),
+
+    supabaseAdmin
+      .from("streams")
+      .select("id, name")
+      .eq("school_id", schoolId)
+      .order("name"),
   ]);
 
   // Build lookup maps
@@ -239,6 +249,8 @@ export default async function ClassesPage() {
     section:       s.name ?? "",
     teacher:       s.profiles?.full_name ?? "",
     classTeacherId: s.class_teacher_id ?? null,
+    stream:        s.streams?.name ?? "",
+    streamId:      s.stream_id ?? null,
     room:          s.room ?? "",
     capacity:      s.capacity ?? 40,
     enrolled:      enrolledCount[s.id] ?? 0,
@@ -248,6 +260,7 @@ export default async function ClassesPage() {
   }));
 
   const teachers = (teacherRows ?? []).map((t) => ({ id: t.id, name: t.full_name ?? "Unnamed teacher" }));
+  const streams = (streamRows ?? []).map((s) => ({ id: s.id, name: s.name }));
 
-  return <ClassesClient initialSections={sections} teachers={teachers} />;
+  return <ClassesClient initialSections={sections} teachers={teachers} streams={streams} />;
 }

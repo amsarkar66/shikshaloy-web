@@ -18,6 +18,7 @@ interface EditStudentRow {
   status: string | null;
   section_id: string | null;
   blood_group: string | null;
+  category: string | null;
   religion: string | null;
   caste: string | null;
   mother_tongue: string | null;
@@ -53,7 +54,7 @@ export default async function EditStudentPage({
       .from("students")
       .select(`
         id, full_name, roll_no, admission_no, dob, gender, address, phone, photo_url, status, section_id,
-        blood_group, religion, caste, mother_tongue, language,
+        blood_group, category, religion, caste, mother_tongue, language,
         emergency_contact_name, emergency_contact_phone, emergency_contact_relation,
         medical_conditions, allergies,
         student_parents ( is_primary, parents ( id, full_name, phone, email ) )
@@ -98,6 +99,7 @@ export default async function EditStudentPage({
     parentPhone: parent?.phone ?? "",
     parentEmail: parent?.email ?? "",
     bloodGroup: s.blood_group ?? "",
+    category: s.category ?? "",
     religion: s.religion ?? "",
     caste: s.caste ?? "",
     motherTongue: s.mother_tongue ?? "",

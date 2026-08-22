@@ -4,7 +4,9 @@ import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 import { getStudentContext } from "@/lib/students/context";
 import { getTeacherContext } from "@/lib/teachers/context";
-import { getGrade, gradeStyle, scoreColor, formatDate } from "../exams/_data/exams";
+import { scoreColor, formatDate } from "../exams/_data/exams";
+import { resolveGrade, gradeBandStyle } from "@/lib/exams/grading";
+import { getSchoolGradeBands } from "@/lib/exams/grading-data";
 import { Award, GraduationCap, TrendingUp } from "lucide-react";
 import GradebookClient, {
   type GradebookExam, type GradebookCombo, type GradebookStudent, type GradebookExisting,
@@ -30,22 +32,64 @@ interface ExamGroup {
   pct: number;
 }
 
-interface ComboSeed { sectionId: string; subjectId: string }
+interface ComboSeed { sectionId: string; subjectId: string; sectionSubjectId: string; isElective: boolean }
 
 async function Gradebook({ role, userId }: { role: string | undefined; userId: string }) {
   const schoolId = await getCurrentSchoolIdOrThrow();
+  const gradeBands = await getSchoolGradeBands(schoolId);
   let comboSeeds: ComboSeed[] = [];
 
   if (role === "teacher") {
     const teacher = await getTeacherContext(userId);
     comboSeeds = teacher?.subjectAssignments ?? [];
+
+    // A teacher explicitly granted marks-entry access for a combo they don't
+    // normally teach (Exams > Marks Entry Permission) sees it here too — the
+    // grant is exam-specific, but the combo picker isn't, so it just shows up
+    // as an option; the server still checks the exam when marks are saved.
+    const { data: grantRows } = await supabaseAdmin
+      .from("marks_entry_grants")
+      .select("section_subjects ( id, section_id, subject_id, subjects ( type ) )")
+      .eq("staff_profile_id", userId);
+    for (const g of grantRows ?? []) {
+      const ss = g.section_subjects as unknown as { id: string; section_id: string; subject_id: string; subjects: { type: string | null } | null } | null;
+      if (!ss) continue;
+      if (comboSeeds.some((c) => c.sectionId === ss.section_id && c.subjectId === ss.subject_id)) continue;
+      comboSeeds.push({
+        sectionId: ss.section_id,
+        subjectId: ss.subject_id,
+        sectionSubjectId: ss.id,
+        isElective: ss.subjects?.type === "elective",
+      });
+    }
   } else {
     const { data: ssRows } = await supabaseAdmin
       .from("section_subjects")
-      .select("section_id, subject_id")
+      .select("id, section_id, subject_id, subjects ( type )")
       .eq("school_id", schoolId)
       .eq("academic_year_id", await getCurrentAcademicYearId());
-    comboSeeds = (ssRows ?? []).map((r) => ({ sectionId: r.section_id, subjectId: r.subject_id }));
+    comboSeeds = (ssRows ?? []).map((r) => ({
+      sectionId: r.section_id,
+      subjectId: r.subject_id,
+      sectionSubjectId: r.id,
+      isElective: (r.subjects as unknown as { type: string | null } | null)?.type === "elective",
+    }));
+  }
+
+  // Elective combos only show students who opted into that specific
+  // subject via Exam Preference — everyone else keeps the full section roster.
+  const electiveSeeds = comboSeeds.filter((c) => c.isElective);
+  const electiveStudentIds: Record<string, string[]> = {};
+  if (electiveSeeds.length > 0) {
+    const { data: prefRows } = await supabaseAdmin
+      .from("student_subject_preferences")
+      .select("student_id, section_subject_id")
+      .in("section_subject_id", electiveSeeds.map((c) => c.sectionSubjectId));
+    const bySectionSubjectId: Record<string, string[]> = {};
+    for (const r of prefRows ?? []) (bySectionSubjectId[r.section_subject_id] ??= []).push(r.student_id);
+    for (const c of electiveSeeds) {
+      electiveStudentIds[`${c.sectionId}::${c.subjectId}`] = bySectionSubjectId[c.sectionSubjectId] ?? [];
+    }
   }
 
   const sectionIds = Array.from(new Set(comboSeeds.map((c) => c.sectionId)));
@@ -118,6 +162,8 @@ async function Gradebook({ role, userId }: { role: string | undefined; userId: s
       combos={combos}
       rosterBySection={rosterBySection}
       existingResults={existingResults}
+      gradeBands={gradeBands}
+      electiveStudentIds={electiveStudentIds}
     />
   );
 }
@@ -154,15 +200,18 @@ export default async function GradesPage() {
     );
   }
 
-  const { data: resultRows } = await supabaseAdmin
-    .from("exam_results")
-    .select(`
-      marks_obtained, max_marks, grade, is_absent,
-      subjects ( name ),
-      exams ( id, name, type, status, start_date )
-    `)
-    .eq("student_id", student.id)
-    .order("created_at", { ascending: false });
+  const [{ data: resultRows }, gradeBands] = await Promise.all([
+    supabaseAdmin
+      .from("exam_results")
+      .select(`
+        marks_obtained, max_marks, grade, is_absent,
+        subjects ( name ),
+        exams ( id, name, type, status, start_date )
+      `)
+      .eq("student_id", student.id)
+      .order("created_at", { ascending: false }),
+    getSchoolGradeBands(await getCurrentSchoolIdOrThrow()),
+  ]);
 
   const published = ((resultRows ?? []) as unknown as StudentExamResultRow[]).filter((r) => r.exams?.status === "published");
 
@@ -178,7 +227,7 @@ export default async function GradesPage() {
       subject: r.subjects?.name ?? "Subject",
       marks: Math.round(Number(r.marks_obtained ?? 0)),
       max: Math.round(Number(r.max_marks ?? 100)),
-      grade: r.grade ?? getGrade(Math.round((Number(r.marks_obtained ?? 0) / Number(r.max_marks || 100)) * 100)),
+      grade: r.grade ?? resolveGrade(Math.round((Number(r.marks_obtained ?? 0) / Number(r.max_marks || 100)) * 100), gradeBands),
       isAbsent: !!r.is_absent,
     }));
     const total = subjectRows.reduce((a, b) => a + b.marks, 0);
@@ -251,7 +300,7 @@ export default async function GradesPage() {
                 </div>
                 <div className="text-right">
                   <p className={`text-sm font-bold ${scoreColor(g.pct)}`}>{g.total}/{g.maxTotal} ({g.pct}%)</p>
-                  <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${gradeStyle(getGrade(g.pct))}`}>{getGrade(g.pct)}</span>
+                  <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${gradeBandStyle(resolveGrade(g.pct, gradeBands), gradeBands)}`}>{resolveGrade(g.pct, gradeBands)}</span>
                 </div>
               </div>
               <div className="divide-y divide-gray-100 dark:divide-zinc-700/50">
@@ -264,7 +313,7 @@ export default async function GradesPage() {
                       ) : (
                         <>
                           <span className={`font-semibold ${scoreColor(r.max ? (r.marks / r.max) * 100 : 0)}`}>{r.marks}/{r.max}</span>
-                          <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${gradeStyle(r.grade)}`}>{r.grade}</span>
+                          <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${gradeBandStyle(r.grade, gradeBands)}`}>{r.grade}</span>
                         </>
                       )}
                     </div>

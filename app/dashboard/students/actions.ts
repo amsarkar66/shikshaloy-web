@@ -26,6 +26,7 @@ export interface AddStudentInput {
   parentEmail?: string | null;
   photoUrl?: string | null;
   bloodGroup?: string | null;
+  category?: string | null;
   religion?: string | null;
   caste?: string | null;
   motherTongue?: string | null;
@@ -58,6 +59,7 @@ export async function addStudentManual(input: AddStudentInput): Promise<EnrollSt
     parentEmail: input.parentEmail,
     photoUrl: input.photoUrl,
     bloodGroup: input.bloodGroup,
+    category: input.category,
     religion: input.religion,
     caste: input.caste,
     motherTongue: input.motherTongue,
@@ -97,6 +99,7 @@ export interface UpdateStudentInput {
   parentPhone?: string | null;
   parentEmail?: string | null;
   bloodGroup?: string | null;
+  category?: string | null;
   religion?: string | null;
   caste?: string | null;
   motherTongue?: string | null;
@@ -124,6 +127,7 @@ export async function updateStudent(input: UpdateStudentInput): Promise<void> {
       photo_url: input.photoUrl || null,
       status: input.active ? "active" : "inactive",
       blood_group: input.bloodGroup || null,
+      category: input.category || null,
       religion: input.religion || null,
       caste: input.caste || null,
       mother_tongue: input.motherTongue || null,

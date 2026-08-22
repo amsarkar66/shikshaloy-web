@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useMemo, useTransition } from "react";
-import { ChevronDown, Save, CheckCircle2, Award } from "lucide-react";
-import { getGrade, gradeStyle, scoreColor, MAX_MARKS } from "../../exams/_data/exams";
-import { saveExamResults } from "../actions";
+import { ChevronDown, Save, CheckCircle2, Award, X, Loader2 } from "lucide-react";
+import { scoreColor, MAX_MARKS } from "../../exams/_data/exams";
+import { resolveGrade, gradeBandStyle, type GradeBand } from "@/lib/exams/grading";
+import { saveExamResults, deleteExamResult } from "../actions";
 import { FancyButton } from "@/components/ui/fancy-button";
 
 export interface GradebookExam { id: string; name: string; type: string; status: string; startDate: string }
@@ -14,31 +15,40 @@ export interface GradebookExisting { marks: number | null; isAbsent: boolean }
 function resultKey(examId: string, subjectId: string, studentId: string) { return `${examId}::${subjectId}::${studentId}`; }
 
 export default function GradebookClient({
-  exams, combos, rosterBySection, existingResults,
+  exams, combos, rosterBySection, existingResults, gradeBands, electiveStudentIds = {},
 }: {
   exams: GradebookExam[];
   combos: GradebookCombo[];
   rosterBySection: Record<string, GradebookStudent[]>;
   existingResults: Record<string, GradebookExisting>;
+  gradeBands: GradeBand[];
+  electiveStudentIds?: Record<string, string[]>;
 }) {
   const [examId, setExamId] = useState(exams[0]?.id ?? "");
   const [selectedCombo, setSelectedCombo] = useState(combos[0]?.key ?? "");
   const [marksMap, setMarksMap] = useState<Record<string, { marks: string; isAbsent: boolean }>>({});
+  const [persistedIds, setPersistedIds] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
+  const [clearingId, setClearingId] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
   const combo = combos.find((c) => c.key === selectedCombo);
-  const roster = combo ? rosterBySection[combo.sectionId] ?? [] : [];
+  const sectionRoster = combo ? rosterBySection[combo.sectionId] ?? [] : [];
+  const electiveIds = combo ? electiveStudentIds[combo.key] : undefined;
+  const roster = electiveIds ? sectionRoster.filter((st) => electiveIds.includes(st.id)) : sectionRoster;
 
   const initializedKey = `${examId}::${selectedCombo}`;
   const [loadedFor, setLoadedFor] = useState("");
   if (loadedFor !== initializedKey && combo) {
     const map: Record<string, { marks: string; isAbsent: boolean }> = {};
+    const persisted = new Set<string>();
     for (const st of roster) {
       const existing = existingResults[resultKey(examId, combo.subjectId, st.id)];
       map[st.id] = { marks: existing ? String(existing.marks ?? 0) : "", isAbsent: existing?.isAbsent ?? false };
+      if (existing) persisted.add(st.id);
     }
     setMarksMap(map);
+    setPersistedIds(persisted);
     setLoadedFor(initializedKey);
   }
 
@@ -62,15 +72,43 @@ export default function GradebookClient({
 
   function handleSave() {
     if (!combo) return;
-    const rows = roster.map((st) => ({
-      studentId: st.id,
-      marks: Math.max(0, Math.min(MAX_MARKS, Number(marksMap[st.id]?.marks || 0))),
-      isAbsent: marksMap[st.id]?.isAbsent ?? false,
-    }));
+    const rows = roster
+      .filter((st) => marksMap[st.id]?.isAbsent || marksMap[st.id]?.marks !== "")
+      .map((st) => ({
+        studentId: st.id,
+        marks: Math.max(0, Math.min(MAX_MARKS, Number(marksMap[st.id]?.marks || 0))),
+        isAbsent: marksMap[st.id]?.isAbsent ?? false,
+      }));
+    if (rows.length === 0) return;
     startTransition(async () => {
-      await saveExamResults(examId, combo.subjectId, rows);
+      await saveExamResults(examId, combo.sectionId, combo.subjectId, rows);
+      setPersistedIds((prev) => {
+        const next = new Set(prev);
+        rows.forEach((r) => next.add(r.studentId));
+        return next;
+      });
       setSaved(true);
     });
+  }
+
+  function handleClear(studentId: string) {
+    if (!combo) return;
+    if (persistedIds.has(studentId)) {
+      setClearingId(studentId);
+      startTransition(async () => {
+        await deleteExamResult(examId, combo.sectionId, combo.subjectId, studentId);
+        setMarksMap((prev) => ({ ...prev, [studentId]: { marks: "", isAbsent: false } }));
+        setPersistedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(studentId);
+          return next;
+        });
+        setClearingId(null);
+        setSaved(false);
+      });
+    } else {
+      setMarksMap((prev) => ({ ...prev, [studentId]: { marks: "", isAbsent: false } }));
+    }
   }
 
   if (exams.length === 0) {
@@ -143,7 +181,9 @@ export default function GradebookClient({
 
       <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
         {roster.length === 0 ? (
-          <p className="py-16 text-center text-sm text-gray-400 dark:text-zinc-500">No students in this section</p>
+          <p className="py-16 text-center text-sm text-gray-400 dark:text-zinc-500">
+            {electiveIds ? "No students have chosen this elective yet — set it up in Exam Preference" : "No students in this section"}
+          </p>
         ) : (
           <div className="divide-y divide-gray-100 dark:divide-zinc-700/50">
             {roster.map((st) => {
@@ -170,12 +210,22 @@ export default function GradebookClient({
                     className="h-8 w-20 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 text-sm text-gray-900 dark:text-zinc-100 text-center outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-40"
                   />
                   <span className="text-xs text-gray-400 dark:text-zinc-500 w-10">/{MAX_MARKS}</span>
-                  {row.isAbsent ? (
-                    <span className="text-xs font-medium text-red-500 dark:text-red-400 w-10 text-right">Absent</span>
-                  ) : row.marks !== "" ? (
-                    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${gradeStyle(getGrade(pct))} ${scoreColor(pct)}`}>{getGrade(pct)}</span>
-                  ) : (
-                    <span className="w-10" />
+                  <div className="w-10 flex justify-end">
+                    {row.isAbsent ? (
+                      <span className="text-xs font-medium text-red-500 dark:text-red-400">Absent</span>
+                    ) : row.marks !== "" ? (
+                      <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${gradeBandStyle(resolveGrade(pct, gradeBands), gradeBands)} ${scoreColor(pct)}`}>{resolveGrade(pct, gradeBands)}</span>
+                    ) : null}
+                  </div>
+                  {(row.marks !== "" || row.isAbsent) && (
+                    <button
+                      onClick={() => handleClear(st.id)}
+                      disabled={clearingId === st.id}
+                      title="Clear mark"
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 disabled:opacity-50 transition-colors"
+                    >
+                      {clearingId === st.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+                    </button>
                   )}
                 </div>
               );

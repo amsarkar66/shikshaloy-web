@@ -48,7 +48,7 @@ export default async function CertificatesPage() {
 
     supabaseAdmin
       .from("schools")
-      .select("name, address, city, state, logo_url")
+      .select("name, address, city, state, logo_url, principal_signature_url")
       .eq("id", schoolId)
       .maybeSingle(),
 
@@ -88,6 +88,7 @@ export default async function CertificatesPage() {
       schoolName={schoolRow?.name ?? "Shikshaloy"}
       schoolAddress={schoolAddress}
       schoolLogoUrl={schoolRow?.logo_url ?? null}
+      schoolSignatureUrl={schoolRow?.principal_signature_url ?? null}
       academicYear={ayRow?.name ?? ""}
     />
   );

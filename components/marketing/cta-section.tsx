@@ -21,15 +21,15 @@ export function CtaSection() {
           Ready to transform your school?
         </h2>
         <p className="mt-4 text-primary-200 text-lg max-w-xl mx-auto text-balance">
-          Join 500+ schools already using Shikshaloy. Get started in minutes — no credit card required.
+          Explore a live, fully populated demo in seconds, or get started for free — no credit card required.
         </p>
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-          <FancyButton href="/login" size="lg">
+          <FancyButton href="/signup" size="lg">
             Get Started Free
             <ArrowUpRightIcon className="size-5" />
           </FancyButton>
-          <FancyButton href="#contact" variant="ghost" size="lg">
-            Talk to Sales
+          <FancyButton href="/demo" variant="ghost" size="lg">
+            Try the Live Demo
           </FancyButton>
         </div>
       </FadeIn>

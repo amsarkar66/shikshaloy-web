@@ -7,6 +7,8 @@ import { REPORT_CATALOG } from "./_data/reports";
 import type { Report, RecentReport } from "./_data/reports";
 import ParentReportsClient, { type ChildReportData, type ChildExamGroup, type ChildCertificate } from "./_components/ParentReportsClient";
 import type { CertType } from "../certificates/_data/certificates";
+import { getSchoolGradeBands } from "@/lib/exams/grading-data";
+import { DEFAULT_GRADE_BANDS } from "@/lib/exams/grading";
 
 interface ParentExamResultRow {
   student_id: string;
@@ -27,12 +29,12 @@ async function ParentReports({ userId }: { userId: string }) {
   const parent = await getParentContext(userId);
 
   if (!parent) {
-    return <ParentReportsClient childrenData={[]} />;
+    return <ParentReportsClient childrenData={[]} gradeBands={DEFAULT_GRADE_BANDS} />;
   }
 
   const childIds = parent.children.map((c) => c.id);
 
-  const [{ data: examRows }, { data: certRows }] = await Promise.all([
+  const [{ data: examRows }, { data: certRows }, gradeBands] = await Promise.all([
     childIds.length
       ? supabaseAdmin
           .from("exam_results")
@@ -48,6 +50,8 @@ async function ParentReports({ userId }: { userId: string }) {
           .in("student_id", childIds)
           .order("requested_on", { ascending: false })
       : Promise.resolve({ data: [] as ParentCertRow[] }),
+
+    getSchoolGradeBands(await getCurrentSchoolIdOrThrow()),
   ]);
 
   const childrenData: ChildReportData[] = parent.children.map((child) => {
@@ -102,7 +106,7 @@ async function ParentReports({ userId }: { userId: string }) {
     };
   });
 
-  return <ParentReportsClient childrenData={childrenData} />;
+  return <ParentReportsClient childrenData={childrenData} gradeBands={gradeBands} />;
 }
 
 export default async function ReportsPage() {

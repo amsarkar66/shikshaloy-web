@@ -161,7 +161,7 @@ function CertificateViewModal({
   cert, schoolInfo, onClose,
 }: {
   cert: Cert;
-  schoolInfo: { schoolName: string; schoolAddress: string; schoolLogoUrl: string | null; academicYear: string };
+  schoolInfo: { schoolName: string; schoolAddress: string; schoolLogoUrl: string | null; schoolSignatureUrl: string | null; academicYear: string };
   onClose: () => void;
 }) {
   const [downloading, setDownloading] = useState(false);
@@ -230,13 +230,14 @@ const TABS: { id: TabFilter; label: string }[] = [
 ];
 
 export default function CertificatesClient({
-  initialCerts, studentOptions, schoolName, schoolAddress, schoolLogoUrl, academicYear,
+  initialCerts, studentOptions, schoolName, schoolAddress, schoolLogoUrl, schoolSignatureUrl, academicYear,
 }: {
   initialCerts: Cert[];
   studentOptions: StudentOption[];
   schoolName: string;
   schoolAddress: string;
   schoolLogoUrl: string | null;
+  schoolSignatureUrl: string | null;
   academicYear: string;
 }) {
   const [certs,      setCerts]     = useState(initialCerts);
@@ -249,7 +250,7 @@ export default function CertificatesClient({
   const [newRequestOpen, setNewRequestOpen] = useState(false);
   const [viewCert,   setViewCert]  = useState<Cert | null>(null);
   const [, startTransition] = useTransition();
-  const schoolInfo = { schoolName, schoolAddress, schoolLogoUrl, academicYear };
+  const schoolInfo = { schoolName, schoolAddress, schoolLogoUrl, schoolSignatureUrl, academicYear };
 
   function toggleSort(field: SortField) {
     if (sortField===field) setSortDir((d)=>(d==="asc"?"desc":"asc"));

@@ -19,6 +19,7 @@ export interface EnrollStudentInput {
   parentEmail?: string | null;
   photoUrl?: string | null;
   bloodGroup?: string | null;
+  category?: string | null;
   religion?: string | null;
   caste?: string | null;
   motherTongue?: string | null;
@@ -264,6 +265,7 @@ export async function enrollStudent(input: EnrollStudentInput): Promise<EnrollSt
       phone: input.phone ?? null,
       photo_url: input.photoUrl ?? null,
       blood_group: input.bloodGroup ?? null,
+      category: input.category ?? null,
       religion: input.religion ?? null,
       caste: input.caste ?? null,
       mother_tongue: input.motherTongue ?? null,

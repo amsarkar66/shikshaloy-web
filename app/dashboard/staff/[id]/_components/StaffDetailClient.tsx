@@ -15,6 +15,7 @@ import {
   type PayrollRecord,
 } from "../../../payroll/_data/payroll";
 import { LEAVE_TYPE_LABEL, STATUS_BADGE as LEAVE_STATUS_BADGE, type LeaveStatus } from "../../../leaves/_data/leaves";
+import AttendanceCredentialsCard from "../../../attendance/_components/AttendanceCredentialsCard";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -220,6 +221,8 @@ export default function StaffDetailClient({
               )}
             </dl>
           </div>
+
+          <AttendanceCredentialsCard personType="staff" personId={staff.id} />
         </div>
 
         {/* ── Right: Data (tabbed) ─────────────────────────────────────────── */}
