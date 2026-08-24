@@ -1,6 +1,11 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { Phone, Droplets, ShieldAlert, School, GraduationCap, Bus, MapPin, Hash } from "lucide-react";
 import { supabaseAdmin } from "@/lib/supabase/service";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 interface StudentSafetyRow {
   full_name: string;

@@ -1,11 +1,33 @@
+import type { Metadata } from "next";
 import { RefreshCcw, ShieldCheck } from "lucide-react";
 import { FadeIn, StaggerChildren, StaggerItem } from "@/components/ui/fade-in";
 import { DemoLoginButton } from "@/components/marketing/demo-login-button";
 import { DEMO_ACCOUNTS } from "@/lib/demo/config";
+import { breadcrumbJsonLd, OG_IMAGE } from "@/lib/seo";
+
+const title = "Live Demo";
+const description =
+  "Try Shikshaloy free, no signup required. Sign into a fully populated demo school as a super admin, admin, teacher, staff, student, parent, or driver and explore the real dashboard.";
+
+export const metadata: Metadata = {
+  title,
+  description,
+  alternates: { canonical: "/demo" },
+  openGraph: { title, description, url: "/demo", images: [OG_IMAGE] },
+};
+
+const breadcrumbs = breadcrumbJsonLd([
+  { name: "Home", path: "/" },
+  { name: "Live Demo", path: "/demo" },
+]);
 
 export default function DemoPage() {
   return (
     <main className="bg-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }}
+      />
       <section className="relative pt-40 pb-16 sm:pb-20 text-center overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-primary-200/40 rounded-full blur-3xl" />

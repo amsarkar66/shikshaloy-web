@@ -1,6 +1,24 @@
+import type { Metadata } from "next";
 import { FancyButton, ArrowUpRightIcon } from "@/components/ui/fancy-button";
 import { FadeIn } from "@/components/ui/fade-in";
 import { Mail, Phone, PlayCircle } from "lucide-react";
+import { breadcrumbJsonLd, OG_IMAGE } from "@/lib/seo";
+
+const title = "Contact Us";
+const description =
+  "Get in touch with Shikshaloy for sales questions, support, or a walkthrough of the platform — by email, phone, or the live demo. We read every message.";
+
+export const metadata: Metadata = {
+  title,
+  description,
+  alternates: { canonical: "/contact" },
+  openGraph: { title, description, url: "/contact", images: [OG_IMAGE] },
+};
+
+const breadcrumbs = breadcrumbJsonLd([
+  { name: "Home", path: "/" },
+  { name: "Contact", path: "/contact" },
+]);
 
 const channels = [
   {
@@ -29,6 +47,10 @@ const channels = [
 export default function ContactPage() {
   return (
     <main className="bg-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }}
+      />
       <section className="relative pt-40 pb-24 sm:pb-28 text-center overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-primary-200/40 rounded-full blur-3xl" />

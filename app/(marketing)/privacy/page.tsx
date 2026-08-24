@@ -1,4 +1,23 @@
+import type { Metadata } from "next";
 import { FadeIn } from "@/components/ui/fade-in";
+import { breadcrumbJsonLd, OG_IMAGE } from "@/lib/seo";
+
+const title = "Privacy Policy";
+const description =
+  "How Shikshaloy collects, uses, and protects school, staff, student, and parent data — including our approach to data isolation, retention, and children's privacy.";
+
+export const metadata: Metadata = {
+  title,
+  description,
+  alternates: { canonical: "/privacy" },
+  openGraph: { title, description, url: "/privacy", images: [OG_IMAGE] },
+  robots: { index: true, follow: true },
+};
+
+const breadcrumbs = breadcrumbJsonLd([
+  { name: "Home", path: "/" },
+  { name: "Privacy Policy", path: "/privacy" },
+]);
 
 const sections = [
   {
@@ -30,8 +49,8 @@ const sections = [
     body: `Depending on your role, you can request access to, correction of, or deletion of personal data through your school's administrator, who can action most requests directly from the dashboard. You may also contact us directly using the details below.`,
   },
   {
-    title: "8. Cookies",
-    body: `We use essential cookies to keep you signed in and to remember basic preferences. We do not use third-party advertising or tracking cookies.`,
+    title: "8. Cookies & analytics",
+    body: `We use essential cookies to keep you signed in and to remember basic preferences. We also use Google Analytics to understand how the platform is used and to improve it; this sets analytics cookies and shares usage data (such as pages visited and general device/location information) with Google. We do not use third-party advertising cookies or sell data to advertisers.`,
   },
   {
     title: "9. Changes to this policy",
@@ -42,6 +61,10 @@ const sections = [
 export default function PrivacyPage() {
   return (
     <main className="bg-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }}
+      />
       <section className="pt-40 pb-16">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
           <FadeIn>

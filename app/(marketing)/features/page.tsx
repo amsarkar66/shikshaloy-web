@@ -1,5 +1,7 @@
+import type { Metadata } from "next";
 import { FancyButton, ArrowUpRightIcon } from "@/components/ui/fancy-button";
 import { FadeIn, StaggerChildren, StaggerItem } from "@/components/ui/fade-in";
+import { breadcrumbJsonLd, OG_IMAGE } from "@/lib/seo";
 import {
   Layers,
   BookMarked,
@@ -114,9 +116,29 @@ const categories: Category[] = [
   },
 ];
 
+const title = "Features";
+const description =
+  "Explore every Shikshaloy module: admissions, attendance, homework, exams, fees, payroll, transport, hostel, library, and communication tools for admins, teachers, students, and parents.";
+
+export const metadata: Metadata = {
+  title,
+  description,
+  alternates: { canonical: "/features" },
+  openGraph: { title, description, url: "/features", images: [OG_IMAGE] },
+};
+
+const breadcrumbs = breadcrumbJsonLd([
+  { name: "Home", path: "/" },
+  { name: "Features", path: "/features" },
+]);
+
 export default function FeaturesPage() {
   return (
     <main className="bg-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }}
+      />
       <section className="relative pt-40 pb-20 sm:pb-24 text-center overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-primary-200/40 rounded-full blur-3xl" />

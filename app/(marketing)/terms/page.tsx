@@ -1,4 +1,23 @@
+import type { Metadata } from "next";
 import { FadeIn } from "@/components/ui/fade-in";
+import { breadcrumbJsonLd, OG_IMAGE } from "@/lib/seo";
+
+const title = "Terms of Service";
+const description =
+  "The terms governing use of the Shikshaloy school management platform — account responsibilities, subscription plans, acceptable use, and service availability.";
+
+export const metadata: Metadata = {
+  title,
+  description,
+  alternates: { canonical: "/terms" },
+  openGraph: { title, description, url: "/terms", images: [OG_IMAGE] },
+  robots: { index: true, follow: true },
+};
+
+const breadcrumbs = breadcrumbJsonLd([
+  { name: "Home", path: "/" },
+  { name: "Terms of Service", path: "/terms" },
+]);
 
 const sections = [
   {
@@ -46,6 +65,10 @@ const sections = [
 export default function TermsPage() {
   return (
     <main className="bg-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }}
+      />
       <section className="pt-40 pb-16">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
           <FadeIn>

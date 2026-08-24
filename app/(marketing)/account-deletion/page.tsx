@@ -1,4 +1,23 @@
+import type { Metadata } from "next";
 import { FadeIn } from "@/components/ui/fade-in";
+import { breadcrumbJsonLd, OG_IMAGE } from "@/lib/seo";
+
+const title = "Account & Data Deletion";
+const description =
+  "How to request deletion of your Shikshaloy account and personal data, whether you're a school Super Admin or an individual staff, teacher, student, parent, or driver user.";
+
+export const metadata: Metadata = {
+  title,
+  description,
+  alternates: { canonical: "/account-deletion" },
+  openGraph: { title, description, url: "/account-deletion", images: [OG_IMAGE] },
+  robots: { index: true, follow: true },
+};
+
+const breadcrumbs = breadcrumbJsonLd([
+  { name: "Home", path: "/" },
+  { name: "Account & Data Deletion", path: "/account-deletion" },
+]);
 
 const sections = [
   {
@@ -26,6 +45,10 @@ const sections = [
 export default function AccountDeletionPage() {
   return (
     <main className="bg-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }}
+      />
       <section className="pt-40 pb-16">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
           <FadeIn>

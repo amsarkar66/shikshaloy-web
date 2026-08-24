@@ -1,6 +1,24 @@
+import type { Metadata } from "next";
 import { FancyButton, ArrowUpRightIcon } from "@/components/ui/fancy-button";
 import { FadeIn, StaggerChildren, StaggerItem } from "@/components/ui/fade-in";
 import { Target, Users, Layers, ShieldCheck } from "lucide-react";
+import { breadcrumbJsonLd, OG_IMAGE } from "@/lib/seo";
+
+const title = "About Us";
+const description =
+  "Shikshaloy replaces spreadsheets, register books, and scattered WhatsApp groups with one connected school management platform for admins, teachers, students, parents, staff, and drivers.";
+
+export const metadata: Metadata = {
+  title,
+  description,
+  alternates: { canonical: "/about" },
+  openGraph: { title, description, url: "/about", images: [OG_IMAGE] },
+};
+
+const breadcrumbs = breadcrumbJsonLd([
+  { name: "Home", path: "/" },
+  { name: "About", path: "/about" },
+]);
 
 const values = [
   {
@@ -28,6 +46,10 @@ const values = [
 export default function AboutPage() {
   return (
     <main className="bg-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }}
+      />
       <section className="relative pt-40 pb-20 sm:pb-24 text-center overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-primary-200/40 rounded-full blur-3xl" />

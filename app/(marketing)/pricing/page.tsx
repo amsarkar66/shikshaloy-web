@@ -1,8 +1,26 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Check, X } from "lucide-react";
 import { FadeIn } from "@/components/ui/fade-in";
 import { PricingSection } from "@/components/marketing/pricing-section";
 import { PLANS, formatCurrency } from "@/app/dashboard/billing/_data/billing";
+import { breadcrumbJsonLd, OG_IMAGE } from "@/lib/seo";
+
+const title = "Pricing";
+const description =
+  "Simple, transparent pricing for schools of every size — from a free plan for a single school to custom Enterprise plans for school chains. No setup fees, no hidden costs.";
+
+export const metadata: Metadata = {
+  title,
+  description,
+  alternates: { canonical: "/pricing" },
+  openGraph: { title, description, url: "/pricing", images: [OG_IMAGE] },
+};
+
+const breadcrumbs = breadcrumbJsonLd([
+  { name: "Home", path: "/" },
+  { name: "Pricing", path: "/pricing" },
+]);
 
 const FAQ = [
   {
@@ -23,9 +41,30 @@ const FAQ = [
   },
 ];
 
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: FAQ.map((item) => ({
+    "@type": "Question",
+    name: item.q,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: item.a,
+    },
+  })),
+};
+
 export default function PricingPage() {
   return (
     <main className="bg-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
       <section className="pt-40 pb-16 text-center">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
           <FadeIn>
