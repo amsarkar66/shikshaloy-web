@@ -1,0 +1,141 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { supabaseAdmin } from "@/lib/supabase/service";
+import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { logAuditEvent } from "@/lib/audit/log";
+import { randomPassword } from "@/lib/auth/random-password";
+
+export type ParentRelationship = "father" | "mother" | "guardian";
+
+export interface AddParentInput {
+  fullName: string;
+  phone?: string | null;
+  email?: string | null;
+  occupation?: string | null;
+  address?: string | null;
+  children: { studentId: string; relationship: ParentRelationship }[];
+}
+
+export interface AddParentResult {
+  parentId: string;
+  login: { email: string; password: string } | null;
+}
+
+export async function addParent(input: AddParentInput): Promise<AddParentResult> {
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
+  const fullName = input.fullName.trim();
+  if (!fullName) throw new Error("Parent name is required");
+
+  const email = input.email?.trim() || null;
+  const phone = input.phone?.trim() || null;
+
+  let profileId: string | null = null;
+  let login: { email: string; password: string } | null = null;
+
+  if (email) {
+    const { data: existingParent } = await supabaseAdmin
+      .from("parents")
+      .select("id")
+      .eq("school_id", schoolId)
+      .eq("email", email)
+      .maybeSingle();
+    if (existingParent) throw new Error("A parent with this email already exists.");
+
+    const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    const lookupRes = await fetch(
+      `${SUPABASE_URL}/auth/v1/admin/users?email=${encodeURIComponent(email)}`,
+      { headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` } }
+    );
+    const lookupData = await lookupRes.json();
+    const existingUser = lookupData?.users?.find((u: { email: string; id: string }) => u.email === email);
+
+    if (existingUser) {
+      profileId = existingUser.id;
+    } else {
+      const password = randomPassword();
+      const { data: newUser, error } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { role: "parent", full_name: fullName, school_id: schoolId, status: "active" },
+      });
+      if (error || !newUser?.user) {
+        throw new Error(`Failed to create parent login: ${error?.message ?? "unknown error"}`);
+      }
+      profileId = newUser.user.id;
+      login = { email, password };
+    }
+  }
+
+  const { data: newParent, error: insertError } = await supabaseAdmin
+    .from("parents")
+    .insert({
+      school_id: schoolId,
+      profile_id: profileId,
+      full_name: fullName,
+      phone,
+      email,
+      occupation: input.occupation?.trim() || null,
+      address: input.address?.trim() || null,
+      status: "active",
+      joined_date: new Date().toISOString().slice(0, 10),
+    })
+    .select("id")
+    .single();
+
+  if (insertError || !newParent) {
+    throw new Error(`Failed to create parent: ${insertError?.message ?? "unknown error"}`);
+  }
+
+  if (input.children.length > 0) {
+    const rows = input.children.map((c, i) => ({
+      student_id: c.studentId,
+      parent_id: newParent.id,
+      relationship: c.relationship,
+      is_primary: i === 0,
+    }));
+    const { error: linkError } = await supabaseAdmin.from("student_parents").insert(rows);
+    if (linkError) throw new Error(`Parent created, but failed to link children: ${linkError.message}`);
+  }
+
+  await logAuditEvent({
+    schoolId,
+    action: "create",
+    module: "Parents",
+    description: `Added new parent — ${fullName}`,
+  });
+
+  revalidatePath("/dashboard/parents");
+  return { parentId: newParent.id, login };
+}
+
+export async function searchStudentsForParentLink(query: string): Promise<{ id: string; label: string; sublabel: string }[]> {
+  const q = query.trim();
+  if (q.length < 2) return [];
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
+  const { data } = await supabaseAdmin
+    .from("students")
+    .select("id, full_name, roll_no, sections ( name, grades ( level ) )")
+    .eq("school_id", schoolId)
+    .ilike("full_name", `%${q}%`)
+    .order("full_name")
+    .limit(10);
+
+  return ((data ?? []) as unknown as {
+    id: string;
+    full_name: string | null;
+    roll_no: string | null;
+    sections: { name: string | null; grades: { level: number | null } | null } | null;
+  }[]).map((s) => {
+    const classLabel = s.sections?.grades?.level ? `Class ${s.sections.grades.level}${s.sections?.name ? `-${s.sections.name}` : ""}` : null;
+    return {
+      id: s.id,
+      label: s.full_name ?? "Unknown",
+      sublabel: [classLabel, s.roll_no ? `Roll ${s.roll_no}` : null].filter(Boolean).join(" · ") || "Student",
+    };
+  });
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Users2, UserCheck, Users, AlertCircle,
@@ -10,6 +11,7 @@ import {
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
+import { AddParentModal } from "./add-parent-modal";
 
 export type FeeStatus = "paid" | "partial" | "overdue";
 
@@ -83,11 +85,13 @@ function StatsRow({ parents }: { parents: Parent[] }) {
 }
 
 export default function ParentsClient({ initialParents }: { initialParents: Parent[] }) {
+  const router = useRouter();
   const [query,     setQuery]     = useState("");
   const [feeFilter, setFee]       = useState("all");
   const [sortField, setSortField] = useState<SortField>("name");
   const [sortDir,   setSortDir]   = useState<SortDir>("asc");
   const [page,      setPage]      = useState(1);
+  const [addOpen,   setAddOpen]   = useState(false);
 
   function toggleSort(field: SortField) {
     if (sortField===field) setSortDir((d)=>(d==="asc"?"desc":"asc"));
@@ -126,7 +130,7 @@ export default function ParentsClient({ initialParents }: { initialParents: Pare
         </div>
         <div className="flex gap-2 sm:ml-auto">
           <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5"/> Export</button>
-          <FancyButton size="sm"><Plus className="h-4 w-4"/> Add Parent</FancyButton>
+          <FancyButton size="sm" onClick={() => setAddOpen(true)}><Plus className="h-4 w-4"/> Add Parent</FancyButton>
         </div>
       </div>
 
@@ -216,6 +220,12 @@ export default function ParentsClient({ initialParents }: { initialParents: Pare
           })}
         </TableBody>
       </Table>
+
+      <AddParentModal
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onCreated={() => router.refresh()}
+      />
     </div>
   );
 }
