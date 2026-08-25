@@ -11,6 +11,7 @@ import {
   Siren, HeartPulse, Upload, Download, Trash2, Loader2, UserSquare2,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { StudentTimetableGrid } from "../../timetable/_components/StudentTimetableGrid";
 import type { ClassTimetable, RowItem } from "../../timetable/_data/timetable";
 import { STATUS_BADGE, LEAVE_TYPE_LABEL, LEAVE_TYPE_BADGE, formatDate as formatLeaveDate, type LeaveType } from "../../leaves/_data/leaves";
@@ -291,11 +292,11 @@ function ApplyLeaveModal({ studentId, onClose }: { studentId: string; onClose: (
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">From</label>
-              <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} required className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
+              <DatePicker value={from} onChange={setFrom} />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">To</label>
-              <input type="date" value={to} onChange={(e) => setTo(e.target.value)} required className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
+              <DatePicker value={to} onChange={setTo} />
             </div>
           </div>
           <div className="space-y-1">

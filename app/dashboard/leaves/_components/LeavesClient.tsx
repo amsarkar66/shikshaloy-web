@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
+import { DatePicker } from "@/components/ui/date-picker";
 import { STATUS_BADGE, LEAVE_TYPE_LABEL, LEAVE_TYPE_BADGE, formatDate } from "../_data/leaves";
 import type { LeaveStatus, LeaveType } from "../_data/leaves";
 import { generateAffectedPeriods, AVAILABLE_TEACHERS, type Period } from "../_data/substitutes";
@@ -395,11 +396,11 @@ function NewLeaveRequestModal({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">From</label>
-              <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} required className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
+              <DatePicker value={from} onChange={setFrom} />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">To</label>
-              <input type="date" value={to} onChange={(e) => setTo(e.target.value)} required className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
+              <DatePicker value={to} onChange={setTo} />
             </div>
           </div>
 
@@ -488,7 +489,10 @@ export default function LeavesClient({ initialLeaves, staffOptions, studentOptio
   useEffect(() => {
     if (!filtersOpen) return;
     function handleClick(e: MouseEvent) {
-      if (filtersRef.current && !filtersRef.current.contains(e.target as Node)) setFiltersOpen(false);
+      const target = e.target as Node;
+      if (filtersRef.current && filtersRef.current.contains(target)) return;
+      if (target instanceof Element && target.closest('[data-slot="date-picker-popup"]')) return;
+      setFiltersOpen(false);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -622,18 +626,18 @@ export default function LeavesClient({ initialLeaves, staffOptions, studentOptio
                 <div>
                   <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Applied On</label>
                   <div className="flex items-center gap-2">
-                    <input type="date" value={appliedFrom} onChange={(e)=>{setAppliedFrom(e.target.value);setPage(1);}} className="h-9 w-full min-w-0 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 text-xs text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"/>
+                    <DatePicker value={appliedFrom} onChange={(v)=>{setAppliedFrom(v);setPage(1);}} className="min-w-0 px-2 text-xs" />
                     <span className="shrink-0 text-xs text-gray-400 dark:text-zinc-500">to</span>
-                    <input type="date" value={appliedTo} onChange={(e)=>{setAppliedTo(e.target.value);setPage(1);}} className="h-9 w-full min-w-0 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 text-xs text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"/>
+                    <DatePicker value={appliedTo} onChange={(v)=>{setAppliedTo(v);setPage(1);}} className="min-w-0 px-2 text-xs" />
                   </div>
                 </div>
 
                 <div>
                   <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">On Leave During</label>
                   <div className="flex items-center gap-2">
-                    <input type="date" value={leaveFrom} onChange={(e)=>{setLeaveFrom(e.target.value);setPage(1);}} className="h-9 w-full min-w-0 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 text-xs text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"/>
+                    <DatePicker value={leaveFrom} onChange={(v)=>{setLeaveFrom(v);setPage(1);}} className="min-w-0 px-2 text-xs" />
                     <span className="shrink-0 text-xs text-gray-400 dark:text-zinc-500">to</span>
-                    <input type="date" value={leaveTo} onChange={(e)=>{setLeaveTo(e.target.value);setPage(1);}} className="h-9 w-full min-w-0 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 text-xs text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"/>
+                    <DatePicker value={leaveTo} onChange={(v)=>{setLeaveTo(v);setPage(1);}} className="min-w-0 px-2 text-xs" />
                   </div>
                 </div>
               </div>

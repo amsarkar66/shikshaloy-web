@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { FancyButton } from "@/components/ui/fancy-button";
-import { Menu, X, GraduationCap, LayoutDashboard, LogOut, ChevronDown } from "lucide-react";
+import { Menu, X, LayoutDashboard, LogOut, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
@@ -149,9 +150,7 @@ export function Navbar() {
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-b from-primary-400 to-primary-500 shadow-[0_2px_0_0_var(--color-primary-700)]">
-            <GraduationCap className="h-4.5 w-4.5 text-white" />
-          </div>
+          <Image src="/logo.svg" alt="Shikshaloy" width={32} height={32} className="h-8 w-8" priority />
           <span className="text-lg font-bold text-zinc-900 tracking-tight">
             Shikshaloy
           </span>

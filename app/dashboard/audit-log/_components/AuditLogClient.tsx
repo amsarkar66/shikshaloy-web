@@ -24,7 +24,7 @@ const AVATAR_COLORS = ["bg-blue-500","bg-violet-500","bg-emerald-500","bg-rose-5
 function avatarColor(id: string) { const n = id.split("").reduce((a,c)=>a+c.charCodeAt(0),0); return AVATAR_COLORS[n%AVATAR_COLORS.length]; }
 function initials(name: string) { return name.split(" ").map((n)=>n[0]).slice(0,2).join("").toUpperCase(); }
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 50;
 
 export default function AuditLogClient({ entries }: { entries: AuditEntry[] }) {
   const [query, setQuery] = useState("");

@@ -3,6 +3,7 @@
 import { useState, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import { FancyButton } from "@/components/ui/fancy-button";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   School,
   BookOpen,
@@ -472,11 +473,11 @@ function SchoolTab({ school, academicYears, banners }: { school: NonNullable<Set
                 </div>
                 <div>
                   <Label>Start Date</Label>
-                  <Input type="date" value={newYearStart} onChange={setNewYearStart} />
+                  <DatePicker value={newYearStart} onChange={setNewYearStart} />
                 </div>
                 <div>
                   <Label>End Date</Label>
-                  <Input type="date" value={newYearEnd} onChange={setNewYearEnd} />
+                  <DatePicker value={newYearEnd} onChange={setNewYearEnd} />
                 </div>
               </div>
               <p className="text-[11px] text-gray-400 dark:text-zinc-500">

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
+import { useState, useMemo, useRef, useEffect, useTransition } from "react";
+import { createPortal } from "react-dom";
 import {
   Award, Clock, CheckCircle2, FileText, Search, Plus,
   Download, X, Eye, Printer, XCircle,
@@ -10,7 +11,8 @@ import {
 import { STATUS_BADGE, CERT_TYPE_LABEL, CERT_TYPE_BADGE, formatDate } from "../_data/certificates";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
-import { requestCertificate, rejectCertificateRequest } from "../actions";
+import { SimpleSelect } from "@/components/ui/select";
+import { requestCertificate, rejectCertificateRequest, searchActiveStudents } from "../actions";
 import { CertificateDocument } from "./certificate-document";
 import type { CertStatus, CertType } from "../_data/certificates";
 
@@ -72,14 +74,181 @@ function StatsRow({ certs }: { certs: Cert[] }) {
   );
 }
 
-function NewRequestModal({
-  studentOptions, onClose, onCreated,
+const CERT_TYPE_OPTIONS = (Object.keys(CERT_TYPE_LABEL) as CertType[]).map((t) => ({ value: t, label: CERT_TYPE_LABEL[t] }));
+
+function StudentSearchField({
+  student, onSelect,
 }: {
-  studentOptions: StudentOption[];
+  student: StudentOption | null;
+  onSelect: (student: StudentOption | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<StudentOption[]>([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [panelStyle, setPanelStyle] = useState<{ top: number; left: number; width: number } | null>(null);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const requestId = useRef(0);
+
+  useEffect(() => {
+    if (!open) return;
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    const id = ++requestId.current;
+    setLoading(true);
+    searchTimer.current = setTimeout(async () => {
+      const page = await searchActiveStudents(query, 0);
+      if (id !== requestId.current) return;
+      setResults(page.students);
+      setHasMore(page.hasMore);
+      setLoading(false);
+    }, 250);
+    return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
+  }, [query, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    requestAnimationFrame(() => searchInputRef.current?.focus());
+
+    function updatePosition() {
+      const rect = wrapperRef.current?.getBoundingClientRect();
+      if (rect) setPanelStyle({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    }
+    updatePosition();
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
+
+    function handleOutsideClick(e: MouseEvent) {
+      const target = e.target as Node;
+      if (wrapperRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      setOpen(false);
+    }
+    document.addEventListener("mousedown", handleOutsideClick);
+
+    return () => {
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [open]);
+
+  async function loadMore() {
+    if (loading || loadingMore || !hasMore) return;
+    const id = requestId.current;
+    setLoadingMore(true);
+    const page = await searchActiveStudents(query, results.length);
+    if (id !== requestId.current) return;
+    setResults((prev) => [...prev, ...page.students]);
+    setHasMore(page.hasMore);
+    setLoadingMore(false);
+  }
+
+  function handleListScroll(e: React.UIEvent<HTMLDivElement>) {
+    const el = e.currentTarget;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 80) loadMore();
+  }
+
+  function openDropdown() {
+    setQuery("");
+    setResults([]);
+    setOpen(true);
+  }
+
+  function pick(s: StudentOption) {
+    onSelect(s);
+    setOpen(false);
+  }
+
+  if (student) {
+    return (
+      <div className="flex h-9 w-full items-center gap-2 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-1.5 text-sm">
+        <span className="min-w-0 flex-1 truncate text-gray-900 dark:text-zinc-100">
+          {student.name} <span className="text-gray-400 dark:text-zinc-500">— Class {student.class}{student.section} ({student.rollNo})</span>
+        </span>
+        <button
+          type="button"
+          onClick={() => onSelect(null)}
+          title="Change student"
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <button
+        type="button"
+        onClick={() => (open ? setOpen(false) : openDropdown())}
+        className={`flex h-9 w-full items-center justify-between rounded-lg border bg-white dark:bg-zinc-800 px-3 text-sm outline-none ${open ? "border-primary-400" : "border-gray-200 dark:border-zinc-700"}`}
+      >
+        <span className="text-gray-400 dark:text-zinc-500">Select a student…</span>
+        <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-gray-400 dark:text-zinc-500 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && panelStyle && createPortal(
+        <div
+          ref={panelRef}
+          style={{ position: "fixed", top: panelStyle.top, left: panelStyle.left, width: panelStyle.width }}
+          className="z-[70] overflow-hidden rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg"
+        >
+          <div className="relative border-b border-gray-200 dark:border-zinc-700 p-1.5">
+            <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+            <input
+              ref={searchInputRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}
+              placeholder="Search by name or roll no…"
+              autoComplete="off"
+              className="h-8 w-full rounded-md border-0 bg-gray-50 dark:bg-zinc-900 pl-7 pr-7 text-sm text-gray-900 dark:text-zinc-100 outline-none"
+            />
+            {loading && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-gray-400 dark:text-zinc-500" />}
+          </div>
+          <div onScroll={handleListScroll} className="max-h-56 overflow-auto">
+            {results.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => pick(s)}
+                className="flex w-full flex-col items-start px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
+              >
+                <span className="text-sm text-gray-900 dark:text-zinc-100">{s.name}</span>
+                <span className="text-xs text-gray-400 dark:text-zinc-500">Class {s.class}{s.section} · {s.rollNo}</span>
+              </button>
+            ))}
+            {loadingMore && (
+              <div className="flex items-center justify-center gap-1.5 py-2 text-xs text-gray-400 dark:text-zinc-500">
+                <Loader2 className="h-3 w-3 animate-spin" /> Loading more…
+              </div>
+            )}
+            {!loading && results.length === 0 && (
+              <p className="px-3 py-2 text-[11px] text-gray-400 dark:text-zinc-500">
+                {query.trim() ? "No matching students." : "No active students found."}
+              </p>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
+function NewRequestModal({
+  onClose, onCreated,
+}: {
   onClose: () => void;
   onCreated: (cert: Cert) => void;
 }) {
-  const [studentId, setStudentId] = useState("");
+  const [student,   setStudent]   = useState<StudentOption | null>(null);
   const [certType,  setCertType]  = useState<CertType>("bonafide");
   const [purpose,   setPurpose]   = useState("");
   const [error,     setError]     = useState<string | null>(null);
@@ -87,13 +256,12 @@ function NewRequestModal({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const student = studentOptions.find((s) => s.id === studentId);
     if (!student) { setError("Please select a student."); return; }
     if (!purpose.trim()) { setError("Please enter a purpose."); return; }
     setError(null);
     startTransition(async () => {
       try {
-        const result = await requestCertificate(studentId, certType, purpose.trim());
+        const result = await requestCertificate(student.id, certType, purpose.trim());
         onCreated({
           id: result.id,
           studentName: student.name,
@@ -122,23 +290,11 @@ function NewRequestModal({
         <div className="space-y-4 p-5">
           <div className="space-y-1">
             <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">Student</label>
-            <div className="relative">
-              <select value={studentId} onChange={(e) => setStudentId(e.target.value)} required className="h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-2 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
-                <option value="">Select a student…</option>
-                {studentOptions.map((s) => <option key={s.id} value={s.id}>{s.name} — Class {s.class}{s.section} ({s.rollNo})</option>)}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
-            </div>
-            {studentOptions.length === 0 && <p className="text-[11px] text-gray-400 dark:text-zinc-500">No active students found.</p>}
+            <StudentSearchField student={student} onSelect={setStudent} />
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">Certificate Type</label>
-            <div className="relative">
-              <select value={certType} onChange={(e) => setCertType(e.target.value as CertType)} className="h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-2 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
-                {(Object.keys(CERT_TYPE_LABEL) as CertType[]).map((t) => <option key={t} value={t}>{CERT_TYPE_LABEL[t]}</option>)}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
-            </div>
+            <SimpleSelect value={certType} onValueChange={(v) => setCertType(v as CertType)} options={CERT_TYPE_OPTIONS} className="h-9 py-0" />
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">Purpose</label>
@@ -230,10 +386,9 @@ const TABS: { id: TabFilter; label: string }[] = [
 ];
 
 export default function CertificatesClient({
-  initialCerts, studentOptions, schoolName, schoolAddress, schoolLogoUrl, schoolSignatureUrl, academicYear,
+  initialCerts, schoolName, schoolAddress, schoolLogoUrl, schoolSignatureUrl, academicYear,
 }: {
   initialCerts: Cert[];
-  studentOptions: StudentOption[];
   schoolName: string;
   schoolAddress: string;
   schoolLogoUrl: string | null;
@@ -315,12 +470,12 @@ export default function CertificatesClient({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-zinc-500 pointer-events-none"/>
           <input value={query} onChange={(e)=>{setQuery(e.target.value);setPage(1);}} placeholder="Search student name, roll no or purpose…" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"/>
         </div>
-        <div className="relative">
-          <select value={typeFilter} onChange={(e)=>{setType(e.target.value as "all"|CertType);setPage(1);}} className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
-            <option value="all">All Types</option><option value="bonafide">Bonafide</option><option value="transfer">Transfer (TC)</option><option value="character">Character</option><option value="study">Study Certificate</option>
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
-        </div>
+        <SimpleSelect
+          value={typeFilter}
+          onValueChange={(v)=>{setType(v as "all"|CertType);setPage(1);}}
+          options={[{ value: "all", label: "All Types" }, ...CERT_TYPE_OPTIONS]}
+          className="h-9 w-auto min-w-[9.5rem] py-0"
+        />
         {hasFilter&&<button onClick={clearFilters} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><X className="h-3.5 w-3.5"/> Clear</button>}
       </div>
 
@@ -392,7 +547,6 @@ export default function CertificatesClient({
 
       {newRequestOpen && (
         <NewRequestModal
-          studentOptions={studentOptions}
           onClose={()=>setNewRequestOpen(false)}
           onCreated={(cert)=>{ setCerts((prev)=>[cert, ...prev]); setPage(1); }}
         />

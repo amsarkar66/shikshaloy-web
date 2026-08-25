@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CalendarPlus, Loader2 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { createAcademicYear } from "@/lib/academic-years/actions";
 
 const inputClass =
@@ -59,11 +60,11 @@ export default function CreateNextYearPrompt({ currentYearName }: { currentYearN
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Start Date</label>
-              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputClass} />
+              <DatePicker value={startDate} onChange={setStartDate} />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">End Date</label>
-              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={inputClass} />
+              <DatePicker value={endDate} onChange={setEndDate} />
             </div>
           </div>
           <FancyButton disabled={busy} onClick={handleCreate} size="sm" className="w-full">

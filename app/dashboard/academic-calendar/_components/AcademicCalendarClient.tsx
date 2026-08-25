@@ -9,6 +9,11 @@ import {
   MONTHS, MONTH_KEYS, EVENT_TYPE_CONFIG, formatDate,
   type EventType, type CalendarEvent,
 } from "../_data/academic-calendar";
+import { downloadICS, downloadCSV } from "../_lib/export";
+import PrintableYearCalendar from "./PrintableYearCalendar";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 
 export type { CalendarEvent };
 
@@ -267,9 +272,47 @@ const TYPE_TABS: { id: "all"|EventType; label: string }[] = [
   { id: "vacation", label: "Vacations" },
 ];
 
-export default function AcademicCalendarClient({ initialEvents }: { initialEvents: CalendarEvent[] }) {
+export default function AcademicCalendarClient({ initialEvents, schoolName }: { initialEvents: CalendarEvent[]; schoolName: string }) {
   const [typeFilter, setTypeFilter] = useState<"all"|EventType>("all");
   const [viewMode, setViewMode] = useState<"list"|"grid">("list");
+  const [pdfCapturing, setPdfCapturing] = useState(false);
+  const [pdfGenerating, setPdfGenerating] = useState(false);
+
+  const academicYearLabel = `${MONTH_KEYS[0].slice(0, 4)}-${MONTH_KEYS[MONTH_KEYS.length - 1].slice(2, 4)}`;
+  const calendarName = `${schoolName} Academic Calendar ${academicYearLabel}`;
+
+  function handleExportICS() {
+    downloadICS(initialEvents, `academic-calendar-${academicYearLabel}.ics`, calendarName);
+  }
+
+  function handleExportCSV() {
+    downloadCSV(initialEvents, `academic-calendar-${academicYearLabel}.csv`);
+  }
+
+  async function handleExportPDF() {
+    if (pdfGenerating) return;
+    setPdfGenerating(true);
+    setPdfCapturing(true);
+    // Let the off-screen print area render at full size before capturing it.
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import("html2canvas-pro"),
+        import("jspdf"),
+      ]);
+      const printArea = document.getElementById("academic-calendar-print-area");
+      if (!printArea) return;
+      const page = printArea.firstElementChild as HTMLElement;
+      const canvas = await html2canvas(page, { scale: 2, backgroundColor: "#ffffff" });
+      const imgData = canvas.toDataURL("image/jpeg", 0.92);
+      const doc = new jsPDF({ unit: "mm", format: "a4" });
+      doc.addImage(imgData, "JPEG", 0, 0, 210, 297);
+      doc.save(`academic-calendar-${academicYearLabel}.pdf`);
+    } finally {
+      setPdfCapturing(false);
+      setPdfGenerating(false);
+    }
+  }
 
   function getMonthEventsLocal(mk: string) {
     return initialEvents.filter((e) => e.date.startsWith(mk));
@@ -291,9 +334,25 @@ export default function AcademicCalendarClient({ initialEvents }: { initialEvent
           <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Terms, holidays, and exam windows</p>
         </div>
         <div className="flex gap-2 sm:ml-auto">
-          <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
-            <Download className="h-3.5 w-3.5"/> Export Calendar
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors disabled:opacity-50" disabled={pdfGenerating}>
+              <Download className="h-3.5 w-3.5"/> {pdfGenerating ? "Generating…" : "Export Calendar"}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" sideOffset={6} className="w-48">
+              <DropdownMenuItem className="cursor-pointer" onClick={handleExportICS}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/file-icons/ics.svg" alt="" width={14} height={14} style={{ width: 14, height: 14 }}/> Export as .ics
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer" onClick={handleExportCSV}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/file-icons/csv.svg" alt="" width={14} height={14} style={{ width: 14, height: 14 }}/> Export as CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer" disabled={pdfGenerating} onClick={handleExportPDF}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/file-icons/pdf.svg" alt="" width={14} height={14} style={{ width: 14, height: 14 }}/> {pdfGenerating ? "Generating PDF…" : "Export as PDF"}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -333,6 +392,13 @@ export default function AcademicCalendarClient({ initialEvents }: { initialEvent
           ))}
         </div>
       )}
+
+      <PrintableYearCalendar
+        events={initialEvents}
+        schoolName={schoolName}
+        academicYearLabel={academicYearLabel}
+        capturing={pdfCapturing}
+      />
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X, Loader2, ChevronDown } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { allotStudent } from "../actions";
 import type { HostelRoom, EligibleStudentOption, FeeStatus } from "../_data/hostel";
 
@@ -104,7 +105,7 @@ export function AllotStudentModal({ rooms, students, onClose, onSaved }: AllotSt
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Join Date *</label>
-              <input type="date" className={inputClass} value={joinDate} onChange={(e) => setJoinDate(e.target.value)} required />
+              <DatePicker value={joinDate} onChange={setJoinDate} />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Monthly Fee (₹)</label>

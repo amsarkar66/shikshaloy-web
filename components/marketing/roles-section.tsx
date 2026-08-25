@@ -72,8 +72,9 @@ const roles = [
 
 export function RolesSection() {
   return (
-    <section className="bg-white py-24 sm:py-32">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <section className="relative bg-white py-24 sm:py-32 overflow-hidden">
+      <div className="absolute top-1/3 right-[-10%] w-[500px] h-[500px] bg-primary-50 rounded-full blur-3xl pointer-events-none" />
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <FadeIn className="text-center mb-16 max-w-2xl mx-auto">
           <p className="text-primary-600 font-semibold text-sm uppercase tracking-widest mb-3">
             Built for Everyone
@@ -90,8 +91,8 @@ export function RolesSection() {
         <StaggerChildren className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {roles.map((r) => (
             <StaggerItem key={r.role}>
-              <div className="rounded-2xl bg-white border border-zinc-200 p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-lg hover:shadow-zinc-100 hover:-translate-y-0.5 transition-all duration-300 h-full flex flex-col">
-                <div className={`inline-flex items-center justify-center h-11 w-11 rounded-xl mb-4 ${r.accent}`}>
+              <div className="group rounded-2xl bg-white border border-zinc-200 p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:border-zinc-300 hover:shadow-lg hover:shadow-zinc-100 hover:-translate-y-0.5 transition-all duration-300 h-full flex flex-col">
+                <div className={`inline-flex items-center justify-center h-11 w-11 rounded-xl mb-4 transition-transform duration-300 group-hover:scale-110 ${r.accent}`}>
                   <r.icon className="h-5 w-5" />
                 </div>
                 <h3 className="text-lg font-semibold text-zinc-900 mb-2">{r.role}</h3>

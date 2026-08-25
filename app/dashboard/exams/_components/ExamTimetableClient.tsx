@@ -5,6 +5,7 @@ import {
   ChevronDown, Plus, Pencil, Trash2, Check, Loader2, CalendarClock,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { saveExamScheduleSlot, deleteExamScheduleSlot, type ExamScheduleSlot } from "../actions";
 
 export interface SubjectOption { id: string; name: string }
@@ -133,7 +134,7 @@ export default function ExamTimetableClient({
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Date</label>
-            <input type="date" className={inputClass} value={form.examDate} onChange={(e) => update("examDate", e.target.value)} />
+            <DatePicker value={form.examDate} onChange={(v) => update("examDate", v)} />
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Start</label>

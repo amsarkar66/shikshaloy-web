@@ -5,11 +5,14 @@ import type { CalendarEvent } from "./_components/AcademicCalendarClient";
 
 export default async function AcademicCalendarPage() {
   const schoolId = await getCurrentSchoolIdOrThrow();
-  const { data } = await supabaseAdmin
-    .from("academic_calendar")
-    .select("id, title, date, date_to, type, description, affects_all, classes")
-    .eq("school_id", schoolId)
-    .order("date");
+  const [{ data }, { data: schoolRow }] = await Promise.all([
+    supabaseAdmin
+      .from("academic_calendar")
+      .select("id, title, date, date_to, type, description, affects_all, classes")
+      .eq("school_id", schoolId)
+      .order("date"),
+    supabaseAdmin.from("schools").select("name").eq("id", schoolId).maybeSingle(),
+  ]);
 
   const events: CalendarEvent[] = (data ?? []).map((e) => ({
     id:          e.id,
@@ -22,5 +25,5 @@ export default async function AcademicCalendarPage() {
     classes:     e.classes ?? undefined,
   }));
 
-  return <AcademicCalendarClient initialEvents={events} />;
+  return <AcademicCalendarClient initialEvents={events} schoolName={schoolRow?.name ?? "Shikshaloy"} />;
 }

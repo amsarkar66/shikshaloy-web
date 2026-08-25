@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X, Loader2, CheckCircle2, KeyRound, Copy, ChevronDown } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { addStudentManual, type AddStudentInput } from "../actions";
 import type { EnrollStudentResult } from "@/lib/students/enroll";
 import { PhotoUpload } from "../../_components/photo-upload";
@@ -197,7 +198,7 @@ export function AddStudentModal({ open, onClose, sections, onCreated }: AddStude
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Date of Birth</label>
-                <input type="date" className={inputClass} value={form.dob} onChange={(e) => update("dob", e.target.value)} />
+                <DatePicker value={form.dob} onChange={(v) => update("dob", v)} />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Gender</label>

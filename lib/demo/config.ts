@@ -9,6 +9,7 @@ export interface DemoAccount {
   icon: LucideIcon;
   accent: string;
   pitch: string;
+  highlights: string[];
 }
 
 // Every account below already exists in Supabase auth (created via
@@ -27,6 +28,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     icon: Crown,
     accent: "text-violet-600 bg-violet-50",
     pitch: "Multi-school control, subscriptions, and platform-wide analytics.",
+    highlights: ["Multi-school management", "Subscription & billing", "Platform analytics", "Global settings"],
   },
   {
     slug: "admin",
@@ -37,6 +39,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     icon: Landmark,
     accent: "text-primary-600 bg-primary-50",
     pitch: "Run the whole school — students, staff, fees, and timetables.",
+    highlights: ["Student & staff management", "Fee & expense tracking", "Timetable builder", "Reports & compliance"],
   },
   {
     slug: "teacher",
@@ -47,6 +50,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     icon: GraduationCap,
     accent: "text-sky-600 bg-sky-50",
     pitch: "Attendance, homework, grading, and parent messaging.",
+    highlights: ["Digital attendance", "Homework & assignments", "Exam & grading", "Parent communication"],
   },
   {
     slug: "staff",
@@ -57,6 +61,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     icon: Briefcase,
     accent: "text-orange-600 bg-orange-50",
     pitch: "A purpose-built workspace for non-teaching roles.",
+    highlights: ["Role-specific workspace", "Attendance & leave", "Documents & announcements", "Scoped permissions"],
   },
   {
     slug: "student",
@@ -67,6 +72,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     icon: BookOpen,
     accent: "text-amber-600 bg-amber-50",
     pitch: "Timetable, assignments, results, and announcements.",
+    highlights: ["Class timetable", "Assignments & notes", "Exam results", "Announcements"],
   },
   {
     slug: "parent",
@@ -77,6 +83,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     icon: Heart,
     accent: "text-rose-600 bg-rose-50",
     pitch: "Real-time attendance, results, fees, and teacher chat.",
+    highlights: ["Live attendance alerts", "Result & report card", "Online fee payment", "Direct teacher chat"],
   },
   {
     slug: "driver",
@@ -87,6 +94,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     icon: Bus,
     accent: "text-teal-600 bg-teal-50",
     pitch: "Routes, transport attendance, and direct messaging.",
+    highlights: ["Route & stop details", "Transport attendance", "Direct messaging", "Leave requests"],
   },
 ];
 

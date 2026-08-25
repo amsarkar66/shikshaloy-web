@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   bookStatus, availableCopies, avatarColor, initials, formatDate,
   type Book, type BookStatus, type BookIssue, type BorrowerOption, type BorrowerType,
@@ -263,7 +264,7 @@ function IssueForm({
           </select>
           <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
         </div>
-        <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} required className="h-9 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
+        <DatePicker value={dueDate} onChange={setDueDate} className="w-auto" />
         <FancyButton type="submit" size="sm" disabled={isPending}>
           {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />} Issue
         </FancyButton>

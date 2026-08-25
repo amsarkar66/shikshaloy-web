@@ -105,4 +105,32 @@ function SelectItem({ className, children, ...props }: SelectPrimitive.Item.Prop
   )
 }
 
-export { Select, SelectTrigger, SelectValue, SelectIcon, SelectContent, SelectItem }
+function SimpleSelect({
+  value, onValueChange, options, placeholder, className, invalid,
+}: {
+  value: string
+  onValueChange: (value: string) => void
+  options: { value: string; label: string }[]
+  placeholder?: string
+  className?: string
+  invalid?: boolean
+}) {
+  return (
+    <Select
+      value={value === "" ? null : value}
+      onValueChange={(v) => onValueChange((v as string | null) ?? "")}
+    >
+      <SelectTrigger invalid={invalid} className={className}>
+        <SelectValue>{(v: string | null) => options.find((o) => o.value === v)?.label ?? placeholder ?? ""}</SelectValue>
+        <SelectIcon />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((o) => (
+          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
+
+export { Select, SelectTrigger, SelectValue, SelectIcon, SelectContent, SelectItem, SimpleSelect }

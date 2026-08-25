@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Plus, X, ChevronDown } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { BOOKING_STATUS_BADGE, formatDate, type PtmSession } from "../_data/ptm";
 import { schedulePtmSession } from "../actions";
 
@@ -67,7 +68,7 @@ export function ScheduleModal({
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">Date</label>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
+            <DatePicker value={date} onChange={setDate} />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1">

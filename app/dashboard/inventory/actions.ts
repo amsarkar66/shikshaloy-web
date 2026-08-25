@@ -85,3 +85,17 @@ export async function updateItem(input: UpdateItemInput): Promise<void> {
 
   revalidatePath("/dashboard/inventory");
 }
+
+export async function deleteItem(id: string): Promise<void> {
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
+  const { error } = await supabaseAdmin
+    .from("inventory_items")
+    .delete()
+    .eq("id", id)
+    .eq("school_id", schoolId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/dashboard/inventory");
+}

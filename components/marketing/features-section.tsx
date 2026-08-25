@@ -11,17 +11,20 @@ import {
 } from "lucide-react";
 import { FadeIn, StaggerChildren, StaggerItem } from "@/components/ui/fade-in";
 
-const features = [
+const featured = [
   {
     icon: Users,
     title: "Role-Based Access",
-    desc: "Dedicated portals for Super Admin, Admin, Teacher, Parent, and Student — each with exactly the tools they need.",
+    desc: "Dedicated portals for Super Admin, Admin, Teacher, Parent, and Student — each with exactly the tools they need, nothing they don't.",
   },
   {
     icon: BarChart3,
     title: "Analytics & Reports",
-    desc: "Real-time dashboards, attendance trends, exam performance, and financial reports at a glance.",
+    desc: "Real-time dashboards, attendance trends, exam performance, and financial reports — built from the same live data every role sees.",
   },
+];
+
+const features = [
   {
     icon: BookOpen,
     title: "Academic Management",
@@ -61,8 +64,16 @@ const features = [
 
 export function FeaturesSection() {
   return (
-    <section id="features" className="bg-zinc-50/60 py-24 sm:py-32 border-y border-zinc-100">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <section id="features" className="relative bg-zinc-50/60 py-24 sm:py-32 border-y border-zinc-100 overflow-hidden">
+      <div
+        className="absolute inset-0 opacity-[0.4] [mask-image:radial-gradient(ellipse_55%_45%_at_50%_0%,#000_30%,transparent_100%)]"
+        style={{
+          backgroundImage: "radial-gradient(circle,#d4d4d8 1px,transparent 1px)",
+          backgroundSize: "28px 28px",
+        }}
+      />
+
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <FadeIn className="text-center mb-16 max-w-2xl mx-auto">
           <p className="text-primary-600 font-semibold text-sm uppercase tracking-widest mb-3">
             Everything You Need
@@ -76,6 +87,23 @@ export function FeaturesSection() {
           </p>
         </FadeIn>
 
+        {/* Two larger featured tiles */}
+        <StaggerChildren className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+          {featured.map((f) => (
+            <StaggerItem key={f.title}>
+              <div className="group relative overflow-hidden rounded-2xl border border-zinc-200 bg-white p-8 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:border-primary-200 hover:shadow-xl hover:shadow-primary-100/40 hover:-translate-y-0.5 transition-all duration-300 h-full">
+                <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-primary-50 opacity-0 group-hover:opacity-100 blur-2xl transition-opacity duration-500" />
+                <div className="relative inline-flex items-center justify-center h-12 w-12 rounded-xl bg-primary-50 mb-5 group-hover:bg-primary-500 transition-colors duration-300">
+                  <f.icon className="h-6 w-6 text-primary-600 group-hover:text-white transition-colors duration-300" />
+                </div>
+                <h3 className="relative text-xl font-semibold text-zinc-900 mb-2.5">{f.title}</h3>
+                <p className="relative text-zinc-500 text-sm leading-relaxed max-w-md">{f.desc}</p>
+              </div>
+            </StaggerItem>
+          ))}
+        </StaggerChildren>
+
+        {/* Compact grid of remaining features */}
         <StaggerChildren className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {features.map((f) => (
             <StaggerItem key={f.title}>

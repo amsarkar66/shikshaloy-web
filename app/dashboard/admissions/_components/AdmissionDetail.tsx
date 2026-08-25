@@ -18,6 +18,7 @@ import {
 } from "../actions";
 import { CredentialsDialog } from "./CredentialsDialog";
 import { StatusReasonDialog } from "./StatusReasonDialog";
+import { DatePicker } from "@/components/ui/date-picker";
 import type { Application } from "./AdmissionsClient";
 
 export interface AdmissionDocument {
@@ -274,7 +275,7 @@ export function AdmissionDetail({ app: initial, documents: initialDocuments }: {
           {editing ? (
             <div className="space-y-3">
               <Field label="Full Name"><input className={inputClass} value={form.applicantName} onChange={(e)=>update("applicantName", e.target.value)} /></Field>
-              <Field label="Date of Birth"><input type="date" className={inputClass} value={form.dob} onChange={(e)=>update("dob", e.target.value)} /></Field>
+              <Field label="Date of Birth"><DatePicker className="h-8" value={form.dob} onChange={(v)=>update("dob", v)} /></Field>
               <Field label="Gender">
                 <div className="relative">
                   <select className={selectClass} value={form.gender} onChange={(e)=>update("gender", e.target.value as EditForm["gender"])}>

@@ -6,8 +6,9 @@ import { PLANS, formatCurrency } from "@/app/dashboard/billing/_data/billing";
 
 export function PricingSection() {
   return (
-    <section id="pricing" className="bg-zinc-50/60 py-24 sm:py-32 border-y border-zinc-100">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <section id="pricing" className="relative bg-zinc-50/60 py-24 sm:py-32 border-y border-zinc-100 overflow-hidden">
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[300px] bg-primary-100/40 rounded-full blur-3xl pointer-events-none" />
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <FadeIn className="text-center mb-16 max-w-2xl mx-auto">
           <p className="text-primary-600 font-semibold text-sm uppercase tracking-widest mb-3">
             Simple Pricing

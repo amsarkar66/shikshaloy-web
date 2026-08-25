@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X, Loader2, ChevronDown } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { createVehicle, updateVehicle } from "../actions";
 import type { Vehicle, VehicleStatus, FuelType } from "../_data/transport";
 import type { DriverOption } from "../actions";
@@ -126,11 +127,11 @@ export function VehicleModal({ vehicle, drivers, onClose, onSaved }: VehicleModa
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Last Service</label>
-              <input type="date" className={inputClass} value={lastService ?? ""} onChange={(e) => setLastService(e.target.value)} />
+              <DatePicker value={lastService ?? ""} onChange={setLastService} />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Next Service</label>
-              <input type="date" className={inputClass} value={nextService ?? ""} onChange={(e) => setNextService(e.target.value)} />
+              <DatePicker value={nextService ?? ""} onChange={setNextService} />
             </div>
             <div className="col-span-2">
               <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Status</label>

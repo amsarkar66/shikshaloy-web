@@ -12,8 +12,10 @@ import { deptColor } from "../../staff/_data/staff";
 import { Table, TableHead, TableBody, Th, Td, Tr } from "@/components/ui/data-table";
 import { markStudentAttendance, markStaffAttendance } from "../actions";
 
-export type AttendanceStatus      = "present" | "absent" | "late";
-export type StaffAttendanceStatus = "present" | "absent" | "late" | "on_leave";
+export type AttendanceStatus      = "present" | "absent" | "late" | "unmarked";
+export type MarkedAttendanceStatus = Exclude<AttendanceStatus, "unmarked">;
+export type StaffAttendanceStatus = "present" | "absent" | "late" | "on_leave" | "unmarked";
+export type MarkedStaffAttendanceStatus = Exclude<StaffAttendanceStatus, "unmarked">;
 
 export interface AttendanceSec {
   id:       string;
@@ -56,26 +58,30 @@ function rateColor(r: number) { if(r>=90)return"text-emerald-600 dark:text-emera
 function rateBar(r: number)   { if(r>=90)return"bg-emerald-500";if(r>=80)return"bg-amber-500";return"bg-red-500"; }
 
 const STATUS: Record<AttendanceStatus,{label:string;active:string;ghost:string;dot:string}> = {
-  present: { label:"Present", active:"bg-emerald-500 text-white border-emerald-500", ghost:"border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400", dot:"bg-emerald-500" },
-  late:    { label:"Late",    active:"bg-amber-500  text-white border-amber-500",    ghost:"border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 hover:border-amber-400  hover:text-amber-600  dark:hover:text-amber-400",  dot:"bg-amber-500"  },
-  absent:  { label:"Absent",  active:"bg-red-500    text-white border-red-500",      ghost:"border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 hover:border-red-400    hover:text-red-600    dark:hover:text-red-400",    dot:"bg-red-500"    },
+  present:  { label:"Present",    active:"bg-emerald-500 text-white border-emerald-500", ghost:"border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400", dot:"bg-emerald-500" },
+  late:     { label:"Late",       active:"bg-amber-500  text-white border-amber-500",    ghost:"border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 hover:border-amber-400  hover:text-amber-600  dark:hover:text-amber-400",  dot:"bg-amber-500"  },
+  absent:   { label:"Absent",     active:"bg-red-500    text-white border-red-500",      ghost:"border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 hover:border-red-400    hover:text-red-600    dark:hover:text-red-400",    dot:"bg-red-500"    },
+  unmarked: { label:"Not Marked", active:"bg-gray-400   text-white border-gray-400",     ghost:"border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400", dot:"bg-gray-400"   },
 };
 const STATUS_BADGE: Record<AttendanceStatus,string> = {
-  present:"bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-  late:   "bg-amber-500/10   text-amber-600   dark:text-amber-400   border-amber-500/20",
-  absent: "bg-red-500/10     text-red-600     dark:text-red-400     border-red-500/20",
+  present:  "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+  late:     "bg-amber-500/10   text-amber-600   dark:text-amber-400   border-amber-500/20",
+  absent:   "bg-red-500/10     text-red-600     dark:text-red-400     border-red-500/20",
+  unmarked: "bg-gray-500/10    text-gray-500    dark:text-zinc-400    border-gray-500/20",
 };
 const STAFF_STATUS: Record<StaffAttendanceStatus,{label:string;active:string;ghost:string}> = {
-  present:  { label:"Present",  active:"bg-emerald-500 text-white border-emerald-500", ghost:"border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400" },
-  late:     { label:"Late",     active:"bg-amber-500   text-white border-amber-500",   ghost:"border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 hover:border-amber-400  hover:text-amber-600  dark:hover:text-amber-400"  },
-  absent:   { label:"Absent",   active:"bg-red-500     text-white border-red-500",     ghost:"border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 hover:border-red-400    hover:text-red-600    dark:hover:text-red-400"    },
-  on_leave: { label:"On Leave", active:"bg-purple-500  text-white border-purple-500",  ghost:"border-gray-200 dark:border-zinc-700 text-gray-400 dark:text-zinc-500"  },
+  present:  { label:"Present",    active:"bg-emerald-500 text-white border-emerald-500", ghost:"border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400" },
+  late:     { label:"Late",       active:"bg-amber-500   text-white border-amber-500",   ghost:"border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 hover:border-amber-400  hover:text-amber-600  dark:hover:text-amber-400"  },
+  absent:   { label:"Absent",     active:"bg-red-500     text-white border-red-500",     ghost:"border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 hover:border-red-400    hover:text-red-600    dark:hover:text-red-400"    },
+  on_leave: { label:"On Leave",   active:"bg-purple-500  text-white border-purple-500",  ghost:"border-gray-200 dark:border-zinc-700 text-gray-400 dark:text-zinc-500"  },
+  unmarked: { label:"Not Marked", active:"bg-gray-400    text-white border-gray-400",    ghost:"border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400" },
 };
 const STAFF_BADGE: Record<StaffAttendanceStatus,string> = {
   present: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
   late:    "bg-amber-500/10   text-amber-600   dark:text-amber-400   border-amber-500/20",
   absent:  "bg-red-500/10     text-red-600     dark:text-red-400     border-red-500/20",
   on_leave:"bg-purple-500/10  text-purple-700  dark:text-purple-300  border-purple-500/20",
+  unmarked:"bg-gray-500/10    text-gray-500    dark:text-zinc-400    border-gray-500/20",
 };
 
 function DateNav({ dateStr, onChange }: { dateStr: string; onChange: (d: string) => void }) {
@@ -328,7 +334,7 @@ function DetailView({
   students: AttendanceStudent[];
   dateStr: string;
   statusMap: Record<string, AttendanceStatus>;
-  onStatusChange: (id: string, s: AttendanceStatus) => void;
+  onStatusChange: (id: string, s: MarkedAttendanceStatus) => void;
   onMarkAllPresent: () => void;
   onBack: () => void;
 }) {
@@ -381,7 +387,7 @@ function DetailView({
             </div>
             <div className="divide-y divide-gray-100 dark:divide-zinc-700/50">
               {students.map((st) => {
-                const status = statusMap[st.id] ?? "present";
+                const status = statusMap[st.id] ?? "unmarked";
                 return (
                   <div key={st.id} className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 dark:hover:bg-zinc-700/30 transition-colors">
                     <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ${uuidAvatarColor(st.id)}`}>{nameInitials(st.name)}</div>
@@ -391,7 +397,7 @@ function DetailView({
                     </div>
                     <span className={`sm:hidden inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[status]}`}>{STATUS[status].label}</span>
                     <div className="hidden sm:flex items-center gap-1">
-                      {(["present","late","absent"] as AttendanceStatus[]).map((s)=>(
+                      {(["present","late","absent"] as MarkedAttendanceStatus[]).map((s)=>(
                         <button key={s} onClick={()=>onStatusChange(st.id,s)} className={`h-7 rounded-lg border px-3 text-xs font-medium transition-colors ${status===s?STATUS[s].active:STATUS[s].ghost}`}>{STATUS[s].label}</button>
                       ))}
                     </div>
@@ -412,7 +418,7 @@ function StudentRoster({
 }: {
   studentsBySection: Record<string, AttendanceStudent[]>;
   statusMap: Record<string, AttendanceStatus>;
-  onStatusChange: (id: string, sectionId: string, s: AttendanceStatus) => void;
+  onStatusChange: (id: string, sectionId: string, s: MarkedAttendanceStatus) => void;
   query: string;
   classFilter: string;
 }) {
@@ -442,7 +448,7 @@ function StudentRoster({
           <>
             <div className="divide-y divide-gray-100 dark:divide-zinc-700/50">
               {filtered.map((st) => {
-                const status = statusMap[st.id] ?? "present";
+                const status = statusMap[st.id] ?? "unmarked";
                 return (
                   <div key={st.id} className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 dark:hover:bg-zinc-700/30 transition-colors">
                     <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ${uuidAvatarColor(st.id)}`}>{nameInitials(st.name)}</div>
@@ -452,7 +458,7 @@ function StudentRoster({
                     </div>
                     <span className={`sm:hidden inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[status]}`}>{STATUS[status].label}</span>
                     <div className="hidden sm:flex items-center gap-1">
-                      {(["present","late","absent"] as AttendanceStatus[]).map((s)=>(
+                      {(["present","late","absent"] as MarkedAttendanceStatus[]).map((s)=>(
                         <button key={s} onClick={()=>onStatusChange(st.id,st.sectionId,s)} className={`h-7 rounded-lg border px-3 text-xs font-medium transition-colors ${status===s?STATUS[s].active:STATUS[s].ghost}`}>{STATUS[s].label}</button>
                       ))}
                     </div>
@@ -480,7 +486,7 @@ function StaffAttendanceView({ staff, dateStr, staffStatusMap, setStaffStatus }:
   staff: AttendanceStaff[];
   dateStr: string;
   staffStatusMap: Record<string, StaffAttendanceStatus>;
-  setStaffStatus: (id: string, s: StaffAttendanceStatus) => void;
+  setStaffStatus: (id: string, s: MarkedStaffAttendanceStatus) => void;
 }) {
   const activeStaff = useMemo(()=>staff.filter((s)=>s.status!=="inactive"),[staff]);
   const departments = useMemo(()=>["all",...Array.from(new Set(activeStaff.map((s)=>s.department))).sort()],[activeStaff]);
@@ -537,7 +543,7 @@ function StaffAttendanceView({ staff, dateStr, staffStatusMap, setStaffStatus }:
       <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
         <div className="divide-y divide-gray-100 dark:divide-zinc-700/50">
           {filtered.map((st)=>{
-            const status   = staffStatusMap[st.id] ?? "present";
+            const status   = staffStatusMap[st.id] ?? "unmarked";
             const isLocked = status==="on_leave";
             return (
               <div key={st.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-zinc-700/30 transition-colors">
@@ -551,7 +557,7 @@ function StaffAttendanceView({ staff, dateStr, staffStatusMap, setStaffStatus }:
                 </div>
                 <span className={`sm:hidden inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STAFF_BADGE[status]}`}>{STAFF_STATUS[status].label}</span>
                 <div className="hidden sm:flex items-center gap-1">
-                  {(["present","late","absent"] as StaffAttendanceStatus[]).map((s)=>(
+                  {(["present","late","absent"] as MarkedStaffAttendanceStatus[]).map((s)=>(
                     <button key={s} onClick={()=>!isLocked&&setStaffStatus(st.id,s)} disabled={isLocked} className={`h-7 rounded-lg border px-3 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${status===s?STAFF_STATUS[s].active:STAFF_STATUS[s].ghost}`}>{STAFF_STATUS[s].label}</button>
                   ))}
                   {isLocked&&<span className={`h-7 inline-flex items-center rounded-lg border px-3 text-xs font-medium ${STAFF_STATUS.on_leave.active}`}>On Leave</span>}
@@ -599,32 +605,32 @@ export default function AttendanceClient({
   const [view,       setView]    = useState<"overview"|"detail">("overview");
   const [sectionId,  setSectionId] = useState("");
 
-  // For today, use DB records; for any other date, default all to "present"
+  // For today, use DB records; unmarked students stay "unmarked" until explicitly set
   const [statusMap, setStatusMap] = useState<Record<string, AttendanceStatus>>(() => {
     const map: Record<string, AttendanceStatus> = {};
     for (const students of Object.values(initialStudentsBySection)) {
-      for (const st of students) { map[st.id] = todayAttendance[st.id] ?? "present"; }
+      for (const st of students) { map[st.id] = todayAttendance[st.id] ?? "unmarked"; }
     }
     return map;
   });
 
   const [staffStatusMap, setStaffStatusMap] = useState<Record<string, StaffAttendanceStatus>>(() => {
     const map: Record<string, StaffAttendanceStatus> = {};
-    for (const s of initialStaff) { map[s.id] = todayStaffAttendance[s.id] ?? "present"; }
+    for (const s of initialStaff) { map[s.id] = todayStaffAttendance[s.id] ?? "unmarked"; }
     return map;
   });
 
   function handleDateChange(d: string) {
     setDate(d);
     if (view==="detail") setView("overview");
-    // Reset to "present" for non-today dates (no history in DB yet)
+    // Reset to "unmarked" for non-today dates (no history in DB yet)
     const map: Record<string, AttendanceStatus> = {};
     for (const students of Object.values(initialStudentsBySection)) {
-      for (const st of students) { map[st.id] = d===todayStr()?todayAttendance[st.id]??"present":"present"; }
+      for (const st of students) { map[st.id] = d===todayStr()?todayAttendance[st.id]??"unmarked":"unmarked"; }
     }
     setStatusMap(map);
     const smap: Record<string, StaffAttendanceStatus> = {};
-    for (const s of initialStaff) { smap[s.id] = d===todayStr()?todayStaffAttendance[s.id]??"present":"present"; }
+    for (const s of initialStaff) { smap[s.id] = d===todayStr()?todayStaffAttendance[s.id]??"unmarked":"unmarked"; }
     setStaffStatusMap(smap);
   }
 
@@ -633,12 +639,12 @@ export default function AttendanceClient({
   function openDetail(id: string) { setSectionId(id); setView("detail"); }
   function backToOverview()       { setView("overview"); }
 
-  const setStudentStatus  = useCallback((id: string, secId: string, s: AttendanceStatus) => {
+  const setStudentStatus  = useCallback((id: string, secId: string, s: MarkedAttendanceStatus) => {
     setStatusMap((prev)=>({...prev,[id]:s}));
     if (dateStr === todayStr()) void markStudentAttendance(id, secId, dateStr, s);
   },[dateStr]);
 
-  const setStaffStatusFn  = useCallback((id: string, s: StaffAttendanceStatus) => {
+  const setStaffStatusFn  = useCallback((id: string, s: MarkedStaffAttendanceStatus) => {
     setStaffStatusMap((prev)=>({...prev,[id]:s}));
     if (dateStr === todayStr()) void markStaffAttendance(id, dateStr, s);
   },[dateStr]);

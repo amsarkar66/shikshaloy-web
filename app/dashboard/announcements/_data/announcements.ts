@@ -2,6 +2,12 @@ export type Priority = "urgent" | "normal" | "info";
 export type Status   = "active" | "draft" | "archived";
 export type Audience = "all" | "students" | "staff" | "parents" | "class";
 
+export interface SectionOption {
+  id: string;
+  name: string;
+  gradeLevel: number;
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 export const PRIORITY_LABEL: Record<Priority, string> = {
@@ -51,4 +57,8 @@ export function formatDate(iso: string) {
 export function daysUntil(iso: string) {
   const diff = new Date(iso).getTime() - Date.now();
   return Math.ceil(diff / 86_400_000);
+}
+
+export function stripHtml(html: string) {
+  return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Loader2, User, BookOpen, Users, ChevronDown, Siren, HeartPulse } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { updateStudent } from "../actions";
 import { PhotoUpload } from "../../_components/photo-upload";
 import type { SectionOption } from "./add-student-modal";
@@ -173,7 +174,7 @@ export function EditStudentForm({ student, sections }: { student: EditableStuden
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Date of Birth</label>
-              <input type="date" className={inputClass} value={form.dob} onChange={(e) => update("dob", e.target.value)} />
+              <DatePicker value={form.dob} onChange={(v) => update("dob", v)} />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Gender</label>

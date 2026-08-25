@@ -3,6 +3,7 @@
 import { useFormStatus } from "react-dom";
 import { Megaphone, Send, Users, Loader2 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { broadcastAnnouncement } from "../actions";
 
 export interface PlatformBroadcast {
@@ -73,11 +74,7 @@ export default function PlatformAnnouncementsClient({ broadcasts }: { broadcasts
               <option value="normal">Normal</option>
               <option value="urgent">Urgent</option>
             </select>
-            <input
-              type="date"
-              name="expiresAt"
-              className="h-9 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
-            />
+            <DatePicker name="expiresAt" placeholder="Expires (optional)" className="w-auto" />
             <div className="flex-1" />
             <BroadcastButton />
           </div>

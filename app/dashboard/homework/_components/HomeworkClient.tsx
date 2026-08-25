@@ -13,6 +13,7 @@ import {
 import { assignHomework } from "../actions";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr } from "@/components/ui/data-table";
+import { DatePicker } from "@/components/ui/date-picker";
 
 type SortField = "title" | "dueDate" | "submission";
 type SortDir = "asc" | "desc";
@@ -142,10 +143,7 @@ function NewAssignmentModal({
 
           <div className="space-y-1">
             <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">Due date</label>
-            <input
-              type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} required
-              className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
-            />
+            <DatePicker value={dueDate} onChange={setDueDate} />
           </div>
 
           <div className="space-y-1">

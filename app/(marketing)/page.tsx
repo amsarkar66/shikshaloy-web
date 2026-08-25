@@ -4,7 +4,8 @@ import { StatsSection } from "@/components/marketing/stats-section";
 import { FeaturesSection } from "@/components/marketing/features-section";
 import { RolesSection } from "@/components/marketing/roles-section";
 import { PricingSection } from "@/components/marketing/pricing-section";
-import { TestimonialsSection } from "@/components/marketing/testimonials-section";
+import { HowItWorksSection } from "@/components/marketing/how-it-works-section";
+import { MobileAppSection } from "@/components/marketing/mobile-app-section";
 import { CtaSection } from "@/components/marketing/cta-section";
 import { DEFAULT_TITLE, DEFAULT_DESCRIPTION, absoluteUrl, OG_IMAGE } from "@/lib/seo";
 
@@ -56,7 +57,8 @@ export default function HomePage() {
       <FeaturesSection />
       <RolesSection />
       <PricingSection />
-      <TestimonialsSection />
+      <HowItWorksSection />
+      <MobileAppSection />
       <CtaSection />
     </main>
   );

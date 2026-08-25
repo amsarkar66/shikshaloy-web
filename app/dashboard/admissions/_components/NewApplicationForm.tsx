@@ -7,6 +7,7 @@ import {
   ArrowLeft, Loader2, GraduationCap, Users, Heart, Phone as PhoneIcon, ChevronDown, FolderOpen,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { createApplication, type NewApplicationInput, type PrimaryContact } from "../actions";
 import { APPLY_CLASSES } from "../_data/admissions";
 import { PhotoUpload } from "../../_components/photo-upload";
@@ -118,7 +119,7 @@ export default function NewApplicationForm({ academicYears }: { academicYears: A
           </div>
           <div>
             <label className={labelClass}>Date of Birth</label>
-            <input type="date" className={inputClass} value={form.dob} onChange={(e) => update("dob", e.target.value)} />
+            <DatePicker value={form.dob} onChange={(v) => update("dob", v)} />
           </div>
           <div>
             <label className={labelClass}>Gender</label>
