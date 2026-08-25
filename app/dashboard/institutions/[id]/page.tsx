@@ -4,8 +4,11 @@ import {
   ArrowLeft, MapPin, Phone, Globe, Users, Briefcase,
   CalendarDays, GraduationCap, Hash, CreditCard, Building2, Landmark,
 } from "lucide-react";
+import { getUser } from "@/lib/supabase/server";
 import { getInstitution } from "@/lib/supabase/admin";
+import { KERNEL_PERMISSIONS, type KernelPermission } from "@/lib/kernel-permissions";
 import { StatusBadge, TypeBadge, BoardBadge, InstitutionActions } from "../_components/institution-ui";
+import { DeleteInstitutionButton } from "../_components/delete-institution-modal";
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   if (value === null || value === undefined || value === "") return null;
@@ -38,10 +41,15 @@ export default async function InstitutionDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const result = await getInstitution(id);
+  const [result, { data: { user } }] = await Promise.all([getInstitution(id), getUser()]);
   if (!result) notFound();
 
   const { institution: inst, subscription } = result;
+  const rawPermission = user?.user_metadata?.kernel_permission as string | undefined;
+  const permission: KernelPermission = (KERNEL_PERMISSIONS as readonly string[]).includes(rawPermission ?? "")
+    ? (rawPermission as KernelPermission)
+    : "owner";
+  const canDelete = permission === "owner";
   const location = [inst.address, inst.city, inst.state, inst.pin_code, inst.country]
     .filter(Boolean)
     .join(", ");
@@ -75,7 +83,16 @@ export default async function InstitutionDetailPage({
           </p>
         </div>
 
-        <InstitutionActions inst={inst} />
+        <div className="flex flex-col gap-2">
+          <InstitutionActions inst={inst} />
+          {canDelete && (
+            <DeleteInstitutionButton
+              institutionId={inst.id}
+              institutionName={inst.name}
+              schoolCount={inst.schools.length}
+            />
+          )}
+        </div>
       </div>
 
       {inst.schools.length > 1 && (

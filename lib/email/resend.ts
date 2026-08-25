@@ -262,6 +262,60 @@ export async function sendOfflinePaymentDecisionEmail(input: {
   }
 }
 
+// Unlike the senders above, a failed send here must be surfaced to the
+// caller (not swallowed) — this code is the only thing standing between a
+// kernel click and a permanent institution delete, so the UI needs to know
+// whether the OTP genuinely reached an inbox before it accepts an attempt.
+export async function sendInstitutionDeleteOtpEmail(input: {
+  to: string;
+  institutionName: string;
+  code: string;
+}): Promise<void> {
+  const resend = getResendClient();
+  if (!resend) throw new Error("Email sending isn't configured (RESEND_API_KEY missing).");
+
+  const { error } = await resend.emails.send({
+    from: FROM,
+    to: input.to,
+    subject: `Confirm deletion of ${input.institutionName}`,
+    html: `
+      <p>A request was made to permanently delete <strong>${input.institutionName}</strong> and all of its schools, students, staff, and records.</p>
+      <p>If this was you, enter this code to confirm:</p>
+      <p style="font-size: 28px; font-weight: 700; letter-spacing: 6px;">${input.code}</p>
+      <p>This code expires in 10 minutes. If you didn't request this, ignore this email — nothing will be deleted without the code.</p>
+    `,
+  });
+  if (error) throw new Error(`Failed to send verification email: ${error.message}`);
+}
+
+export async function sendInstitutionDeletedEmail(input: {
+  to: string[];
+  institutionName: string;
+  schoolNames: string[];
+  deletedBy: string;
+}) {
+  const resend = getResendClient();
+  if (!resend || input.to.length === 0) {
+    console.warn("RESEND_API_KEY not set (or no recipients) — skipping institution-deleted notice.");
+    return;
+  }
+  try {
+    await resend.emails.send({
+      from: FROM,
+      to: input.to,
+      subject: `${input.institutionName} was permanently deleted`,
+      html: `
+        <p><strong>${input.institutionName}</strong> and its school${input.schoolNames.length === 1 ? "" : "s"}
+        (${input.schoolNames.join(", ") || "—"}) ${input.schoolNames.length === 1 ? "was" : "were"} permanently deleted by ${input.deletedBy}.</p>
+        <p>Login accounts for staff, students, and parents were kept (in case they're active elsewhere) — only this institution's data was removed.</p>
+        <p>This is an automated record — the action can't be undone.</p>
+      `,
+    });
+  } catch (err) {
+    console.error("Failed to send institution-deleted notice:", err);
+  }
+}
+
 export async function sendInstitutionDecisionEmail(input: {
   to: string;
   schoolName: string;

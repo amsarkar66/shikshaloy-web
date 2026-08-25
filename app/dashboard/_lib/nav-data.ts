@@ -55,6 +55,7 @@ export const NAV: Record<string, NavGroup[]> = {
       items: [
         { label: "Overview",     href: "/dashboard",              icon: LayoutDashboard },
         { label: "Institutions", href: "/dashboard/institutions", icon: Building2 },
+        { label: "Users",        href: "/dashboard/users",        icon: Users },
       ],
     },
     {

@@ -279,6 +279,152 @@ export async function updateInstitutionStatus(
   };
 }
 
+// Permanently deletes an institution and every row scoped to its schools —
+// the actual cascade runs inside a single Postgres transaction (see the
+// `delete_institution_cascade` function, migration
+// 20260825140000_add_institution_hard_delete.sql) so a table this function
+// doesn't know about fails the whole call atomically instead of leaving a
+// half-deleted institution. Login accounts (owner, staff, students, parents,
+// drivers) are left untouched — only their now-dangling school link is
+// cleared, since the same account may work part-time elsewhere.
+export async function hardDeleteInstitution(
+  institutionId: string
+): Promise<{ institutionName: string; schoolNames: string[] }> {
+  const { data: institution } = await supabaseAdmin
+    .from("institutions")
+    .select("id, name")
+    .eq("id", institutionId)
+    .single();
+  if (!institution) throw new Error("Institution not found");
+
+  const { data: schools } = await supabaseAdmin
+    .from("schools")
+    .select("name")
+    .eq("institution_id", institutionId);
+  const schoolNames = (schools ?? []).map((s) => s.name);
+
+  const { error } = await supabaseAdmin.rpc("delete_institution_cascade", {
+    p_institution_id: institutionId,
+  });
+  if (error) throw new Error(`Failed to delete institution: ${error.message}`);
+
+  return { institutionName: institution.name, schoolNames };
+}
+
+export interface DirectoryUser {
+  id: string;
+  email: string | null;
+  fullName: string | null;
+  role: string;
+  status: string | null;
+  phone: string | null;
+  schoolName: string | null;
+  institutionName: string | null;
+  createdAt: string;
+  lastSignInAt: string | null;
+}
+
+interface DirectoryProfileRow {
+  id: string;
+  role: string;
+  full_name: string | null;
+  phone: string | null;
+  status: string | null;
+  school_id: string | null;
+  created_at: string;
+}
+
+// listStaffUsers/listKernelUsers only ever cover a small, single-role slice
+// and fit in one page today, but this directory covers every account on the
+// platform — it has to loop until a short page signals the end, or accounts
+// past #1000 would silently vanish from the list.
+async function fetchAllAuthUsersById(): Promise<
+  Map<string, { email?: string; created_at: string; last_sign_in_at?: string | null }>
+> {
+  const usersById = new Map<string, { email?: string; created_at: string; last_sign_in_at?: string | null }>();
+  const perPage = 1000;
+  let page = 1;
+  while (true) {
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users?per_page=${perPage}&page=${page}`,
+      { headers: adminHeaders(), cache: "no-store" }
+    );
+    if (!res.ok) break;
+    const data: { users?: { id: string; email?: string; created_at: string; last_sign_in_at?: string | null }[] } =
+      await res.json();
+    const users = data.users ?? [];
+    for (const u of users) usersById.set(u.id, u);
+    if (users.length < perPage) break;
+    page += 1;
+  }
+  return usersById;
+}
+
+// Platform-wide user directory for kernel — every account across every
+// role and institution, unlike the rest of the app's people-listing pages
+// which are always scoped to one school.
+export async function listAllUsers(): Promise<DirectoryUser[]> {
+  const PAGE = 1000;
+  let from = 0;
+  const profiles: DirectoryProfileRow[] = [];
+  while (true) {
+    const { data } = await supabaseAdmin
+      .from("profiles")
+      .select("id, role, full_name, phone, status, school_id, created_at")
+      .order("created_at", { ascending: false })
+      .range(from, from + PAGE - 1);
+    if (!data || data.length === 0) break;
+    profiles.push(...(data as DirectoryProfileRow[]));
+    if (data.length < PAGE) break;
+    from += PAGE;
+  }
+
+  const schoolIds = [...new Set(profiles.map((p) => p.school_id).filter((id): id is string => !!id))];
+  const { data: schools } = schoolIds.length
+    ? await supabaseAdmin.from("schools").select("id, name, institution_id").in("id", schoolIds)
+    : { data: null };
+
+  const institutionIds = [...new Set((schools ?? []).map((s) => s.institution_id).filter((id): id is string => !!id))];
+  const { data: institutions } = institutionIds.length
+    ? await supabaseAdmin.from("institutions").select("id, name").in("id", institutionIds)
+    : { data: null };
+
+  // super_admin accounts aren't tied to a school_id — they own an
+  // institution directly, so resolve their institution the other way round.
+  const superAdminIds = profiles.filter((p) => p.role === "super_admin").map((p) => p.id);
+  const { data: ownedInstitutions } = superAdminIds.length
+    ? await supabaseAdmin.from("institutions").select("id, name, owner_id").in("owner_id", superAdminIds)
+    : { data: null };
+
+  const institutionNameById = new Map((institutions ?? []).map((i) => [i.id, i.name]));
+  const schoolById = new Map(
+    (schools ?? []).map((s) => [
+      s.id,
+      { name: s.name, institutionName: s.institution_id ? institutionNameById.get(s.institution_id) ?? null : null },
+    ])
+  );
+  const institutionNameByOwnerId = new Map((ownedInstitutions ?? []).map((i) => [i.owner_id as string, i.name]));
+
+  const authUsersById = await fetchAllAuthUsersById();
+
+  return profiles.map((p) => {
+    const auth = authUsersById.get(p.id);
+    const school = p.school_id ? schoolById.get(p.school_id) : undefined;
+    return {
+      id: p.id,
+      email: auth?.email ?? null,
+      fullName: p.full_name,
+      role: p.role,
+      status: p.status,
+      phone: p.phone,
+      schoolName: school?.name ?? null,
+      institutionName: school?.institutionName ?? institutionNameByOwnerId.get(p.id) ?? null,
+      createdAt: p.created_at,
+      lastSignInAt: auth?.last_sign_in_at ?? null,
+    };
+  });
+}
+
 export interface StaffUser {
   id: string;
   email: string;
