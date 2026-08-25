@@ -2,20 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FadeIn } from "@/components/ui/fade-in";
+import type { ChangeType, ChangelogRelease } from "@/lib/changelog";
 
-export type ChangeType = "feat" | "fix" | "improve" | "docs";
-
-export interface ChangelogEntryLine {
-  type: ChangeType;
-  text: string;
-}
-
-export interface ChangelogRelease {
-  version: string;
-  hash: string;
-  date: string;
-  entries: ChangelogEntryLine[];
-}
+export type { ChangeType, ChangelogEntryLine, ChangelogRelease } from "@/lib/changelog";
 
 const TYPE_META: Record<ChangeType, { glyph: string; className: string; label: string }> = {
   feat: { glyph: "+", className: "text-emerald-400", label: "feat" },

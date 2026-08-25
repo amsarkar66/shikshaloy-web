@@ -1,13 +1,73 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { X } from "lucide-react";
+import { Info, X } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { LogoutButton } from "./logout-button";
 import { SchoolSwitcher } from "./school-switcher";
-import packageJson from "@/package.json";
+import { RELEASES } from "@/lib/changelog";
 import { ROLE_META, getNavGroupsForRole } from "../_lib/nav-data";
+
+const TYPE_DOT: Record<string, string> = {
+  feat: "bg-emerald-500",
+  fix: "bg-amber-500",
+  improve: "bg-sky-500",
+  docs: "bg-zinc-400",
+};
+
+function ReleaseInfo() {
+  const release = RELEASES[0];
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex shrink-0 -translate-y-px items-center justify-center text-gray-400 dark:text-zinc-600 hover:text-gray-900 dark:hover:text-zinc-50"
+        aria-label="Release info"
+        aria-expanded={open}
+      >
+        <Info className="h-[9.5px] w-[9.5px]" />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-50 mt-2 w-64 rounded-xl border border-primary-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 text-left shadow-xl">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-bold text-gray-900 dark:text-zinc-50">v{release.version}</p>
+            <p className="text-[10px] text-gray-400 dark:text-zinc-600">{release.date}</p>
+          </div>
+          <ul className="mt-2 space-y-1.5">
+            {release.entries.map((entry, i) => (
+              <li key={i} className="flex items-start gap-1.5 text-[11px] text-gray-600 dark:text-zinc-400">
+                <span className={`mt-1 h-2 w-0.5 shrink-0 rounded-full ${TYPE_DOT[entry.type]}`} />
+                {entry.text}
+              </li>
+            ))}
+          </ul>
+          <Link
+            href="/changelog"
+            target="_blank"
+            onClick={() => setOpen(false)}
+            className="mt-2.5 block text-[11px] font-medium text-primary-600 dark:text-primary-400 hover:underline"
+          >
+            View full changelog
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function Sidebar({
   role, user, open, onClose, schools, activeSchoolId,
@@ -45,9 +105,12 @@ export function Sidebar({
       {/* Logo */}
       <div className="flex h-[60px] shrink-0 items-center gap-2.5 border-b border-primary-100 dark:border-zinc-800 px-5">
         <img src="/logo.svg" alt="" className="h-8 w-8" />
-        <div className="flex-1 leading-tight">
-          <p className="text-sm font-bold tracking-tight text-gray-900 dark:text-zinc-50">Shikshaloy</p>
-          <p className="text-[11px] font-medium text-gray-400 dark:text-zinc-600">v{packageJson.version}</p>
+        <div className="flex h-8 flex-1 flex-col justify-center">
+          <p className="pt-2 text-sm font-bold leading-none tracking-tight text-gray-900 dark:text-zinc-50">Shikshaloy</p>
+          <div className="-mt-0.5 flex items-center gap-[3px]">
+            <p className="text-[11px] font-medium leading-[8px] text-gray-400 dark:text-zinc-600">v{RELEASES[0].version}</p>
+            <ReleaseInfo />
+          </div>
         </div>
         <button
           onClick={onClose}
