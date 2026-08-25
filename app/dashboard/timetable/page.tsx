@@ -1,6 +1,6 @@
 import { getUser } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
-import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentSchoolId } from "@/lib/supabase/school-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 import { getStudentContext } from "@/lib/students/context";
 import { getTeacherContext } from "@/lib/teachers/context";
@@ -91,8 +91,7 @@ async function StudentTimetable({ userId }: { userId: string }) {
   );
 }
 
-async function loadSchoolTimetables() {
-  const schoolId = await getCurrentSchoolIdOrThrow();
+async function loadSchoolTimetables(schoolId: string) {
   const academicYearId = await getCurrentAcademicYearId();
 
   const [{ data: periodRows }, { data: sectionRows }, { data: slotRows }] = await Promise.all([
@@ -177,7 +176,7 @@ async function TeacherTimetable({ userId }: { userId: string }) {
     );
   }
 
-  const { rowItems, timetables } = await loadSchoolTimetables();
+  const { rowItems, timetables } = await loadSchoolTimetables(teacher.schoolId);
   const myTt = getTeacherSchedule(timetables, teacher.fullName);
 
   return (
@@ -199,7 +198,19 @@ export default async function TimetablePage() {
     return <TeacherTimetable userId={user.id} />;
   }
 
-  const { periods, rowItems, classList, timetables } = await loadSchoolTimetables();
+  const schoolId = await getCurrentSchoolId();
+  if (!schoolId) {
+    return (
+      <div className="w-full px-6 py-8">
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 py-24 text-center">
+          <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">No school selected</p>
+          <p className="text-xs text-gray-500 dark:text-zinc-400">This account isn&apos;t associated with a school yet.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const { periods, rowItems, classList, timetables } = await loadSchoolTimetables(schoolId);
 
   return (
     <TimetableClient
