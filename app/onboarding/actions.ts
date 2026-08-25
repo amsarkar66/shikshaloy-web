@@ -31,6 +31,7 @@ export async function submitOnboarding(
   }
 
   const institutionFields = {
+    owner_id: user.id,
     name: input.name,
     type: input.institutionType,
     city: input.city,
