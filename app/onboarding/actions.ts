@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { getUser } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
+import { listKernelUsers } from "@/lib/supabase/admin";
+import { sendInstitutionSubmittedEmail, sendNewInstitutionSubmittedEmail } from "@/lib/email/resend";
 import { PLANS } from "@/app/dashboard/billing/_data/billing";
 import type { InstitutionFormData } from "./_institution-form";
 
@@ -68,7 +70,11 @@ export async function submitOnboarding(
     status: "pending" as const,
   };
 
+  let institutionId: string;
+
   if (existingInstitution) {
+    institutionId = existingInstitution.id;
+
     const { error: institutionError } = await supabaseAdmin
       .from("institutions")
       .update(institutionFields)
@@ -97,6 +103,7 @@ export async function submitOnboarding(
     if (institutionError || !institution) {
       return { error: "Could not create your institution. Please try again." };
     }
+    institutionId = institution.id;
 
     const { data: school, error: schoolError } = await supabaseAdmin
       .from("schools")
@@ -137,6 +144,28 @@ export async function submitOnboarding(
       is_current: true,
     });
   }
+
+  const isResubmission = !!existingInstitution;
+  const ownerEmails = (await listKernelUsers())
+    .filter((k) => k.permission === "owner")
+    .map((k) => k.email)
+    .filter((e): e is string => !!e && e !== "—");
+
+  await Promise.all([
+    user.email
+      ? sendInstitutionSubmittedEmail({ to: user.email, institutionName: input.name, isResubmission })
+      : Promise.resolve(),
+    sendNewInstitutionSubmittedEmail({
+      to: ownerEmails,
+      institutionId,
+      institutionName: input.name,
+      institutionType: input.institutionType,
+      city: input.city,
+      state: input.state,
+      ownerEmail: user.email ?? "—",
+      isResubmission,
+    }),
+  ]);
 
   revalidatePath("/dashboard");
   return {};

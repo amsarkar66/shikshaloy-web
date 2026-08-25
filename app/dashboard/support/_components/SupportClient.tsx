@@ -1,16 +1,30 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
+import { useState, useMemo, useTransition, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   MessageSquareWarning, Clock, Eye, CheckCircle2, Search,
-  ChevronDown, ChevronUp, Mail, Phone, Loader2, Building2, LifeBuoy, MessageCircle,
+  ChevronDown, ChevronUp, Mail, Phone, Loader2, Building2, LifeBuoy, MessageCircle, Inbox, Star,
+  ArrowLeft, CornerUpLeft, MoreVertical, Printer, Download, Trash2, MailOpen,
 } from "lucide-react";
 import { updateGrievanceStatus, type GrievanceStatus } from "@/app/dashboard/grievances/actions";
 import { SupportThreadModal } from "@/components/support/support-thread-modal";
 import { updateSupportRequestStatus } from "@/lib/support/actions";
 import type { SupportRequestSummary, SupportRequestStatus } from "@/lib/support/types";
 import { SUPPORT_STATUS_LABEL, SUPPORT_STATUS_BADGE, SUPPORT_CATEGORY_LABEL, formatSupportDateTime } from "@/lib/support/format";
+import { replyToContactLead, toggleContactLeadFlag, markContactLeadNotReplied, deleteContactLead, markContactLeadViewed, markContactLeadUnread } from "../actions";
+
+export interface ContactLead {
+  id: string;
+  name: string;
+  email: string;
+  topic: string;
+  message: string;
+  createdAt: string;
+  repliedAt: string | null;
+  flagged: boolean;
+  viewedAt: string | null;
+}
 
 export interface PlatformGrievance {
   id: string;
@@ -363,15 +377,575 @@ function SupportRequestStatusControl({ requestId, status }: { requestId: string;
   );
 }
 
+// ── Leads (public marketing-site contact form) ──────────────────────────────
+
+const LEAD_TOPIC_LABEL: Record<string, string> = {
+  sales: "Sales inquiry",
+  support: "Technical support",
+  demo: "Request a demo",
+  other: "Something else",
+};
+
+const LEAD_TOPIC_DOT: Record<string, string> = {
+  sales: "bg-amber-500",
+  support: "bg-blue-500",
+  demo: "bg-emerald-500",
+  other: "bg-gray-400",
+};
+
+function LeadStatsRow({ leads }: { leads: ContactLead[] }) {
+  const total = leads.length;
+  const flagged = leads.filter((l) => l.flagged).length;
+  const sales = leads.filter((l) => l.topic === "sales").length;
+  const support = leads.filter((l) => l.topic === "support").length;
+  const demo = leads.filter((l) => l.topic === "demo").length;
+  const items = [
+    { label: "Total",    value: total,    icon: Inbox,         accent: "text-indigo-500  bg-indigo-500/10"  },
+    { label: "Flagged",  value: flagged,  icon: Star,          accent: "text-amber-500   bg-amber-500/10"   },
+    { label: "Sales",    value: sales,    icon: LifeBuoy,      accent: "text-orange-500  bg-orange-500/10"  },
+    { label: "Support",  value: support,  icon: MessageCircle, accent: "text-blue-500    bg-blue-500/10"    },
+    { label: "Demo",     value: demo,     icon: CheckCircle2,  accent: "text-emerald-500 bg-emerald-500/10" },
+  ];
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+      {items.map((s) => (
+        <div key={s.label} className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-4 flex items-center gap-4">
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${s.accent}`}><s.icon className="h-5 w-5" /></div>
+          <div><p className="text-xl font-bold text-gray-900 dark:text-zinc-50">{s.value}</p><p className="text-xs text-gray-500 dark:text-zinc-400">{s.label}</p></div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LeadRow({ lead, onOpen }: { lead: ContactLead; onOpen: (id: string) => void }) {
+  const [flagged, setFlagged] = useState(lead.flagged);
+  const [flagPending, startFlagTransition] = useTransition();
+  const unread = !lead.viewedAt;
+
+  function handleToggleFlag(e: React.MouseEvent) {
+    e.stopPropagation();
+    const next = !flagged;
+    setFlagged(next);
+    startFlagTransition(async () => {
+      try {
+        await toggleContactLeadFlag(lead.id, next);
+      } catch {
+        setFlagged(!next);
+      }
+    });
+  }
+
+  return (
+    <div
+      onClick={() => onOpen(lead.id)}
+      className="flex items-center gap-3 border-b border-gray-100 dark:border-zinc-800 px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-800/60 transition-colors last:border-b-0"
+    >
+      <button
+        onClick={handleToggleFlag}
+        disabled={flagPending}
+        aria-label={flagged ? "Unflag lead" : "Flag lead as important"}
+        className="shrink-0 text-gray-300 dark:text-zinc-600 hover:text-amber-400 dark:hover:text-amber-400 transition-colors disabled:opacity-50"
+      >
+        <Star className={`h-4 w-4 ${flagged ? "fill-amber-400 text-amber-400" : ""}`} />
+      </button>
+
+      <span className={`h-3 w-0.5 shrink-0 rounded-full ${LEAD_TOPIC_DOT[lead.topic] ?? "bg-gray-400"}`} title={LEAD_TOPIC_LABEL[lead.topic] ?? lead.topic} />
+
+      <span className={`w-36 shrink-0 truncate text-sm ${unread ? "font-bold text-gray-900 dark:text-zinc-50" : "font-medium text-gray-500 dark:text-zinc-400"}`}>{lead.name}</span>
+
+      <span className="min-w-0 flex-1 flex items-center gap-1.5">
+        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${unread ? "bg-primary-500" : "bg-transparent"}`} title={unread ? "Unread" : undefined} />
+        <span className={`min-w-0 truncate text-sm ${unread ? "text-gray-700 dark:text-zinc-300" : "text-gray-400 dark:text-zinc-500"}`}>{lead.message}</span>
+      </span>
+
+      {lead.repliedAt && (
+        <span className="hidden sm:inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+          <CheckCircle2 className="h-2.5 w-2.5" /> Replied
+        </span>
+      )}
+
+      <span className={`shrink-0 text-xs w-16 text-right ${unread ? "font-semibold text-gray-700 dark:text-zinc-300" : "text-gray-400 dark:text-zinc-500"}`}>{formatDate(lead.createdAt)}</span>
+    </div>
+  );
+}
+
+function LeadDetail({ lead, onBack, onChanged }: { lead: ContactLead; onBack: () => void; onChanged: () => void }) {
+  const [replying, setReplying] = useState(false);
+  const [reply, setReply] = useState("");
+  const [repliedAt, setRepliedAt] = useState(lead.repliedAt);
+  const [flagged, setFlagged] = useState(lead.flagged);
+  const [sendPending, startSendTransition] = useTransition();
+  const [flagPending, startFlagTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
+  const menuBtnRef = useRef<HTMLButtonElement>(null);
+  const [markPending, startMarkTransition] = useTransition();
+  const [viewedAt, setViewedAt] = useState(lead.viewedAt);
+  const [unreadPending, startUnreadTransition] = useTransition();
+
+  useEffect(() => {
+    if (lead.viewedAt) return;
+    let cancelled = false;
+    markContactLeadViewed(lead.id)
+      .then(() => {
+        if (!cancelled) {
+          setViewedAt(new Date().toISOString());
+          onChanged();
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lead.id]);
+  const [deletePending, startDeleteTransition] = useTransition();
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  function handleMarkUnread() {
+    const prev = viewedAt;
+    setViewedAt(null);
+    startUnreadTransition(async () => {
+      try {
+        await markContactLeadUnread(lead.id);
+        onChanged();
+      } catch {
+        setViewedAt(prev);
+      }
+    });
+  }
+
+  function handleMarkNotReplied() {
+    const prev = repliedAt;
+    setRepliedAt(null);
+    startMarkTransition(async () => {
+      try {
+        await markContactLeadNotReplied(lead.id);
+        onChanged();
+      } catch {
+        setRepliedAt(prev);
+      }
+    });
+  }
+
+  function handleDelete() {
+    if (!window.confirm(`Delete the lead from ${lead.name}? This can't be undone.`)) return;
+    setDeleteError(null);
+    startDeleteTransition(async () => {
+      try {
+        await deleteContactLead(lead.id);
+        onChanged();
+        onBack();
+      } catch (err) {
+        setDeleteError(err instanceof Error ? err.message : "Failed to delete lead");
+      }
+    });
+  }
+
+  function handleToggleMenu() {
+    if (!menuOpen && menuBtnRef.current) {
+      const rect = menuBtnRef.current.getBoundingClientRect();
+      setMenuPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+    }
+    setMenuOpen((v) => !v);
+  }
+
+  function handlePrint() {
+    setMenuOpen(false);
+    window.print();
+  }
+
+  function handleDownload() {
+    setMenuOpen(false);
+    const subject = `${LEAD_TOPIC_LABEL[lead.topic] ?? lead.topic} — ${lead.name}`;
+    const content = [
+      `From: ${lead.name} <${lead.email}>`,
+      `To: Shikshaloy <support@shikshaloy.com>`,
+      `Subject: ${subject}`,
+      `Date: ${new Date(lead.createdAt).toUTCString()}`,
+      "",
+      lead.message,
+    ].join("\r\n");
+    const blob = new Blob([content], { type: "message/rfc822" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `lead-${lead.id}.eml`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function handleSend() {
+    const message = reply.trim();
+    if (!message) return;
+    setError(null);
+    startSendTransition(async () => {
+      try {
+        await replyToContactLead({ leadId: lead.id, message });
+        setRepliedAt(new Date().toISOString());
+        setReply("");
+        setReplying(false);
+        onChanged();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to send reply");
+      }
+    });
+  }
+
+  function handleToggleFlag() {
+    const next = !flagged;
+    setFlagged(next);
+    startFlagTransition(async () => {
+      try {
+        await toggleContactLeadFlag(lead.id, next);
+        onChanged();
+      } catch {
+        setFlagged(!next);
+      }
+    });
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-1">
+        <button
+          onClick={onBack}
+          aria-label="Back to leads"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </button>
+
+        <span className="mx-1 h-5 w-px bg-gray-100 dark:bg-zinc-800" />
+
+        {repliedAt && (
+          <button
+            onClick={handleMarkNotReplied}
+            disabled={markPending}
+            title="Mark as not replied"
+            aria-label="Mark as not replied"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
+          >
+            <Mail className="h-4 w-4" />
+          </button>
+        )}
+        {viewedAt && (
+          <button
+            onClick={handleMarkUnread}
+            disabled={unreadPending}
+            title="Mark as unread"
+            aria-label="Mark as unread"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
+          >
+            <MailOpen className="h-4 w-4" />
+          </button>
+        )}
+        <button
+          onClick={handleDelete}
+          disabled={deletePending}
+          title="Delete lead"
+          aria-label="Delete lead"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 dark:text-zinc-400 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 transition-colors disabled:opacity-50"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+
+        {repliedAt && (
+          <span className="ml-1 inline-flex items-center gap-1 rounded-full border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+            <CheckCircle2 className="h-2.5 w-2.5" /> Replied
+          </span>
+        )}
+      </div>
+
+      {deleteError && <p className="text-xs text-red-500">{deleteError}</p>}
+
+      <h2 className="text-lg font-bold text-gray-900 dark:text-zinc-50">
+        {LEAD_TOPIC_LABEL[lead.topic] ?? lead.topic} — {lead.name}
+      </h2>
+
+      <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
+        <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-gray-100 dark:border-zinc-700/50">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-gray-900 dark:text-zinc-100 truncate">
+              {lead.name} <span className="font-normal text-gray-400 dark:text-zinc-500">&lt;{lead.email}&gt;</span>
+            </p>
+            <p className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5">to Shikshaloy</p>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-0.5">
+            <span className="mr-1 text-xs text-gray-400 dark:text-zinc-500">{formatDate(lead.createdAt)}</span>
+            <button
+              onClick={handleToggleFlag}
+              disabled={flagPending}
+              aria-label={flagged ? "Unflag lead" : "Flag lead as important"}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-amber-400 transition-colors disabled:opacity-50"
+            >
+              <Star className={`h-4 w-4 ${flagged ? "fill-amber-400 text-amber-400" : ""}`} />
+            </button>
+            <button
+              onClick={() => setReplying(true)}
+              aria-label="Reply"
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"
+            >
+              <CornerUpLeft className="h-4 w-4" />
+            </button>
+            <div className="relative">
+              <button
+                ref={menuBtnRef}
+                onClick={handleToggleMenu}
+                aria-label="More actions"
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </button>
+              {menuOpen && menuPos && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                  <div
+                    style={{ top: menuPos.top, right: menuPos.right }}
+                    className="fixed z-20 w-48 overflow-hidden rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg shadow-black/10 py-1"
+                  >
+                    <button
+                      onClick={() => { setMenuOpen(false); setReplying(true); }}
+                      className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors"
+                    >
+                      <CornerUpLeft className="h-4 w-4 shrink-0" /> Reply
+                    </button>
+                    <button
+                      onClick={handlePrint}
+                      className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors"
+                    >
+                      <Printer className="h-4 w-4 shrink-0" /> Print
+                    </button>
+                    <button
+                      onClick={handleDownload}
+                      className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors"
+                    >
+                      <Download className="h-4 w-4 shrink-0" /> Download (.eml)
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="px-5 py-4">
+          <p className="text-sm text-gray-700 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap">{lead.message}</p>
+        </div>
+      </div>
+
+      {!replying ? (
+        <button
+          onClick={() => setReplying(true)}
+          className="flex items-center gap-2 rounded-full border border-gray-200 dark:border-zinc-700 px-4 py-2 text-sm font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
+        >
+          <CornerUpLeft className="h-4 w-4" /> {repliedAt ? "Reply again" : "Reply"}
+        </button>
+      ) : (
+        <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-4 space-y-2.5">
+          <textarea
+            value={reply}
+            onChange={(e) => setReply(e.target.value)}
+            placeholder={`Reply to ${lead.name}…`}
+            rows={5}
+            autoFocus
+            className="w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20 resize-none"
+          />
+          {error && <p className="text-xs text-red-500">{error}</p>}
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={handleSend}
+              disabled={sendPending || !reply.trim()}
+              className="flex h-8 items-center gap-1.5 rounded-lg bg-primary-600 px-4 text-sm font-medium text-white transition-colors hover:bg-primary-700 disabled:opacity-50"
+            >
+              {sendPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Send reply
+            </button>
+            <button
+              onClick={() => { setReplying(false); setReply(""); setError(null); }}
+              disabled={sendPending}
+              className="flex h-8 items-center rounded-lg border border-gray-200 dark:border-zinc-700 px-4 text-sm font-medium text-gray-500 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-700 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const LEAD_FILTERS: { value: string; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "sales", label: "Sales" },
+  { value: "support", label: "Support" },
+  { value: "demo", label: "Demo" },
+  { value: "other", label: "Other" },
+  { value: "flagged", label: "Flagged" },
+];
+
+const LEAD_SIDEBAR_FOLDERS: { value: string; label: string; icon: typeof Inbox }[] = [
+  { value: "all", label: "Inbox", icon: Inbox },
+  { value: "unread", label: "Unread", icon: Mail },
+  { value: "not_replied", label: "Not Replied", icon: Clock },
+  { value: "replied", label: "Replied", icon: CheckCircle2 },
+  { value: "flagged", label: "Flagged", icon: Star },
+];
+
+const LEAD_SIDEBAR_TOPICS = ["sales", "support", "demo", "other"];
+
+function leadMatchesFilter(lead: ContactLead, filter: string): boolean {
+  if (filter === "all") return true;
+  if (filter === "unread") return !lead.viewedAt;
+  if (filter === "flagged") return lead.flagged;
+  if (filter === "replied") return !!lead.repliedAt;
+  if (filter === "not_replied") return !lead.repliedAt;
+  return lead.topic === filter;
+}
+
+function LeadsSidebar({ leads, filter, onFilter }: { leads: ContactLead[]; filter: string; onFilter: (v: string) => void }) {
+  return (
+    <aside className="w-full lg:w-52 shrink-0 space-y-4">
+      <nav className="space-y-0.5">
+        {LEAD_SIDEBAR_FOLDERS.map((f) => {
+          const count = leads.filter((l) => leadMatchesFilter(l, f.value)).length;
+          const active = filter === f.value;
+          return (
+            <button
+              key={f.value}
+              onClick={() => onFilter(f.value)}
+              className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                active
+                  ? "bg-primary-50 text-primary-700 dark:bg-primary-500/15 dark:text-primary-400"
+                  : "text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800"
+              }`}
+            >
+              <f.icon className="h-4 w-4 shrink-0" />
+              <span className="flex-1 text-left truncate">{f.label}</span>
+              <span className={`text-xs ${active ? "text-primary-600 dark:text-primary-400" : "text-gray-400 dark:text-zinc-500"}`}>{count}</span>
+            </button>
+          );
+        })}
+      </nav>
+
+      <div>
+        <p className="px-3 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-zinc-500">Topics</p>
+        <nav className="mt-1 space-y-0.5">
+          {LEAD_SIDEBAR_TOPICS.map((t) => {
+            const count = leads.filter((l) => l.topic === t).length;
+            const active = filter === t;
+            return (
+              <button
+                key={t}
+                onClick={() => onFilter(t)}
+                className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                  active
+                    ? "bg-primary-50 text-primary-700 dark:bg-primary-500/15 dark:text-primary-400"
+                    : "text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800"
+                }`}
+              >
+                <span className={`h-2.5 w-0.5 shrink-0 rounded-full ${LEAD_TOPIC_DOT[t] ?? "bg-gray-400"}`} />
+                <span className="flex-1 text-left truncate">{LEAD_TOPIC_LABEL[t] ?? t}</span>
+                <span className={`text-xs ${active ? "text-primary-600 dark:text-primary-400" : "text-gray-400 dark:text-zinc-500"}`}>{count}</span>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+    </aside>
+  );
+}
+
+function LeadsView({ leads }: { leads: ContactLead[] }) {
+  const router = useRouter();
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<string>("all");
+  const [openLeadId, setOpenLeadId] = useState<string | null>(null);
+
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase();
+    return leads.filter((l) => {
+      const matchQ = !q || l.name.toLowerCase().includes(q) || l.email.toLowerCase().includes(q) || l.message.toLowerCase().includes(q);
+      return matchQ && leadMatchesFilter(l, filter);
+    });
+  }, [query, filter, leads]);
+
+  const openLead = openLeadId ? leads.find((l) => l.id === openLeadId) ?? null : null;
+
+  return (
+    <div className="space-y-5">
+      <LeadStatsRow leads={leads} />
+
+      <div className="flex flex-col lg:flex-row gap-5">
+        <LeadsSidebar leads={leads} filter={filter} onFilter={setFilter} />
+
+        <div className="min-w-0 flex-1 space-y-4">
+          {openLead ? (
+            <LeadDetail
+              lead={openLead}
+              onBack={() => setOpenLeadId(null)}
+              onChanged={() => router.refresh()}
+            />
+          ) : (
+          <>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-1.5">
+              {LEAD_FILTERS.map((f) => {
+                const count = f.value === "all" ? leads.length : leads.filter((l) => leadMatchesFilter(l, f.value)).length;
+                const active = filter === f.value;
+                return (
+                  <button
+                    key={f.value}
+                    onClick={() => setFilter(f.value)}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                      active
+                        ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900"
+                        : "border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800"
+                    }`}
+                  >
+                    {f.label}
+                    <span className={active ? "opacity-70" : "text-gray-400 dark:text-zinc-500"}>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-zinc-500 pointer-events-none" />
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by name, email…" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 dark:focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" />
+            </div>
+          </div>
+
+          {filtered.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 py-20">
+              <Inbox className="h-8 w-8 text-gray-300 dark:text-zinc-600" />
+              <p className="text-sm font-medium text-gray-500 dark:text-zinc-400">No leads found</p>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
+              {filtered.map((l) => <LeadRow key={l.id} lead={l} onOpen={setOpenLeadId} />)}
+            </div>
+          )}
+          </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────
 
-type MainTab = "grievances" | "requests";
+type MainTab = "grievances" | "requests" | "leads";
 
 export default function SupportClient({
-  initialData, initialSupportRequests,
+  initialData, initialSupportRequests, initialContactLeads,
 }: {
   initialData: PlatformGrievance[];
   initialSupportRequests: SupportRequestSummary[];
+  initialContactLeads: ContactLead[];
 }) {
   const router = useRouter();
   const [mainTab, setMainTab] = useState<MainTab>("requests");
@@ -388,6 +962,7 @@ export default function SupportClient({
         {([
           { value: "requests", label: "Support Requests", icon: LifeBuoy, count: initialSupportRequests.length },
           { value: "grievances", label: "Grievances", icon: MessageSquareWarning, count: initialData.length },
+          { value: "leads", label: "Leads", icon: Inbox, count: initialContactLeads.length },
         ] as const).map(({ value, label, icon: Icon, count }) => (
           <button
             key={value}
@@ -409,8 +984,10 @@ export default function SupportClient({
 
       {mainTab === "requests" ? (
         <SupportRequestsView requests={initialSupportRequests} onOpen={setOpenRequestId} />
-      ) : (
+      ) : mainTab === "grievances" ? (
         <GrievancesView initialData={initialData} />
+      ) : (
+        <LeadsView leads={initialContactLeads} />
       )}
 
       {openRequestId && (

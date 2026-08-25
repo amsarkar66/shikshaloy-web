@@ -108,6 +108,39 @@ export async function sendStaffInviteEmail(input: {
   }
 }
 
+export async function sendContactLeadReplyEmail(input: {
+  to: string;
+  name: string;
+  topic: string;
+  originalMessage: string;
+  reply: string;
+}) {
+  const resend = getResendClient();
+  if (!resend) {
+    console.warn("RESEND_API_KEY not set — skipping contact lead reply email.");
+    return;
+  }
+  try {
+    await resend.emails.send({
+      from: FROM,
+      to: input.to,
+      replyTo: "support@shikshaloy.com",
+      subject: "Re: Your message to Shikshaloy",
+      html: `
+        <p>Hi ${input.name},</p>
+        <p>${input.reply.replace(/\n/g, "<br/>")}</p>
+        <p style="margin-top:24px;padding-left:12px;border-left:2px solid #e4e4e7;color:#71717a;">
+          <strong>Your original message:</strong><br/>
+          ${input.originalMessage.replace(/\n/g, "<br/>")}
+        </p>
+      `,
+    });
+  } catch (err) {
+    console.error("Failed to send contact lead reply email:", err);
+    throw err;
+  }
+}
+
 export async function sendSupportRequestEmail(input: {
   institutionName: string;
   fromName: string;
@@ -347,5 +380,66 @@ export async function sendInstitutionDecisionEmail(input: {
     });
   } catch (err) {
     console.error("Failed to send institution decision email:", err);
+  }
+}
+
+export async function sendInstitutionSubmittedEmail(input: {
+  to: string;
+  institutionName: string;
+  isResubmission: boolean;
+}) {
+  const resend = getResendClient();
+  if (!resend) {
+    console.warn("RESEND_API_KEY not set — skipping application-received email.");
+    return;
+  }
+  try {
+    await resend.emails.send({
+      from: FROM,
+      to: input.to,
+      subject: input.isResubmission
+        ? `We've received your resubmission for ${input.institutionName}`
+        : `We've received your application for ${input.institutionName}`,
+      html: `
+        <p>Thanks — your ${input.isResubmission ? "resubmitted " : ""}application for <strong>${input.institutionName}</strong> is now under review.</p>
+        <p>We'll email you as soon as a decision is made. No action is needed from you in the meantime.</p>
+      `,
+    });
+  } catch (err) {
+    console.error("Failed to send application-received email:", err);
+  }
+}
+
+export async function sendNewInstitutionSubmittedEmail(input: {
+  to: string[];
+  institutionId: string;
+  institutionName: string;
+  institutionType: string;
+  city: string;
+  state: string;
+  ownerEmail: string;
+  isResubmission: boolean;
+}) {
+  const resend = getResendClient();
+  if (!resend || input.to.length === 0) {
+    console.warn("RESEND_API_KEY not set (or no recipients) — skipping new-institution notice.");
+    return;
+  }
+  try {
+    await resend.emails.send({
+      from: FROM,
+      to: input.to,
+      subject: input.isResubmission
+        ? `${input.institutionName} resubmitted for review`
+        : `New institution submitted — ${input.institutionName}`,
+      html: `
+        <p><strong>${input.institutionName}</strong> (${input.institutionType}, ${input.city}, ${input.state})
+        ${input.isResubmission ? "was resubmitted" : "just applied"} and is awaiting review.</p>
+        <p>Submitted by: ${input.ownerEmail}</p>
+        <p><a href="${siteUrl()}/dashboard/institutions/${input.institutionId}">Review in the platform dashboard</a></p>
+      `,
+    });
+  } catch (err) {
+    console.error("Failed to send new-institution notice:", err);
   }
 }

@@ -65,7 +65,7 @@ function UserAvatar({ user }: { user: User }) {
         className="flex items-center gap-1.5 rounded-full focus:outline-none"
         aria-label="User menu"
       >
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-b from-primary-400 to-primary-500 text-sm font-bold text-white shadow-[0_2px_0_0_var(--color-primary-700)] ring-2 ring-primary-100 transition-all hover:brightness-105">
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-500 text-sm font-bold text-white transition-colors hover:bg-primary-600">
           {initials}
         </div>
         <ChevronDown
