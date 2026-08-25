@@ -4,7 +4,7 @@ import { Check } from "lucide-react";
 import { FadeIn, StaggerChildren, StaggerItem } from "@/components/ui/fade-in";
 import { PLANS, formatCurrency } from "@/app/dashboard/billing/_data/billing";
 
-export function PricingSection() {
+export function PricingSection({ compareHref = "/pricing" }: { compareHref?: string }) {
   return (
     <section id="pricing" className="relative bg-zinc-50/60 py-24 sm:py-32 border-y border-zinc-100 overflow-hidden">
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[300px] bg-primary-100/40 rounded-full blur-3xl pointer-events-none" />
@@ -90,7 +90,7 @@ export function PricingSection() {
         </StaggerChildren>
 
         <FadeIn className="mt-8 text-center">
-          <a href="/pricing" className="text-sm font-semibold text-primary-600 hover:text-primary-700">
+          <a href={compareHref} className="text-sm font-semibold text-primary-600 hover:text-primary-700">
             Compare all plan details →
           </a>
         </FadeIn>

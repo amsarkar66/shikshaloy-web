@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { FancyButton, ArrowUpRightIcon } from "@/components/ui/fancy-button";
 import { FadeIn, StaggerChildren, StaggerItem } from "@/components/ui/fade-in";
+import { DemoFeatureShowcase } from "@/components/marketing/demo-feature-showcase";
+import { SHOWCASE_FEATURES } from "@/components/marketing/showcase-features";
+import { SectionJumpNav } from "@/components/marketing/section-jump-nav";
 import { breadcrumbJsonLd, OG_IMAGE } from "@/lib/seo";
 import {
   Layers,
@@ -39,6 +42,7 @@ interface Feature {
 }
 
 interface Category {
+  slug: string;
   title: string;
   desc: string;
   features: Feature[];
@@ -46,6 +50,7 @@ interface Category {
 
 const categories: Category[] = [
   {
+    slug: "academics",
     title: "Academics",
     desc: "Everything from class setup to report cards.",
     features: [
@@ -58,6 +63,7 @@ const categories: Category[] = [
     ],
   },
   {
+    slug: "attendance",
     title: "Attendance",
     desc: "Mark it once, and every dashboard updates instantly.",
     features: [
@@ -66,6 +72,7 @@ const categories: Category[] = [
     ],
   },
   {
+    slug: "fees-finance",
     title: "Fees & Finance",
     desc: "From a single fee receipt to institution-wide billing.",
     features: [
@@ -75,6 +82,7 @@ const categories: Category[] = [
     ],
   },
   {
+    slug: "communication",
     title: "Communication",
     desc: "Replace scattered WhatsApp groups with one system of record.",
     features: [
@@ -86,6 +94,7 @@ const categories: Category[] = [
     ],
   },
   {
+    slug: "admissions-front-desk",
     title: "Admissions & Front Desk",
     desc: "From first enquiry to enrolled student.",
     features: [
@@ -94,6 +103,7 @@ const categories: Category[] = [
     ],
   },
   {
+    slug: "facilities",
     title: "Facilities",
     desc: "Manage the parts of school life beyond the classroom.",
     features: [
@@ -104,6 +114,7 @@ const categories: Category[] = [
     ],
   },
   {
+    slug: "people-platform",
     title: "People & Platform",
     desc: "Purpose-built for every role, secured by the database itself.",
     features: [
@@ -165,13 +176,39 @@ export default function FeaturesPage() {
         </div>
       </section>
 
+      {/* Category jump nav — sticky below the fixed navbar, highlights the section in view */}
+      <SectionJumpNav items={categories.map((c) => ({ slug: c.slug, title: c.title }))} />
+
+      <section className="pb-24 sm:pb-32 pt-16 sm:pt-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <FadeIn className="text-center mb-16 max-w-2xl mx-auto">
+            <p className="text-primary-600 font-semibold text-sm uppercase tracking-widest mb-3">
+              See It Live
+            </p>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-zinc-900 tracking-tight text-balance">
+              Every one of these <span className="text-primary-600">12 modules</span> is{" "}
+              <span className="text-primary-600">100% real</span>
+            </h2>
+            <p className="mt-4 text-zinc-500 text-balance">
+              Not screenshots — the exact same rendered components every
+              Shikshaloy customer uses. Pick a module below to try it.
+            </p>
+          </FadeIn>
+
+          <FadeIn>
+            <DemoFeatureShowcase features={SHOWCASE_FEATURES} />
+          </FadeIn>
+        </div>
+      </section>
+
       {categories.map((cat, i) => (
         <section
-          key={cat.title}
-          className={`py-16 sm:py-20 ${i % 2 === 1 ? "bg-zinc-50/60 border-y border-zinc-100" : ""}`}
+          key={cat.slug}
+          id={cat.slug}
+          className={`scroll-mt-32 py-16 sm:py-20 ${i % 2 === 1 ? "bg-zinc-50/60 border-y border-zinc-100" : ""}`}
         >
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <FadeIn className="mb-10 max-w-2xl">
+            <FadeIn className="mb-10 max-w-2xl mx-auto text-center">
               <h2 className="text-2xl sm:text-3xl font-extrabold text-zinc-900 tracking-tight">
                 {cat.title}
               </h2>
@@ -198,10 +235,11 @@ export default function FeaturesPage() {
       <section className="bg-primary-950 py-20 text-center">
         <FadeIn className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-extrabold text-white tracking-tight text-balance">
-            See every module in a real dashboard
+            Ready to run your school on it?
           </h2>
           <p className="mt-4 text-primary-200">
-            No signup needed — pick a role and explore live, populated data.
+            Pick a role and sign into a fully populated demo school — no
+            forms, no credit card, no email required.
           </p>
           <div className="mt-8">
             <FancyButton href="/demo" size="lg">

@@ -45,6 +45,16 @@ html {
   background: transparent !important;
 }
 
+/* Terminal-style blinking cursor (changelog page) */
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.animate-blink {
+  animation: blink 1s step-end infinite;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -193,11 +203,18 @@ html {
   }
 }
 
-/* Smooth light ↔ dark transitions */
+/* Smooth light ↔ dark transitions.
+   Wrapped in @layer base so it sits BELOW Tailwind's utilities layer —
+   unlayered CSS otherwise wins the cascade unconditionally over layered
+   utility classes (regardless of specificity/order), which was silently
+   neutralizing every transition/duration/ease utility site-wide for the
+   properties listed here. */
+@layer base {
 *,
 *::before,
 *::after {
   transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, box-shadow;
   transition-duration: 200ms;
   transition-timing-function: ease;
+}
 }

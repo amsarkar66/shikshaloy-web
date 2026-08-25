@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertCircle } from "lucide-react";
-import { FancyButton } from "@/components/ui/fancy-button";
+import { FancyButton, ArrowUpRightIcon } from "@/components/ui/fancy-button";
 import { createClient } from "@/lib/supabase/client";
 
 export function DemoLoginButton({
@@ -42,8 +42,20 @@ export function DemoLoginButton({
 
   return (
     <div className={className}>
-      <FancyButton onClick={handleClick} disabled={loading} className="w-full">
-        {loading ? "Signing in…" : `Try ${label} demo`}
+      <FancyButton
+        onClick={handleClick}
+        disabled={loading}
+        aria-label={loading ? undefined : `Try ${label} demo`}
+        className="w-full"
+      >
+        {loading ? (
+          "Signing in…"
+        ) : (
+          <>
+            Live Preview
+            <ArrowUpRightIcon className="size-4 transition-transform duration-300 ease-out group-hover/fancy:-translate-y-0.5 group-hover/fancy:translate-x-0.5" />
+          </>
+        )}
       </FancyButton>
       {error && (
         <p className="mt-2 flex items-center gap-1.5 text-xs text-red-600">

@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { HeroSection } from "@/components/marketing/hero-section";
-import { StatsSection } from "@/components/marketing/stats-section";
-import { FeaturesSection } from "@/components/marketing/features-section";
-import { RolesSection } from "@/components/marketing/roles-section";
-import { PricingSection } from "@/components/marketing/pricing-section";
+import { ProblemSolutionSection } from "@/components/marketing/problem-solution-section";
+import { FeatureShowcaseSection } from "@/components/marketing/feature-showcase-section";
+import { RolesTabsSection } from "@/components/marketing/roles-tabs-section";
 import { HowItWorksSection } from "@/components/marketing/how-it-works-section";
 import { MobileAppSection } from "@/components/marketing/mobile-app-section";
+import { PricingSection } from "@/components/marketing/pricing-section";
 import { CtaSection } from "@/components/marketing/cta-section";
 import { DEFAULT_TITLE, DEFAULT_DESCRIPTION, absoluteUrl, OG_IMAGE } from "@/lib/seo";
 
@@ -53,12 +53,12 @@ export default function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareApplicationJsonLd) }}
       />
       <HeroSection />
-      <StatsSection />
-      <FeaturesSection />
-      <RolesSection />
-      <PricingSection />
+      <ProblemSolutionSection />
+      <FeatureShowcaseSection />
+      <RolesTabsSection />
       <HowItWorksSection />
       <MobileAppSection />
+      <PricingSection />
       <CtaSection />
     </main>
   );

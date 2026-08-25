@@ -8,6 +8,7 @@ export interface DemoAccount {
   password: string;
   icon: LucideIcon;
   accent: string;
+  ring: string;
   pitch: string;
   highlights: string[];
 }
@@ -27,6 +28,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     password: "SuperAdmin@123",
     icon: Crown,
     accent: "text-violet-600 bg-violet-50",
+    ring: "ring-violet-100",
     pitch: "Multi-school control, subscriptions, and platform-wide analytics.",
     highlights: ["Multi-school management", "Subscription & billing", "Platform analytics", "Global settings"],
   },
@@ -38,6 +40,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     password: "Admin@123",
     icon: Landmark,
     accent: "text-primary-600 bg-primary-50",
+    ring: "ring-primary-100",
     pitch: "Run the whole school — students, staff, fees, and timetables.",
     highlights: ["Student & staff management", "Fee & expense tracking", "Timetable builder", "Reports & compliance"],
   },
@@ -49,6 +52,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     password: "Teacher@123",
     icon: GraduationCap,
     accent: "text-sky-600 bg-sky-50",
+    ring: "ring-sky-100",
     pitch: "Attendance, homework, grading, and parent messaging.",
     highlights: ["Digital attendance", "Homework & assignments", "Exam & grading", "Parent communication"],
   },
@@ -60,6 +64,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     password: "Staff@123",
     icon: Briefcase,
     accent: "text-orange-600 bg-orange-50",
+    ring: "ring-orange-100",
     pitch: "A purpose-built workspace for non-teaching roles.",
     highlights: ["Role-specific workspace", "Attendance & leave", "Documents & announcements", "Scoped permissions"],
   },
@@ -71,6 +76,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     password: "Student@123",
     icon: BookOpen,
     accent: "text-amber-600 bg-amber-50",
+    ring: "ring-amber-100",
     pitch: "Timetable, assignments, results, and announcements.",
     highlights: ["Class timetable", "Assignments & notes", "Exam results", "Announcements"],
   },
@@ -82,6 +88,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     password: "Parent@123",
     icon: Heart,
     accent: "text-rose-600 bg-rose-50",
+    ring: "ring-rose-100",
     pitch: "Real-time attendance, results, fees, and teacher chat.",
     highlights: ["Live attendance alerts", "Result & report card", "Online fee payment", "Direct teacher chat"],
   },
@@ -93,6 +100,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     password: "Driver@123",
     icon: Bus,
     accent: "text-teal-600 bg-teal-50",
+    ring: "ring-teal-100",
     pitch: "Routes, transport attendance, and direct messaging.",
     highlights: ["Route & stop details", "Transport attendance", "Direct messaging", "Leave requests"],
   },

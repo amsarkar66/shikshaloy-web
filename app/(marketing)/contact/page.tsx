@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { FancyButton, ArrowUpRightIcon } from "@/components/ui/fancy-button";
 import { FadeIn } from "@/components/ui/fade-in";
-import { Mail, Phone, PlayCircle } from "lucide-react";
+import { Mail, Phone } from "lucide-react";
 import { breadcrumbJsonLd, OG_IMAGE } from "@/lib/seo";
+import { worldMapSvg } from "@/lib/marketing/dotted-world-map";
+import { ContactForm } from "./_components/contact-form";
 
 const title = "Contact Us";
 const description =
@@ -21,27 +23,8 @@ const breadcrumbs = breadcrumbJsonLd([
 ]);
 
 const channels = [
-  {
-    icon: Mail,
-    title: "Email",
-    detail: "support@shikshaloy.com",
-    href: "mailto:support@shikshaloy.com",
-    desc: "For sales questions, support, or anything else — we read every email.",
-  },
-  {
-    icon: Phone,
-    title: "Phone",
-    detail: "+91 99327 97131",
-    href: "tel:+919932797131",
-    desc: "Available for schools evaluating Shikshaloy or existing customers.",
-  },
-  {
-    icon: PlayCircle,
-    title: "Live Demo",
-    detail: "No signup required",
-    href: "/demo",
-    desc: "The fastest way to get answers — explore a fully populated dashboard yourself.",
-  },
+  { icon: Mail, label: "support@shikshaloy.com", href: "mailto:support@shikshaloy.com" },
+  { icon: Phone, label: "+91 99327 97131", href: "tel:+919932797131" },
 ];
 
 export default function ContactPage() {
@@ -52,7 +35,7 @@ export default function ContactPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }}
       />
       <section className="relative pt-40 pb-24 sm:pb-28 text-center overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute inset-0 pointer-events-none [mask-image:linear-gradient(to_bottom,#000_0%,#000_45%,transparent_90%)]">
           <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-primary-200/40 rounded-full blur-3xl" />
         </div>
         <div className="relative mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
@@ -71,24 +54,39 @@ export default function ContactPage() {
         </div>
       </section>
 
-      <section className="pb-24 sm:pb-32">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {channels.map((c) => (
-              <FadeIn key={c.title}>
-                <a
-                  href={c.href}
-                  className="group flex flex-col h-full rounded-2xl border border-zinc-200 bg-white p-7 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:border-primary-200 hover:shadow-lg hover:shadow-primary-50 hover:-translate-y-0.5 transition-all duration-300"
-                >
-                  <div className="inline-flex items-center justify-center h-11 w-11 rounded-xl bg-primary-50 mb-4 group-hover:bg-primary-100 transition-colors">
-                    <c.icon className="h-5 w-5 text-primary-600" />
-                  </div>
-                  <h3 className="font-semibold text-zinc-900 mb-1">{c.title}</h3>
-                  <p className="text-sm font-medium text-primary-600 mb-2">{c.detail}</p>
-                  <p className="text-sm text-zinc-500 leading-relaxed flex-1">{c.desc}</p>
-                </a>
-              </FadeIn>
-            ))}
+      <section className="relative overflow-hidden pb-24 sm:pb-32">
+        <div
+          className="absolute inset-0 flex items-center justify-center pointer-events-none [mask-image:radial-gradient(ellipse_55%_65%_at_center,#000_25%,transparent_75%)] [-webkit-mask-image:radial-gradient(ellipse_55%_65%_at_center,#000_25%,transparent_75%)]"
+          aria-hidden="true"
+        >
+          <div
+            className="w-[1600px] max-w-none shrink-0 [&>svg]:w-full [&>svg]:h-auto"
+            dangerouslySetInnerHTML={{ __html: worldMapSvg }}
+          />
+        </div>
+
+        <div className="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-lg">
+            <FadeIn>
+              <div className="rounded-2xl border border-zinc-200 bg-white shadow-xl shadow-zinc-200/60">
+                <ContactForm />
+              </div>
+            </FadeIn>
+
+            <FadeIn delay={0.1}>
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
+                {channels.map((c) => (
+                  <a
+                    key={c.label}
+                    href={c.href}
+                    className="inline-flex items-center gap-2 text-sm font-medium text-zinc-600 hover:text-primary-600 transition-colors"
+                  >
+                    <c.icon className="h-4 w-4 text-primary-500" />
+                    {c.label}
+                  </a>
+                ))}
+              </div>
+            </FadeIn>
           </div>
 
           <FadeIn className="mt-16 rounded-2xl bg-primary-950 p-10 text-center">
