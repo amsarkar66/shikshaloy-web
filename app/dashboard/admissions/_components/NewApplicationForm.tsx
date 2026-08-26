@@ -9,11 +9,15 @@ import {
 import { FancyButton } from "@/components/ui/fancy-button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { createApplication, type NewApplicationInput, type PrimaryContact } from "../actions";
-import { APPLY_CLASSES } from "../_data/admissions";
 import { PhotoUpload } from "../../_components/photo-upload";
 import { DocumentsUpload, type DocEntry } from "./DocumentsUpload";
 
 export interface AcademicYearOption {
+  id: string;
+  name: string;
+}
+
+export interface GradeOption {
   id: string;
   name: string;
 }
@@ -42,7 +46,7 @@ function Section({
 
 const BLANK_FORM = {
   applicantName: "", dob: "", gender: "Male" as "Male" | "Female" | "Other",
-  applyingForGrade: APPLY_CLASSES[0] ?? "5", academicYearId: "",
+  applyingForGrade: "", academicYearId: "",
   previousSchool: "", address: "", bloodGroup: "", category: "", nationality: "Indian",
 
   fatherName: "", fatherOccupation: "", fatherPhone: "", fatherEmail: "",
@@ -57,9 +61,9 @@ const BLANK_FORM = {
   notes: "",
 };
 
-export default function NewApplicationForm({ academicYears }: { academicYears: AcademicYearOption[] }) {
+export default function NewApplicationForm({ academicYears, grades }: { academicYears: AcademicYearOption[]; grades: GradeOption[] }) {
   const router = useRouter();
-  const [form, setForm] = useState({ ...BLANK_FORM, academicYearId: academicYears[0]?.id ?? "" });
+  const [form, setForm] = useState({ ...BLANK_FORM, academicYearId: academicYears[0]?.id ?? "", applyingForGrade: grades[0]?.name ?? "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -136,7 +140,7 @@ export default function NewApplicationForm({ academicYears }: { academicYears: A
             <label className={labelClass}>Applying For *</label>
             <div className="relative">
               <select className={selectClass} value={form.applyingForGrade} onChange={(e) => update("applyingForGrade", e.target.value)}>
-                {APPLY_CLASSES.map((c) => <option key={c} value={c}>Class {c}</option>)}
+                {grades.map((g) => <option key={g.id} value={g.name}>Class {g.name}</option>)}
               </select>
               <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
             </div>
@@ -301,9 +305,9 @@ export default function NewApplicationForm({ academicYears }: { academicYears: A
           <Link href="/dashboard/admissions" className="flex h-9 items-center rounded-lg border border-gray-200 dark:border-zinc-700 px-4 text-sm text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800">
             Cancel
           </Link>
-          <FancyButton type="submit" disabled={busy || academicYears.length === 0} size="sm">
+          <FancyButton type="submit" disabled={busy || academicYears.length === 0 || grades.length === 0} size="sm">
             {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            {academicYears.length === 0 ? "No academic year available" : "Submit Application"}
+            {academicYears.length === 0 ? "No academic year available" : grades.length === 0 ? "No grades set up yet" : "Submit Application"}
           </FancyButton>
         </div>
       </form>

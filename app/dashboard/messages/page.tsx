@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { getUser } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
@@ -10,7 +11,11 @@ export default async function MessagesPage() {
   } = await getUser();
 
   if (!user) {
-    return <MessagesClient conversations={[]} contacts={[]} myProfileId={null} />;
+    return (
+      <Suspense fallback={null}>
+        <MessagesClient conversations={[]} contacts={[]} myProfileId={null} />
+      </Suspense>
+    );
   }
 
   const myId = user.id;
@@ -26,14 +31,14 @@ export default async function MessagesPage() {
 
     supabaseAdmin
       .from("profiles")
-      .select("id, full_name, role")
+      .select("id, full_name, role, phone")
       .eq("school_id", schoolId)
       .neq("id", myId),
   ]);
 
-  const profileById: Record<string, { full_name: string; role: string }> = {};
+  const profileById: Record<string, { full_name: string; role: string; phone: string | null }> = {};
   for (const p of contactRows ?? []) {
-    profileById[p.id] = { full_name: p.full_name, role: p.role };
+    profileById[p.id] = { full_name: p.full_name, role: p.role, phone: p.phone };
   }
 
   const convIds = (convRows ?? []).map((c) => c.id);
@@ -68,6 +73,7 @@ export default async function MessagesPage() {
         profileId: otherId,
         name: other?.full_name ?? "Unknown",
         role: (other?.role ?? "staff") as ContactRole,
+        phone: other?.phone ?? null,
       },
       lastMessage: c.last_message ?? "",
       lastTime: c.last_time ?? new Date().toISOString(),
@@ -80,7 +86,12 @@ export default async function MessagesPage() {
     profileId: p.id,
     name: p.full_name ?? "Unknown",
     role: (p.role ?? "staff") as ContactRole,
+    phone: p.phone,
   }));
 
-  return <MessagesClient conversations={conversations} contacts={contacts} myProfileId={myId} />;
+  return (
+    <Suspense fallback={null}>
+      <MessagesClient conversations={conversations} contacts={contacts} myProfileId={myId} />
+    </Suspense>
+  );
 }

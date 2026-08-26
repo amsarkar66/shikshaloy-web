@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useEffect, useTransition } from "react";
 import { createPortal } from "react-dom";
 import {
   Award, Clock, CheckCircle2, FileText, Search, Plus,
-  Download, X, Eye, Printer, XCircle,
+  Download, X, Eye, Printer, XCircle, PackageCheck,
   ArrowUpDown, ArrowUp, ArrowDown,
   ChevronLeft, ChevronRight, ChevronDown, Loader2,
 } from "lucide-react";
@@ -12,7 +12,7 @@ import { STATUS_BADGE, CERT_TYPE_LABEL, CERT_TYPE_BADGE, formatDate } from "../_
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
 import { SimpleSelect } from "@/components/ui/select";
-import { requestCertificate, rejectCertificateRequest, searchActiveStudents } from "../actions";
+import { requestCertificate, rejectCertificateRequest, markCertificateReady, markCertificateIssued, searchActiveStudents } from "../actions";
 import { CertificateDocument } from "./certificate-document";
 import type { CertStatus, CertType } from "../_data/certificates";
 
@@ -418,6 +418,32 @@ export default function CertificatesClient({
     startTransition(async () => { await rejectCertificateRequest(id); });
   }
 
+  function markReady(id: string) {
+    setCerts((prev) => prev.map((c) => (c.id === id ? { ...c, status: "ready" } : c)));
+    startTransition(async () => { await markCertificateReady(id); });
+  }
+
+  function markIssued(id: string) {
+    const today = new Date().toISOString().slice(0, 10);
+    setCerts((prev) => prev.map((c) => (c.id === id ? { ...c, status: "issued", issuedOn: today } : c)));
+    startTransition(async () => { await markCertificateIssued(id); });
+  }
+
+  function exportCsv() {
+    const header = ["Student", "Roll No", "Class", "Section", "Certificate", "Purpose", "Requested On", "Issued On", "Status", "Issued By"];
+    const rows = filtered.map((c) => [c.studentName, c.rollNo, c.class, c.section, CERT_TYPE_LABEL[c.certType], c.purpose, formatDate(c.requestedOn), c.issuedOn ? formatDate(c.issuedOn) : "", STATUS_BADGE[c.status].label, c.issuedBy ?? ""]);
+    const csv = [header, ...rows]
+      .map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+      .join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `certificates-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
     return certs.filter((c) => {
@@ -447,7 +473,7 @@ export default function CertificatesClient({
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div><h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Certificates</h1><p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Generate and issue student certificates</p></div>
         <div className="flex gap-2 sm:ml-auto">
-          <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5"/> Export</button>
+          <button onClick={exportCsv} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5"/> Export</button>
           <FancyButton size="sm" onClick={()=>setNewRequestOpen(true)}><Plus className="h-4 w-4"/> New Request</FancyButton>
         </div>
       </div>
@@ -536,6 +562,8 @@ export default function CertificatesClient({
                   <div className="flex items-center justify-end gap-1">
                     <button onClick={()=>setViewCert(cert)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors" title="View"><Eye className="h-3.5 w-3.5"/></button>
                     {(cert.status==="pending"||cert.status==="ready")&&<button onClick={()=>setViewCert(cert)} className="flex h-7 w-7 items-center justify-center rounded-lg text-indigo-500 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors" title="Print"><Printer className="h-3.5 w-3.5"/></button>}
+                    {cert.status==="pending"&&<button onClick={()=>markReady(cert.id)} className="flex h-7 w-7 items-center justify-center rounded-lg text-emerald-500 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors" title="Mark ready"><CheckCircle2 className="h-3.5 w-3.5"/></button>}
+                    {cert.status==="ready"&&<button onClick={()=>markIssued(cert.id)} className="flex h-7 w-7 items-center justify-center rounded-lg text-emerald-500 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors" title="Mark issued"><PackageCheck className="h-3.5 w-3.5"/></button>}
                     {cert.status==="pending"&&<button onClick={()=>reject(cert.id)} className="flex h-7 w-7 items-center justify-center rounded-lg text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors" title="Reject"><XCircle className="h-3.5 w-3.5"/></button>}
                   </div>
                 </Td>

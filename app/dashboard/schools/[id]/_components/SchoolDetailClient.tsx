@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { STATUS_BADGE, formatLakh, type SchoolStatus } from "../../_data/schools";
 import { setActiveSchool } from "../../../_components/school-switcher-actions";
+import { DeleteSchoolModal } from "../../_components/delete-school-modal";
 
 // The standalone public site (shikshaloy-institution-site) reads this school
 // via a `?school=` query param — see its SchoolContext. Point this at your
@@ -123,7 +124,7 @@ function MiniBar({ label, value, pct, colorClass }: { label: string; value: stri
   );
 }
 
-function MoreMenu({ schoolId, open, onToggle }: { schoolId: string; open: boolean; onToggle: () => void }) {
+function MoreMenu({ schoolId, open, onToggle, onRemove }: { schoolId: string; open: boolean; onToggle: () => void; onRemove: () => void }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -175,7 +176,7 @@ function MoreMenu({ schoolId, open, onToggle }: { schoolId: string; open: boolea
               View school as public
             </a>
             <button
-              onClick={onToggle}
+              onClick={() => { onToggle(); onRemove(); }}
               className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors"
             >
               <Trash2 className="h-3.5 w-3.5 shrink-0" />
@@ -190,6 +191,7 @@ function MoreMenu({ schoolId, open, onToggle }: { schoolId: string; open: boolea
 
 export default function SchoolDetailClient({ school, activity }: { school: SchoolDetail; activity: SchoolActivity[] }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [removeOpen, setRemoveOpen] = useState(false);
   const badge = STATUS_BADGE[school.status];
   const location = [school.city, school.state, school.country].filter((s) => s && s !== "—").join(", ");
   const grades = school.gradesFrom && school.gradesTo ? `Grades ${school.gradesFrom}–${school.gradesTo}` : null;
@@ -213,7 +215,7 @@ export default function SchoolDetailClient({ school, activity }: { school: Schoo
           >
             <Edit2 className="h-3.5 w-3.5" /> Edit
           </Link>
-          <MoreMenu schoolId={school.id} open={menuOpen} onToggle={() => setMenuOpen((o) => !o)} />
+          <MoreMenu schoolId={school.id} open={menuOpen} onToggle={() => setMenuOpen((o) => !o)} onRemove={() => setRemoveOpen(true)} />
         </div>
       </div>
 
@@ -352,6 +354,13 @@ export default function SchoolDetailClient({ school, activity }: { school: Schoo
 
         </div>
       </div>
+
+      <DeleteSchoolModal
+        open={removeOpen}
+        onClose={() => setRemoveOpen(false)}
+        schoolId={school.id}
+        schoolName={school.name}
+      />
     </div>
   );
 }

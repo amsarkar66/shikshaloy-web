@@ -16,6 +16,7 @@ interface CertificateRequestRow {
     roll_no: string | null;
     sections: { name: string | null; grades: { level: number | null } | null } | null;
   } | null;
+  staff_members: { full_name: string | null } | null;
 }
 
 export default async function CertificatesPage() {
@@ -27,7 +28,8 @@ export default async function CertificatesPage() {
       .from("certificate_requests")
       .select(`
         id, cert_type, purpose, status, requested_on, issued_on,
-        students ( full_name, roll_no, sections ( name, grades ( level ) ) )
+        students ( full_name, roll_no, sections ( name, grades ( level ) ) ),
+        staff_members ( full_name )
       `)
       .eq("school_id", schoolId)
       .order("requested_on", { ascending: false }),
@@ -54,7 +56,7 @@ export default async function CertificatesPage() {
     requestedOn: c.requested_on ?? "",
     issuedOn: c.issued_on ?? undefined,
     status: (c.status ?? "pending") as Cert["status"],
-    issuedBy: undefined,
+    issuedBy: c.staff_members?.full_name ?? undefined,
   }));
 
   const schoolAddress = [schoolRow?.address, schoolRow?.city, schoolRow?.state].filter(Boolean).join(", ");

@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   MessageSquare, Search, Plus, X, Send,
-  CheckCheck, MoreVertical, Phone, Info,
+  CheckCheck, Info, Phone,
   Circle, ArrowLeft,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
@@ -44,8 +44,9 @@ function ConvItem({ conv, selected, onClick }: { conv: Conversation; selected: b
 }
 
 function ThreadHeader({ conv, onBack }: { conv: Conversation; onBack: () => void }) {
+  const [infoOpen, setInfoOpen] = useState(false);
   return (
-    <div className="flex h-14 shrink-0 items-center gap-3 border-b border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4">
+    <div className="relative flex h-14 shrink-0 items-center gap-3 border-b border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4">
       <button onClick={onBack} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors lg:hidden">
         <ArrowLeft className="h-4 w-4" />
       </button>
@@ -57,10 +58,33 @@ function ThreadHeader({ conv, onBack }: { conv: Conversation; onBack: () => void
         </div>
       </div>
       <div className="flex items-center gap-1 shrink-0">
-        <button className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-800 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Phone className="h-4 w-4" /></button>
-        <button className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-800 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Info className="h-4 w-4" /></button>
-        <button className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-800 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><MoreVertical className="h-4 w-4" /></button>
+        <button onClick={() => setInfoOpen((o) => !o)} className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${infoOpen ? "bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-200" : "text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-800 hover:text-gray-700 dark:hover:text-zinc-200"}`}>
+          <Info className="h-4 w-4" />
+        </button>
       </div>
+
+      {infoOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setInfoOpen(false)} />
+          <div className="absolute right-4 top-full z-50 mt-2 w-60 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-4 shadow-lg shadow-black/10">
+            <div className="flex items-center gap-3 mb-3">
+              <Avatar name={conv.contact.name} role={conv.contact.role} size="lg" />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-gray-900 dark:text-zinc-50">{conv.contact.name}</p>
+                <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${ROLE_BADGE[conv.contact.role]}`}>{ROLE_LABEL[conv.contact.role]}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-zinc-400">
+              <Phone className="h-3.5 w-3.5 shrink-0 text-gray-400 dark:text-zinc-500" />
+              {conv.contact.phone ? (
+                <a href={`tel:${conv.contact.phone}`} className="text-primary-600 dark:text-primary-400 hover:underline">{conv.contact.phone}</a>
+              ) : (
+                <span>No phone number on file</span>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -163,17 +187,19 @@ function EmptyState({ totalConvs, unread, onCompose }: { totalConvs: number; unr
 type ComposeStep = "pick" | "chat";
 
 function ComposeModal({
-  contacts, existingConversations, onClose, onOpenExisting, onCreated,
+  contacts, existingConversations, initialContactId, onClose, onOpenExisting, onCreated,
 }: {
   contacts: Contact[];
   existingConversations: Conversation[];
+  initialContactId?: string | null;
   onClose: () => void;
   onOpenExisting: (conversationId: string) => void;
   onCreated: (conversationId: string) => void;
 }) {
-  const [step, setStep] = useState<ComposeStep>("pick");
+  const initialContact = initialContactId ? contacts.find((c) => c.profileId === initialContactId) ?? null : null;
+  const [step, setStep] = useState<ComposeStep>(initialContact ? "chat" : "pick");
   const [query, setQuery] = useState("");
-  const [contact, setContact] = useState<Contact | null>(null);
+  const [contact, setContact] = useState<Contact | null>(initialContact);
   const [text, setText] = useState("");
   const [isPending, startTransition] = useTransition();
 
@@ -304,13 +330,29 @@ export default function MessagesClient({
   myProfileId: string | null;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [selectedId, setSelected] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<TabValue>("all");
   const [composing, setComposing] = useState(false);
+  const [presetContactId, setPresetContactId] = useState<string | null>(null);
 
   const selected = conversations.find((c) => c.id === selectedId) ?? null;
   const totalUnread = conversations.reduce((sum, c) => sum + c.unread, 0);
+
+  useEffect(() => {
+    const withId = searchParams.get("with");
+    if (!withId) return;
+    const existing = conversations.find((c) => c.contact.profileId === withId);
+    if (existing) {
+      setSelected(existing.id);
+    } else if (contacts.some((c) => c.profileId === withId)) {
+      setPresetContactId(withId);
+      setComposing(true);
+    }
+    router.replace("/dashboard/messages");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
@@ -347,7 +389,7 @@ export default function MessagesClient({
             <h1 className="text-base font-bold text-gray-900 dark:text-zinc-50">Messages</h1>
             <p className="mt-0.5 text-xs text-gray-500 dark:text-zinc-400">{totalUnread > 0 ? <span className="text-primary-600 dark:text-primary-400 font-medium">{totalUnread} unread</span> : "All caught up"}</p>
           </div>
-          <button onClick={() => setComposing(true)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-500 hover:bg-primary-600 text-white transition-colors shadow-sm"><Plus className="h-4 w-4" /></button>
+          <button onClick={() => { setPresetContactId(null); setComposing(true); }} className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-500 hover:bg-primary-600 text-white transition-colors shadow-sm"><Plus className="h-4 w-4" /></button>
         </div>
         <div className="shrink-0 px-3 pt-3 pb-1">
           <div className="relative">
@@ -377,7 +419,7 @@ export default function MessagesClient({
         {selected ? (
           <MessageThread conv={selected} onBack={() => setSelected(null)} onSent={refresh} />
         ) : (
-          <EmptyState totalConvs={conversations.length} unread={totalUnread} onCompose={() => setComposing(true)} />
+          <EmptyState totalConvs={conversations.length} unread={totalUnread} onCompose={() => { setPresetContactId(null); setComposing(true); }} />
         )}
       </div>
 
@@ -385,7 +427,8 @@ export default function MessagesClient({
         <ComposeModal
           contacts={contacts}
           existingConversations={conversations}
-          onClose={() => setComposing(false)}
+          initialContactId={presetContactId}
+          onClose={() => { setComposing(false); setPresetContactId(null); }}
           onOpenExisting={(id) => setSelected(id)}
           onCreated={(id) => { setSelected(id); refresh(); }}
         />

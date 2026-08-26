@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   Receipt, TrendingDown, Wallet, Search, Download, Plus,
-  ArrowLeft, Printer, X, Check, Clock, Ban,
+  ArrowLeft, Printer, X, Check, Clock, Ban, Loader2,
   BarChart2, ChevronLeft, ChevronRight, ChevronDown,
   SlidersHorizontal, ArrowUpDown, ArrowUp, ArrowDown,
 } from "lucide-react";
@@ -13,7 +14,7 @@ import {
   formatCurrency, formatDate, formatMonth,
   type Expense, type ExpenseStatus, type BudgetLine,
 } from "../_data/expenses";
-import { addExpense } from "../actions";
+import { addExpense, updateExpenseStatus } from "../actions";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -198,7 +199,22 @@ function AddExpenseForm({ categories, onClose, onAdded }: { categories: string[]
 
 // ── Expense detail ────────────────────────────────────────────────────────────
 
-function ExpenseDetail({ expense, onBack }: { expense: Expense; onBack: () => void }) {
+function ExpenseDetail({ expense, onBack, onStatusChanged }: { expense: Expense; onBack: () => void; onStatusChanged: () => void }) {
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  function handleStatus(status: "approved" | "rejected") {
+    setError(null);
+    startTransition(async () => {
+      try {
+        await updateExpenseStatus(expense.id, status);
+        onStatusChanged();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to update status");
+      }
+    });
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
@@ -206,11 +222,31 @@ function ExpenseDetail({ expense, onBack }: { expense: Expense; onBack: () => vo
           <ArrowLeft className="h-4 w-4" /> Back to Expenses
         </button>
         <div className="sm:ml-auto flex gap-2">
+          {expense.status === "pending" && (
+            <>
+              <button
+                onClick={() => handleStatus("rejected")}
+                disabled={isPending}
+                className="flex h-8 items-center gap-1.5 rounded-lg border border-red-200 dark:border-red-500/20 bg-red-50 dark:bg-red-500/10 px-3 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors disabled:opacity-50"
+              >
+                {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Ban className="h-3.5 w-3.5" />} Reject
+              </button>
+              <FancyButton onClick={() => handleStatus("approved")} disabled={isPending} size="xs">
+                {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />} Approve
+              </FancyButton>
+            </>
+          )}
           <FancyButton onClick={() => window.print()} size="xs">
             <Printer className="h-3.5 w-3.5" /> Print
           </FancyButton>
         </div>
       </div>
+
+      {error && (
+        <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-400 max-w-2xl mx-auto">
+          {error}
+        </div>
+      )}
 
       <div className="rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm max-w-2xl mx-auto">
         <div className="bg-primary-600 px-8 py-6 flex items-center gap-4">
@@ -547,6 +583,7 @@ export default function ExpensesClient({
   expenses: Expense[];
   budgets: BudgetLine[];
 }) {
+  const router = useRouter();
   const months = useMemo(() => Array.from(new Set(expenses.map((e) => e.monthStr))).sort(), [expenses]);
   const [monthIndex, setMonthIndex] = useState(Math.max(0, months.length - 1));
   const [selected, setSelected] = useState<Expense | null>(null);
@@ -561,10 +598,25 @@ export default function ExpensesClient({
     setSelected(null);
   }
 
+  function exportCsv() {
+    const header = ["Date", "Category", "Description", "Vendor", "Amount", "Status"];
+    const rows = monthExpenses.map((e) => [formatDate(e.date), e.category, e.description ?? "", e.vendor ?? "", e.amount, STATUS_LABEL[e.status]]);
+    const csv = [header, ...rows]
+      .map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+      .join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `expenses-${monthStr || new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   if (selected) {
     return (
       <div className="w-full px-6 py-6">
-        <ExpenseDetail expense={selected} onBack={() => setSelected(null)} />
+        <ExpenseDetail expense={selected} onBack={() => setSelected(null)} onStatusChanged={() => { setSelected(null); router.refresh(); }} />
       </div>
     );
   }
@@ -578,7 +630,7 @@ export default function ExpensesClient({
         </div>
         <div className="sm:ml-auto flex items-center gap-2 flex-wrap">
           {months.length > 0 && <MonthNav months={months} index={monthIndex} onChange={handleMonthChange} />}
-          <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
+          <button onClick={exportCsv} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
             <Download className="h-3.5 w-3.5" /> Export
           </button>
           <FancyButton onClick={() => setShowAdd((v) => !v)} size="sm">
@@ -601,7 +653,7 @@ export default function ExpensesClient({
             monthStr={monthStr}
             categories={categories}
             onView={(e) => setSelected(e)}
-            onAdded={() => {}}
+            onAdded={() => router.refresh()}
             showAdd={showAdd}
             setShowAdd={setShowAdd}
           />

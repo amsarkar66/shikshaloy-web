@@ -6,12 +6,14 @@ import Link from "next/link";
 import {
   Users2, UserCheck, Users, AlertCircle,
   Search, Plus, Download, ChevronLeft, ChevronRight, ChevronDown,
-  Eye, Pencil, ArrowUpDown, ArrowUp, ArrowDown,
+  Eye, Pencil, Trash2, ArrowUpDown, ArrowUp, ArrowDown,
   X, Phone, Mail,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
 import { AddParentModal } from "./add-parent-modal";
+import { EditParentModal } from "./edit-parent-modal";
+import { DeleteParentModal } from "./delete-parent-modal";
 
 export type FeeStatus = "paid" | "partial" | "overdue";
 
@@ -92,6 +94,8 @@ export default function ParentsClient({ initialParents }: { initialParents: Pare
   const [sortDir,   setSortDir]   = useState<SortDir>("asc");
   const [page,      setPage]      = useState(1);
   const [addOpen,   setAddOpen]   = useState(false);
+  const [editId,    setEditId]    = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Parent | null>(null);
 
   function toggleSort(field: SortField) {
     if (sortField===field) setSortDir((d)=>(d==="asc"?"desc":"asc"));
@@ -121,6 +125,26 @@ export default function ParentsClient({ initialParents }: { initialParents: Pare
   function clearFilters() { setQuery(""); setFee("all"); setPage(1); }
   const hasFilter = query||feeFilter!=="all";
 
+  function exportCsv() {
+    const header = ["Name","Occupation","Phone","Email","Active","Children","Fee Status"];
+    const rows = filtered.map((p) => [
+      p.name, p.occupation, p.phone, p.email,
+      p.active ? "Yes" : "No",
+      p.children.map((c) => `${c.name} (${c.class}-${c.section})`).join("; "),
+      worstFeeFromChildren(p.children),
+    ]);
+    const csv = [header, ...rows]
+      .map((r) => r.map((cell) => `"${String(cell).replace(/"/g,'""')}"`).join(","))
+      .join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `parents-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="w-full px-6 py-6 space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
@@ -129,7 +153,7 @@ export default function ParentsClient({ initialParents }: { initialParents: Pare
           <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Manage parent accounts and linked students</p>
         </div>
         <div className="flex gap-2 sm:ml-auto">
-          <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5"/> Export</button>
+          <button onClick={exportCsv} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5"/> Export</button>
           <FancyButton size="sm" onClick={() => setAddOpen(true)}><Plus className="h-4 w-4"/> Add Parent</FancyButton>
         </div>
       </div>
@@ -212,7 +236,8 @@ export default function ParentsClient({ initialParents }: { initialParents: Pare
                 <Td position="last">
                   <div className="flex items-center justify-end gap-1">
                     <Link href={`/dashboard/parents/${p.id}`} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Eye className="h-3.5 w-3.5"/></Link>
-                    <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Pencil className="h-3.5 w-3.5"/></button>
+                    <button onClick={() => setEditId(p.id)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Pencil className="h-3.5 w-3.5"/></button>
+                    <button onClick={() => setDeleteTarget(p)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-500 transition-colors"><Trash2 className="h-3.5 w-3.5"/></button>
                   </div>
                 </Td>
               </Tr>
@@ -226,6 +251,21 @@ export default function ParentsClient({ initialParents }: { initialParents: Pare
         onClose={() => setAddOpen(false)}
         onCreated={() => router.refresh()}
       />
+
+      <EditParentModal
+        parentId={editId}
+        onClose={() => setEditId(null)}
+        onSaved={() => { setEditId(null); router.refresh(); }}
+      />
+
+      {deleteTarget && (
+        <DeleteParentModal
+          parentId={deleteTarget.id}
+          parentName={deleteTarget.name}
+          onClose={() => setDeleteTarget(null)}
+          onDeleted={() => router.refresh()}
+        />
+      )}
     </div>
   );
 }

@@ -16,6 +16,42 @@ async function requireSchoolAdmin() {
   return user;
 }
 
+export interface CreateExamInput {
+  name: string;
+  type: "unit_test" | "mid_term" | "final";
+  startDate: string;
+  endDate: string;
+}
+
+export async function createExam(input: CreateExamInput): Promise<string> {
+  await requireSchoolAdmin();
+  if (!input.name.trim()) throw new Error("Exam name is required.");
+  if (!input.startDate || !input.endDate) throw new Error("Start and end dates are required.");
+  if (input.endDate < input.startDate) throw new Error("End date must be on or after the start date.");
+
+  const schoolId = await getCurrentSchoolIdOrThrow();
+  const academicYearId = await getCurrentAcademicYearId();
+
+  const { data, error } = await supabaseAdmin
+    .from("exams")
+    .insert({
+      school_id: schoolId,
+      academic_year_id: academicYearId,
+      name: input.name.trim(),
+      type: input.type,
+      status: "upcoming",
+      start_date: input.startDate,
+      end_date: input.endDate,
+    })
+    .select("id")
+    .single();
+
+  if (error || !data) throw new Error(error?.message ?? "Failed to create exam");
+
+  revalidatePath("/dashboard/exams");
+  return data.id;
+}
+
 export interface ExamScheduleSlot {
   id: string;
   subjectId: string;

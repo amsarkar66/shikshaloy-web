@@ -556,6 +556,25 @@ export default function PayrollClient({
     });
   }
 
+  function exportCsv() {
+    const staffById = new Map(staff.map((s) => [s.id, s]));
+    const header = ["Employee ID", "Name", "Department", "Gross", "Net", "Status", "Paid On"];
+    const rows = monthRecords.map((r) => {
+      const s = staffById.get(r.staffId);
+      return [s?.employeeId ?? "", s?.name ?? "", s?.department ?? "", r.gross, r.net, r.status, r.paidOn ?? ""];
+    });
+    const csv = [header, ...rows]
+      .map((r) => r.map((cell) => `"${String(cell).replace(/"/g,'""')}"`).join(","))
+      .join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `payroll-${monthStr}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="w-full px-6 py-6 space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
@@ -565,7 +584,7 @@ export default function PayrollClient({
         </div>
         <div className="sm:ml-auto flex items-center gap-2 flex-wrap">
           {months.length > 0 && <MonthNav months={months} index={monthIndex} onChange={handleMonthChange} />}
-          <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
+          <button onClick={exportCsv} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
             <Download className="h-3.5 w-3.5" /> Export
           </button>
           <FancyButton onClick={handleProcessAll} disabled={isPending} size="sm" className="shrink-0">

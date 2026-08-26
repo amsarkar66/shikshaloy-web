@@ -107,3 +107,158 @@ export async function updateLeaveStatus(leaveId: string, status: "approved" | "r
 
   revalidatePath("/dashboard/leaves");
 }
+
+// ── Substitute assignment — real timetable slots affected by a teacher's
+// leave, real teaching staff as candidates, and a real table backing the
+// resulting plan (previously all three were fabricated client-side and the
+// "plan" vanished on refresh since nothing persisted it).
+
+const DAY_LABEL: Record<number, string> = { 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat" };
+
+export interface AffectedPeriod {
+  id: string;
+  timetableSlotId: string;
+  date: string;
+  day: string;
+  period: number;
+  time: string;
+  classSection: string;
+  subject: string;
+}
+
+export async function getAffectedPeriods(leaveId: string): Promise<AffectedPeriod[]> {
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
+  const { data: leave } = await supabaseAdmin
+    .from("leave_requests")
+    .select("staff_id, from_date, to_date")
+    .eq("id", leaveId)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+  if (!leave) return [];
+
+  const { data: staff } = await supabaseAdmin
+    .from("staff_members")
+    .select("profile_id")
+    .eq("id", leave.staff_id)
+    .maybeSingle();
+  if (!staff?.profile_id) return [];
+
+  const [{ data: periodRows }, { data: slotRows }] = await Promise.all([
+    supabaseAdmin.from("timetable_periods").select("number, start_time, end_time").eq("school_id", schoolId),
+    supabaseAdmin
+      .from("timetable_slots")
+      .select("id, day_of_week, period_number, sections ( name, grades ( level ) ), subjects ( name )")
+      .eq("school_id", schoolId)
+      .eq("teacher_id", staff.profile_id),
+  ]);
+
+  const periodByNumber = new Map((periodRows ?? []).map((p) => [p.number, p]));
+  const slotsByDay = new Map<number, NonNullable<typeof slotRows>>();
+  for (const s of slotRows ?? []) {
+    const list = slotsByDay.get(s.day_of_week) ?? [];
+    list.push(s);
+    slotsByDay.set(s.day_of_week, list);
+  }
+
+  const periods: AffectedPeriod[] = [];
+  const cursor = new Date(leave.from_date + "T00:00:00");
+  const end = new Date(leave.to_date + "T00:00:00");
+  while (cursor <= end) {
+    const dow = cursor.getDay();
+    const dateStr = cursor.toISOString().slice(0, 10);
+    for (const slot of slotsByDay.get(dow) ?? []) {
+      const section = slot.sections as unknown as { name: string | null; grades: { level: number | null } | null } | null;
+      const subject = slot.subjects as unknown as { name: string | null } | null;
+      const p = periodByNumber.get(slot.period_number);
+      periods.push({
+        id: `${slot.id}:${dateStr}`,
+        timetableSlotId: slot.id,
+        date: dateStr,
+        day: DAY_LABEL[dow] ?? "",
+        period: slot.period_number,
+        time: p ? `${p.start_time.slice(0, 5)}–${p.end_time.slice(0, 5)}` : "",
+        classSection: `${section?.grades?.level ?? "?"}-${section?.name ?? ""}`,
+        subject: subject?.name ?? "Subject",
+      });
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return periods.sort((a, b) => a.date.localeCompare(b.date) || a.period - b.period);
+}
+
+export interface SubstituteOption { id: string; name: string }
+
+export async function listAvailableSubstitutes(leaveId: string): Promise<SubstituteOption[]> {
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
+  const { data: leave } = await supabaseAdmin
+    .from("leave_requests")
+    .select("staff_id")
+    .eq("id", leaveId)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+
+  let builder = supabaseAdmin
+    .from("staff_members")
+    .select("id, full_name")
+    .eq("school_id", schoolId)
+    .eq("type", "teaching")
+    .eq("status", "active");
+  if (leave?.staff_id) builder = builder.neq("id", leave.staff_id);
+
+  const { data } = await builder.order("full_name");
+  return (data ?? []).map((s) => ({ id: s.id, name: s.full_name ?? "—" }));
+}
+
+export interface SubstituteAssignmentInput { timetableSlotId: string; date: string; substituteStaffId: string }
+
+export async function saveLeaveSubstituteAssignments(leaveId: string, assignments: SubstituteAssignmentInput[]): Promise<void> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const role = user?.user_metadata?.role as string | undefined;
+  const staffTemplateId = user?.user_metadata?.staff_template_id as string | undefined;
+  const canApprove = role === "admin" || role === "super_admin" || (role === "staff" && staffTemplateId === "hr_manager");
+  if (!user || !canApprove) throw new Error("Unauthorized");
+
+  if (assignments.length === 0) return;
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
+  const { error } = await supabaseAdmin
+    .from("leave_substitute_assignments")
+    .upsert(
+      assignments.map((a) => ({
+        school_id: schoolId,
+        leave_request_id: leaveId,
+        timetable_slot_id: a.timetableSlotId,
+        occurrence_date: a.date,
+        substitute_staff_id: a.substituteStaffId,
+      })),
+      { onConflict: "leave_request_id,timetable_slot_id,occurrence_date" },
+    );
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/dashboard/leaves");
+}
+
+export interface SavedSubstituteAssignment { timetableSlotId: string; date: string; substituteStaffId: string; substituteName: string }
+
+export async function getLeaveSubstituteAssignments(leaveId: string): Promise<SavedSubstituteAssignment[]> {
+  const schoolId = await getCurrentSchoolIdOrThrow();
+  const { data } = await supabaseAdmin
+    .from("leave_substitute_assignments")
+    .select("timetable_slot_id, occurrence_date, staff_members ( id, full_name )")
+    .eq("leave_request_id", leaveId)
+    .eq("school_id", schoolId);
+
+  return (data ?? []).map((r) => {
+    const sub = r.staff_members as unknown as { id: string; full_name: string | null } | null;
+    return {
+      timetableSlotId: r.timetable_slot_id,
+      date: r.occurrence_date,
+      substituteStaffId: sub?.id ?? "",
+      substituteName: sub?.full_name ?? "—",
+    };
+  });
+}

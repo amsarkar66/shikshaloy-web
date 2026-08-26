@@ -12,6 +12,18 @@ import { deptColor } from "../../staff/_data/staff";
 import { Table, TableHead, TableBody, Th, Td, Tr } from "@/components/ui/data-table";
 import { markStudentAttendance, markStaffAttendance } from "../actions";
 
+function downloadCsv(filename: string, header: string[], rows: (string | number)[][]) {
+  const esc = (cell: string | number) => `"${String(cell).replace(/"/g,'""')}"`;
+  const csv = [header, ...rows].map((r) => r.map(esc).join(",")).join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export type AttendanceStatus      = "present" | "absent" | "late" | "unmarked";
 export type MarkedAttendanceStatus = Exclude<AttendanceStatus, "unmarked">;
 export type StaffAttendanceStatus = "present" | "absent" | "late" | "on_leave" | "unmarked";
@@ -357,7 +369,14 @@ function DetailView({
         <div className="sm:ml-auto flex gap-2">
           <button onClick={onMarkAllPresent} className="flex h-8 items-center gap-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-500/10 px-3 text-xs font-medium text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors"><CheckSquare className="h-3.5 w-3.5"/> Mark All Present</button>
           <Link href={`/dashboard/attendance/qr-sheet/${sec.id}`} target="_blank" className="flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><ScanLine className="h-3.5 w-3.5"/> QR Sheet</Link>
-          <button className="flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5"/> Export</button>
+          <button
+            onClick={() => downloadCsv(
+              `attendance-${sec.classNum}${sec.section}-${dateStr}.csv`,
+              ["Roll No", "Name", "Status"],
+              students.map((st) => [st.rollNo, st.name, statusMap[st.id] ?? "unmarked"])
+            )}
+            className="flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"
+          ><Download className="h-3.5 w-3.5"/> Export</button>
         </div>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -537,7 +556,14 @@ function StaffAttendanceView({ staff, dateStr, staffStatusMap, setStaffStatus }:
         </div>
         <div className="sm:ml-auto flex gap-2">
           <button onClick={markAllPresent} className="flex h-8 items-center gap-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-500/10 px-3 text-xs font-medium text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors"><CheckSquare className="h-3.5 w-3.5"/> Mark All Present</button>
-          <button className="flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5"/> Export</button>
+          <button
+            onClick={() => downloadCsv(
+              `staff-attendance-${dateStr}.csv`,
+              ["Employee ID", "Name", "Department", "Designation", "Status"],
+              filtered.map((st) => [st.employeeId, st.name, st.department, st.designation, staffStatusMap[st.id] ?? "unmarked"])
+            )}
+            className="flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"
+          ><Download className="h-3.5 w-3.5"/> Export</button>
         </div>
       </div>
       <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
@@ -708,7 +734,32 @@ export default function AttendanceClient({
           <DateNav dateStr={dateStr} onChange={handleDateChange}/>
           <Link href="/dashboard/attendance/scan" className="flex h-9 items-center gap-1.5 rounded-lg bg-primary-500 hover:bg-primary-600 px-3 text-sm text-white transition-colors"><ScanLine className="h-3.5 w-3.5"/> Scan</Link>
           <Link href="/dashboard/attendance/devices" className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Radio className="h-3.5 w-3.5"/> Devices</Link>
-          <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5"/> Export</button>
+          <button
+            onClick={() => {
+              if (tab === "staff") {
+                downloadCsv(
+                  `staff-attendance-${dateStr}.csv`,
+                  ["Employee ID", "Name", "Department", "Designation", "Status"],
+                  initialStaff.filter((s) => s.status !== "inactive").map((s) => [s.employeeId, s.name, s.department, s.designation, staffStatusMap[s.id] ?? "unmarked"])
+                );
+              } else {
+                downloadCsv(
+                  `attendance-overview-${dateStr}.csv`,
+                  ["Section", "Teacher", "Total", "Present", "Absent", "Late", "Rate %"],
+                  initialSections.map((sec) => {
+                    const students = initialStudentsBySection[sec.id] ?? [];
+                    const present = students.filter((st) => statusMap[st.id]==="present").length;
+                    const absent  = students.filter((st) => statusMap[st.id]==="absent").length;
+                    const late    = students.filter((st) => statusMap[st.id]==="late").length;
+                    const total   = students.length;
+                    const rate    = total>0 ? Math.round(((present+late)/total)*100) : 0;
+                    return [`${sec.classNum}-${sec.section}`, sec.teacher, total, present, absent, late, rate];
+                  })
+                );
+              }
+            }}
+            className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"
+          ><Download className="h-3.5 w-3.5"/> Export</button>
         </div>
       </div>
 

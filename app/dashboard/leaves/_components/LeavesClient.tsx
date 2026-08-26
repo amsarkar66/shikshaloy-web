@@ -5,15 +5,18 @@ import {
   CalendarOff, Clock, CheckCircle2, XCircle, Search, Plus,
   Download, X, Eye, Check, Ban, ArrowUpDown, ArrowUp, ArrowDown,
   ChevronLeft, ChevronRight, ChevronDown, FileText, CalendarDays, ExternalLink,
-  SlidersHorizontal,
+  SlidersHorizontal, Loader2,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
 import { DatePicker } from "@/components/ui/date-picker";
 import { STATUS_BADGE, LEAVE_TYPE_LABEL, LEAVE_TYPE_BADGE, formatDate } from "../_data/leaves";
 import type { LeaveStatus, LeaveType } from "../_data/leaves";
-import { generateAffectedPeriods, AVAILABLE_TEACHERS, type Period } from "../_data/substitutes";
-import { updateLeaveStatus, applyLeave } from "../actions";
+import {
+  updateLeaveStatus, applyLeave,
+  getAffectedPeriods, listAvailableSubstitutes, saveLeaveSubstituteAssignments, getLeaveSubstituteAssignments,
+  type AffectedPeriod, type SubstituteOption,
+} from "../actions";
 import { updateStudentLeaveStatus, applyStudentLeave } from "../../students/actions";
 import { Users, UserCog, GraduationCap, Briefcase } from "lucide-react";
 import Link from "next/link";
@@ -87,28 +90,46 @@ function StatsRow({ leaves }: { leaves: Leave[] }) {
   );
 }
 
-export interface SubstitutePlan {
-  period: Period;
-  substitute: string;
-}
-
 function SubstituteAssignModal({
   leave, onClose, onConfirm,
 }: {
   leave: Leave;
   onClose: () => void;
-  onConfirm: (plan: SubstitutePlan[]) => void;
+  onConfirm: () => void;
 }) {
-  const periods = useMemo(
-    () => generateAffectedPeriods(leave.id, leave.department, leave.from, leave.to),
-    [leave.id, leave.department, leave.from, leave.to]
-  );
-  const [assignments, setAssignments] = useState<string[]>(() => periods.map(() => ""));
+  const [periods, setPeriods] = useState<AffectedPeriod[] | null>(null);
+  const [teachers, setTeachers] = useState<SubstituteOption[]>([]);
+  const [assignments, setAssignments] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const allAssigned = assignments.every((a) => a !== "");
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([getAffectedPeriods(leave.id), listAvailableSubstitutes(leave.id)]).then(([p, t]) => {
+      if (cancelled) return;
+      setPeriods(p);
+      setTeachers(t);
+    });
+    return () => { cancelled = true; };
+  }, [leave.id]);
 
-  function handleConfirm() {
-    onConfirm(periods.map((period, i) => ({ period, substitute: assignments[i] })));
+  const allAssigned = periods !== null && periods.every((p) => !!assignments[p.id]);
+
+  async function handleConfirm() {
+    if (!periods) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await saveLeaveSubstituteAssignments(
+        leave.id,
+        periods.map((p) => ({ timetableSlotId: p.timetableSlotId, date: p.date, substituteStaffId: assignments[p.id] })),
+      );
+      onConfirm();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save substitute plan");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -120,32 +141,40 @@ function SubstituteAssignModal({
         <div className="border-b border-gray-200 dark:border-zinc-800 px-5 py-4">
           <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Assign Substitutes — {leave.staffName}</p>
           <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">
-            {formatDate(leave.from)}{leave.from !== leave.to ? ` → ${formatDate(leave.to)}` : ""} · {periods.length} affected period{periods.length === 1 ? "" : "s"}
+            {formatDate(leave.from)}{leave.from !== leave.to ? ` → ${formatDate(leave.to)}` : ""}
+            {periods !== null && ` · ${periods.length} affected period${periods.length === 1 ? "" : "s"}`}
           </p>
         </div>
 
         <div className="max-h-[50vh] space-y-2 overflow-y-auto p-5">
-          {periods.map((p, i) => (
-            <div key={i} className="flex items-center gap-3 rounded-lg border border-gray-200 dark:border-zinc-700 px-3 py-2">
+          {periods === null ? (
+            <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-gray-400" /></div>
+          ) : periods.length === 0 ? (
+            <p className="py-6 text-center text-sm text-gray-400 dark:text-zinc-500">This teacher has no timetabled periods during the leave dates — nothing to cover.</p>
+          ) : periods.map((p) => (
+            <div key={p.id} className="flex items-center gap-3 rounded-lg border border-gray-200 dark:border-zinc-700 px-3 py-2">
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-gray-900 dark:text-zinc-100">{p.day} · Period {p.period} <span className="text-gray-400 dark:text-zinc-500 font-normal">({p.time})</span></p>
+                <p className="text-sm font-medium text-gray-900 dark:text-zinc-100">{formatDate(p.date)} · {p.day} · Period {p.period} <span className="text-gray-400 dark:text-zinc-500 font-normal">({p.time})</span></p>
                 <p className="text-xs text-gray-500 dark:text-zinc-400">Class {p.classSection} · {p.subject}</p>
               </div>
               <div className="relative shrink-0">
                 <select
-                  value={assignments[i]}
-                  onChange={(e) => setAssignments((prev) => prev.map((a, idx) => (idx === i ? e.target.value : a)))}
+                  value={assignments[p.id] ?? ""}
+                  onChange={(e) => setAssignments((prev) => ({ ...prev, [p.id]: e.target.value }))}
                   className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-2 pr-8 text-xs text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
                 >
                   <option value="">Select substitute…</option>
-                  {AVAILABLE_TEACHERS.filter((t) => t !== leave.staffName).map((t) => (
-                    <option key={t} value={t}>{t}</option>
+                  {teachers.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
                   ))}
                 </select>
                 <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400 dark:text-zinc-500" />
               </div>
             </div>
           ))}
+          {error && (
+            <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-400">{error}</div>
+          )}
         </div>
 
         <div className="flex justify-end gap-2 border-t border-gray-200 dark:border-zinc-800 px-5 py-4">
@@ -154,9 +183,10 @@ function SubstituteAssignModal({
           </button>
           <FancyButton
             onClick={handleConfirm}
-            disabled={!allAssigned}
+            disabled={!allAssigned || busy}
             size="sm"
           >
+            {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             <Check className="h-4 w-4" /> Confirm &amp; Approve
           </FancyButton>
         </div>
@@ -165,7 +195,19 @@ function SubstituteAssignModal({
   );
 }
 
-function SubstituteViewModal({ leave, plan, onClose }: { leave: Leave; plan: SubstitutePlan[]; onClose: () => void }) {
+function SubstituteViewModal({ leave, onClose }: { leave: Leave; onClose: () => void }) {
+  const [rows, setRows] = useState<{ period: AffectedPeriod; substituteName: string }[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([getAffectedPeriods(leave.id), getLeaveSubstituteAssignments(leave.id)]).then(([periods, saved]) => {
+      if (cancelled) return;
+      const byKey = new Map(saved.map((s) => [`${s.timetableSlotId}:${s.date}`, s.substituteName]));
+      setRows(periods.map((p) => ({ period: p, substituteName: byKey.get(p.id) ?? "—" })));
+    });
+    return () => { cancelled = true; };
+  }, [leave.id]);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xl">
@@ -174,14 +216,18 @@ function SubstituteViewModal({ leave, plan, onClose }: { leave: Leave; plan: Sub
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200"><X className="h-4 w-4" /></button>
         </div>
         <div className="max-h-[50vh] space-y-2 overflow-y-auto p-5">
-          {plan.map((a, i) => (
+          {rows === null ? (
+            <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-gray-400" /></div>
+          ) : rows.length === 0 ? (
+            <p className="py-6 text-center text-sm text-gray-400 dark:text-zinc-500">No substitute plan recorded for this leave.</p>
+          ) : rows.map((a, i) => (
             <div key={i} className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-zinc-700 px-3 py-2">
               <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-zinc-100">{a.period.day} · Period {a.period.period} <span className="text-gray-400 dark:text-zinc-500 font-normal">({a.period.time})</span></p>
+                <p className="text-sm font-medium text-gray-900 dark:text-zinc-100">{formatDate(a.period.date)} · {a.period.day} · Period {a.period.period} <span className="text-gray-400 dark:text-zinc-500 font-normal">({a.period.time})</span></p>
                 <p className="text-xs text-gray-500 dark:text-zinc-400">Class {a.period.classSection} · {a.period.subject}</p>
               </div>
               <span className="inline-flex items-center gap-1 rounded-lg bg-primary-500/10 px-2.5 py-1 text-xs font-semibold text-primary-700 dark:text-primary-300">
-                <UserCog className="h-3 w-3" /> {a.substitute}
+                <UserCog className="h-3 w-3" /> {a.substituteName}
               </span>
             </div>
           ))}
@@ -192,10 +238,10 @@ function SubstituteViewModal({ leave, plan, onClose }: { leave: Leave; plan: Sub
 }
 
 function LeaveDetailModal({
-  leave, subPlan, onClose, onApprove, onReject, onViewSubstitutes,
+  leave, showSubstituteLink, onClose, onApprove, onReject, onViewSubstitutes,
 }: {
   leave: Leave;
-  subPlan?: SubstitutePlan[];
+  showSubstituteLink: boolean;
   onClose: () => void;
   onApprove: () => void;
   onReject: () => void;
@@ -252,7 +298,7 @@ function LeaveDetailModal({
             </Link>
           )}
 
-          {subPlan && (
+          {showSubstituteLink && (
             <button onClick={onViewSubstitutes} className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline">
               <UserCog className="h-3.5 w-3.5" /> View substitute plan
             </button>
@@ -444,7 +490,6 @@ export default function LeavesClient({ initialLeaves, staffOptions, studentOptio
   const [sortField,  setSortField] = useState<SortField>("appliedOn");
   const [sortDir,    setSortDir]   = useState<SortDir>("desc");
   const [page,       setPage]      = useState(1);
-  const [subPlans,      setSubPlans]      = useState<Record<string, SubstitutePlan[]>>({});
   const [assignModalFor, setAssignModalFor] = useState<Leave | null>(null);
   const [viewModalFor,   setViewModalFor]   = useState<Leave | null>(null);
   const [detailFor,      setDetailFor]      = useState<Leave | null>(null);
@@ -472,12 +517,15 @@ export default function LeavesClient({ initialLeaves, staffOptions, studentOptio
     startTransition(async () => { await persistStatus(leave, "approved"); });
   }
 
-  function confirmSubstitutes(plan: SubstitutePlan[]) {
+  function confirmSubstitutes() {
     if (!assignModalFor) return;
-    setSubPlans((prev) => ({ ...prev, [assignModalFor.id]: plan }));
     setLeaves((prev) => prev.map((l) => (l.id === assignModalFor.id ? { ...l, status: "approved" } : l)));
     startTransition(async () => { await persistStatus(assignModalFor, "approved"); });
     setAssignModalFor(null);
+  }
+
+  function canHaveSubstitutePlan(leave: Leave) {
+    return leave.status === "approved" && leave.personType === "staff" && leave.role === "Teacher";
   }
 
   function toggleSort(field: SortField) {
@@ -533,6 +581,21 @@ export default function LeavesClient({ initialLeaves, staffOptions, studentOptio
 
   const totalPages = Math.max(1, Math.ceil(filtered.length/PAGE_SIZE));
   const pageData   = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
+
+  function exportCsv() {
+    const header = ["Name", "Role", "Department", "Leave Type", "From", "To", "Days", "Applied On", "Status", "Reason"];
+    const rows = filtered.map((l) => [l.staffName, l.role, l.department, LEAVE_TYPE_LABEL[l.leaveType], l.from, l.to, l.days, l.appliedOn, l.status, l.reason]);
+    const csv = [header, ...rows]
+      .map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+      .join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `leaves-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
   const advancedCount = [deptFilter!=="all", roleFilter!=="all", !!(appliedFrom||appliedTo), !!(leaveFrom||leaveTo)].filter(Boolean).length;
   const hasFilter  = !!(query||typeFilter!=="all"||advancedCount>0);
   function clearFilters() {
@@ -548,7 +611,7 @@ export default function LeavesClient({ initialLeaves, staffOptions, studentOptio
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div><h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Leave Management</h1><p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Review and approve staff &amp; student leave requests</p></div>
         <div className="flex gap-2 sm:ml-auto">
-          <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5"/> Export</button>
+          <button onClick={exportCsv} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5"/> Export</button>
           <FancyButton onClick={() => setNewRequestOpen(true)} size="sm"><Plus className="h-4 w-4"/> New Request</FancyButton>
         </div>
       </div>
@@ -748,7 +811,7 @@ export default function LeavesClient({ initialLeaves, staffOptions, studentOptio
                 <Td position="last">
                   <div className="flex items-center justify-end gap-1">
                     <button onClick={()=>setDetailFor(leave)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors" title="View details"><Eye className="h-3.5 w-3.5"/></button>
-                    {subPlans[leave.id]&&<button onClick={()=>setViewModalFor(leave)} className="flex h-7 w-7 items-center justify-center rounded-lg text-indigo-500 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors" title="View substitutes"><Users className="h-3.5 w-3.5"/></button>}
+                    {canHaveSubstitutePlan(leave)&&<button onClick={()=>setViewModalFor(leave)} className="flex h-7 w-7 items-center justify-center rounded-lg text-indigo-500 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors" title="View substitutes"><Users className="h-3.5 w-3.5"/></button>}
                     {isPending&&<><button onClick={()=>approve(leave)} className="flex h-7 w-7 items-center justify-center rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors" title="Approve"><Check className="h-3.5 w-3.5"/></button><button onClick={()=>reject(leave)} className="flex h-7 w-7 items-center justify-center rounded-lg text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors" title="Reject"><Ban className="h-3.5 w-3.5"/></button></>}
                   </div>
                 </Td>
@@ -765,17 +828,16 @@ export default function LeavesClient({ initialLeaves, staffOptions, studentOptio
           onConfirm={confirmSubstitutes}
         />
       )}
-      {viewModalFor && subPlans[viewModalFor.id] && (
+      {viewModalFor && (
         <SubstituteViewModal
           leave={viewModalFor}
-          plan={subPlans[viewModalFor.id]}
           onClose={() => setViewModalFor(null)}
         />
       )}
       {detailFor && (
         <LeaveDetailModal
           leave={detailFor}
-          subPlan={subPlans[detailFor.id]}
+          showSubstituteLink={canHaveSubstitutePlan(detailFor)}
           onClose={() => setDetailFor(null)}
           onApprove={() => { approve(detailFor); setDetailFor(null); }}
           onReject={() => { reject(detailFor); setDetailFor(null); }}

@@ -175,6 +175,24 @@ export default function InventoryClient({ items }: { items: InventoryItem[] }) {
 
   function clearFilters() { setQuery(""); setCat("all"); setStatus("all"); setPage(1); }
 
+  function exportCsv() {
+    const header = ["Name", "Category", "Location", "Total Qty", "Available", "Damaged", "Condition", "Unit Cost", "Total Value"];
+    const rows = filtered.map((item) => [
+      item.name, item.category, item.location, item.totalQty, availableQty(item), item.damaged,
+      CONDITION_BADGE[item.condition].label, item.unitCost, item.totalQty * item.unitCost,
+    ]);
+    const csv = [header, ...rows]
+      .map((r) => r.map((cell) => `"${String(cell).replace(/"/g,'""')}"`).join(","))
+      .join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `inventory-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="w-full px-6 py-6 space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
@@ -183,7 +201,7 @@ export default function InventoryClient({ items }: { items: InventoryItem[] }) {
           <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Track school assets and supplies</p>
         </div>
         <div className="flex gap-2 sm:ml-auto">
-          <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
+          <button onClick={exportCsv} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
             <Download className="h-3.5 w-3.5" /> Export
           </button>
           <FancyButton onClick={() => setItemModal({ mode: "add" })} size="sm"><Plus className="h-4 w-4" /> Add Item</FancyButton>
@@ -310,8 +328,8 @@ export default function InventoryClient({ items }: { items: InventoryItem[] }) {
                   <Td><span className="text-sm font-medium text-gray-700 dark:text-zinc-300 tabular-nums">{formatCurrency(value)}</span></Td>
                   <Td position="last">
                     <div className="flex items-center justify-end gap-1">
-                      <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Eye className="h-3.5 w-3.5" /></button>
-                      <button onClick={() => setItemModal({ mode: "edit", item })} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Pencil className="h-3.5 w-3.5" /></button>
+                      <button onClick={() => setItemModal({ mode: "edit", item })} title="View" className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Eye className="h-3.5 w-3.5" /></button>
+                      <button onClick={() => setItemModal({ mode: "edit", item })} title="Edit" className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Pencil className="h-3.5 w-3.5" /></button>
                       <button onClick={() => setDeleteTarget(item)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </Td>

@@ -1,14 +1,14 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft, Pencil, MessageSquare,
+  ArrowLeft, MessageSquare,
   Phone, Mail, MapPin, Briefcase, Calendar,
   GraduationCap, BookOpen, CheckCircle2, AlertCircle,
   IndianRupee, Users2, TrendingUp,
 } from "lucide-react";
-import { FancyButton } from "@/components/ui/fancy-button";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { ParentDetailActions } from "../_components/parent-detail-actions";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -182,14 +182,7 @@ export default async function ParentDetailPage({
         >
           <ArrowLeft className="h-4 w-4" /> Back to Parents
         </Link>
-        <div className="flex gap-2">
-          <button className="flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
-            <MessageSquare className="h-3.5 w-3.5" /> Message
-          </button>
-          <FancyButton size="xs">
-            <Pencil className="h-3.5 w-3.5" /> Edit
-          </FancyButton>
-        </div>
+        <ParentDetailActions parentId={parent.id} profileId={p.profile_id} />
       </div>
 
       {/* Profile hero */}

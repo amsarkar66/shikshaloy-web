@@ -15,6 +15,7 @@ import {
 import { STATUS_BADGE, formatLakh, type School, type SchoolStatus } from "../_data/schools";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableTitleHeader } from "@/components/ui/data-table";
 import { PlanLimitModal } from "../../_components/plan-limit-modal";
+import { DeleteSchoolModal } from "./delete-school-modal";
 
 // ── Stat bar ──────────────────────────────────────────────────────────────────
 
@@ -85,7 +86,7 @@ function MiniBar({ label, value, pct, colorClass }: { label: string; value: stri
 
 // ── School card ───────────────────────────────────────────────────────────────
 
-function SchoolCard({ school, onMenu, menuOpen }: { school: School; onMenu: (id: string) => void; menuOpen: boolean }) {
+function SchoolCard({ school, onMenu, menuOpen, onRemove }: { school: School; onMenu: (id: string) => void; menuOpen: boolean; onRemove: (school: School) => void }) {
   const attendanceColor = school.attendancePct >= 95 ? "bg-emerald-500" : school.attendancePct >= 90 ? "bg-blue-500" : "bg-amber-500";
   const feeColor = school.feePct >= 85 ? "bg-emerald-500" : school.feePct >= 75 ? "bg-blue-500" : "bg-amber-500";
 
@@ -106,7 +107,7 @@ function SchoolCard({ school, onMenu, menuOpen }: { school: School; onMenu: (id:
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <StatusBadge status={school.status} />
-          <SchoolActionsMenu schoolId={school.id} open={menuOpen} onToggle={() => onMenu(school.id)} />
+          <SchoolActionsMenu schoolId={school.id} open={menuOpen} onToggle={() => onMenu(school.id)} onRemove={() => onRemove(school)} />
         </div>
       </div>
 
@@ -148,13 +149,9 @@ function SchoolCard({ school, onMenu, menuOpen }: { school: School; onMenu: (id:
   );
 }
 
-function SchoolActionsMenu({ schoolId, open, onToggle }: { schoolId: string; open: boolean; onToggle: () => void }) {
+function SchoolActionsMenu({ schoolId, open, onToggle, onRemove }: { schoolId: string; open: boolean; onToggle: () => void; onRemove: () => void }) {
   const btnRef = useRef<HTMLButtonElement>(null);
   const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
-  const actions = [
-    { icon: UserCog, label: "Manage admins", cls: "text-gray-700 dark:text-zinc-300" },
-    { icon: Trash2,  label: "Remove school", cls: "text-red-600 dark:text-red-400"   },
-  ];
 
   function handleToggle() {
     if (!open && btnRef.current) {
@@ -184,12 +181,14 @@ function SchoolActionsMenu({ schoolId, open, onToggle }: { schoolId: string; ope
               <Edit2 className="h-3.5 w-3.5 shrink-0" />
               Edit school
             </Link>
-            {actions.map((a) => (
-              <button key={a.label} onClick={onToggle} className={`flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors ${a.cls}`}>
-                <a.icon className="h-3.5 w-3.5 shrink-0" />
-                {a.label}
-              </button>
-            ))}
+            <Link href="/dashboard/principals" onClick={onToggle} className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors">
+              <UserCog className="h-3.5 w-3.5 shrink-0" />
+              Manage admins
+            </Link>
+            <button onClick={() => { onToggle(); onRemove(); }} className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors">
+              <Trash2 className="h-3.5 w-3.5 shrink-0" />
+              Remove school
+            </button>
           </div>
         </>
       )}
@@ -197,13 +196,9 @@ function SchoolActionsMenu({ schoolId, open, onToggle }: { schoolId: string; ope
   );
 }
 
-function TableRowActions({ schoolId, open, onToggle }: { schoolId: string; open: boolean; onToggle: () => void }) {
+function TableRowActions({ schoolId, open, onToggle, onRemove }: { schoolId: string; open: boolean; onToggle: () => void; onRemove: () => void }) {
   const btnRef = useRef<HTMLButtonElement>(null);
   const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
-  const actions = [
-    { icon: UserCog, label: "Manage admins", cls: "text-gray-700 dark:text-zinc-300" },
-    { icon: Trash2,  label: "Remove school", cls: "text-red-600 dark:text-red-400"   },
-  ];
 
   function handleToggle() {
     if (!open && btnRef.current) {
@@ -242,12 +237,14 @@ function TableRowActions({ schoolId, open, onToggle }: { schoolId: string; open:
               <Edit2 className="h-3.5 w-3.5 shrink-0" />
               Edit school
             </Link>
-            {actions.map((a) => (
-              <button key={a.label} onClick={onToggle} className={`flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors ${a.cls}`}>
-                <a.icon className="h-3.5 w-3.5 shrink-0" />
-                {a.label}
-              </button>
-            ))}
+            <Link href="/dashboard/principals" onClick={onToggle} className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors">
+              <UserCog className="h-3.5 w-3.5 shrink-0" />
+              Manage admins
+            </Link>
+            <button onClick={() => { onToggle(); onRemove(); }} className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors">
+              <Trash2 className="h-3.5 w-3.5 shrink-0" />
+              Remove school
+            </button>
           </div>
         </>
       )}
@@ -281,9 +278,9 @@ function ViewToggle({ view, onChange }: { view: "grid" | "list"; onChange: (v: "
 }
 
 function SchoolsTable({
-  schools, title, openMenu, onMenu,
+  schools, title, openMenu, onMenu, onRemove,
 }: {
-  schools: School[]; title?: string; openMenu: string | null; onMenu: (id: string) => void;
+  schools: School[]; title?: string; openMenu: string | null; onMenu: (id: string) => void; onRemove: (school: School) => void;
 }) {
   if (schools.length === 0) return null;
   return (
@@ -329,7 +326,7 @@ function SchoolsTable({
               <Td className="text-sm text-gray-700 dark:text-zinc-300 whitespace-nowrap">{formatLakh(s.monthlyRevenue)}</Td>
               <Td><StatusBadge status={s.status} /></Td>
               <Td position="last">
-                <TableRowActions schoolId={s.id} open={openMenu === s.id} onToggle={() => onMenu(s.id)} />
+                <TableRowActions schoolId={s.id} open={openMenu === s.id} onToggle={() => onMenu(s.id)} onRemove={() => onRemove(s)} />
               </Td>
             </Tr>
           );
@@ -420,6 +417,7 @@ export default function SchoolsClient({
   const [sortOpen, setSortOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const [removingSchool, setRemovingSchool] = useState<School | null>(null);
 
   const handleSortKeyChange = (key: SortKey) => setSortBy(key);
   const handleSortDirChange = (dir: "asc" | "desc") => setSortDir(dir);
@@ -512,15 +510,24 @@ export default function SchoolsClient({
       ) : viewMode === "grid" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {filtered.map((school) => (
-            <SchoolCard key={school.id} school={school} menuOpen={openMenu === school.id} onMenu={(id) => setOpenMenu(openMenu === id ? null : id)} />
+            <SchoolCard key={school.id} school={school} menuOpen={openMenu === school.id} onMenu={(id) => setOpenMenu(openMenu === id ? null : id)} onRemove={setRemovingSchool} />
           ))}
         </div>
       ) : (
-        <SchoolsTable schools={filtered} openMenu={openMenu} onMenu={(id) => setOpenMenu(openMenu === id ? null : id)} />
+        <SchoolsTable schools={filtered} openMenu={openMenu} onMenu={(id) => setOpenMenu(openMenu === id ? null : id)} onRemove={setRemovingSchool} />
       )}
 
       {viewMode === "grid" && filtered.length > 1 && (
-        <SchoolsTable schools={filtered} title="School comparison" openMenu={openMenu} onMenu={(id) => setOpenMenu(openMenu === id ? null : id)} />
+        <SchoolsTable schools={filtered} title="School comparison" openMenu={openMenu} onMenu={(id) => setOpenMenu(openMenu === id ? null : id)} onRemove={setRemovingSchool} />
+      )}
+
+      {removingSchool && (
+        <DeleteSchoolModal
+          open={!!removingSchool}
+          onClose={() => setRemovingSchool(null)}
+          schoolId={removingSchool.id}
+          schoolName={removingSchool.name}
+        />
       )}
     </div>
   );

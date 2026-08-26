@@ -127,6 +127,85 @@ export async function inviteStaffMember(input: InviteStaffInput): Promise<void> 
   revalidatePath("/dashboard/staff");
 }
 
+// ── Edit staff member ────────────────────────────────────────────────────────
+
+export interface StaffEditData {
+  id: string;
+  fullName: string;
+  phone: string;
+  email: string;
+  designation: string;
+  department: string;
+  status: "active" | "on_leave" | "inactive";
+}
+
+export async function getStaffForEdit(staffId: string): Promise<StaffEditData> {
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
+  const { data } = await supabaseAdmin
+    .from("staff_members")
+    .select("id, full_name, phone, email, designation, department, status")
+    .eq("school_id", schoolId)
+    .eq("id", staffId)
+    .maybeSingle();
+
+  if (!data) throw new Error("Staff member not found");
+
+  return {
+    id: data.id,
+    fullName: data.full_name ?? "",
+    phone: data.phone ?? "",
+    email: data.email ?? "",
+    designation: data.designation ?? "",
+    department: data.department ?? "",
+    status: (data.status ?? "active") as StaffEditData["status"],
+  };
+}
+
+export interface UpdateStaffInput {
+  staffId: string;
+  fullName: string;
+  phone?: string | null;
+  designation?: string | null;
+  department?: string | null;
+  status: "active" | "on_leave" | "inactive";
+}
+
+export async function updateStaff(input: UpdateStaffInput): Promise<void> {
+  await requireSchoolAdmin();
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
+  const fullName = input.fullName.trim();
+  if (!fullName) throw new Error("Staff name is required");
+
+  const { data: staff, error } = await supabaseAdmin
+    .from("staff_members")
+    .update({
+      full_name: fullName,
+      phone: input.phone?.trim() || null,
+      designation: input.designation?.trim() || null,
+      department: input.department?.trim() || null,
+      status: input.status,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.staffId)
+    .eq("school_id", schoolId)
+    .select("full_name")
+    .single();
+
+  if (error || !staff) throw new Error(`Failed to update staff member: ${error?.message ?? "unknown error"}`);
+
+  await logAuditEvent({
+    schoolId,
+    action: "update",
+    module: "Staff",
+    description: `Updated staff profile — ${fullName}`,
+  });
+
+  revalidatePath("/dashboard/staff");
+  revalidatePath(`/dashboard/staff/${input.staffId}`);
+}
+
 // ── Bulk import ───────────────────────────────────────────────────────────────
 
 export interface BulkImportStaffRow {

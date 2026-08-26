@@ -9,16 +9,175 @@ import {
   Globe, Loader2, MoreHorizontal,
 } from "lucide-react";
 import {
-  TYPE_LABEL, TYPE_COLOR, TYPE_BADGE, AUDIENCE_LABEL,
+  TYPE_LABEL, TYPE_COLOR, TYPE_BADGE, AUDIENCE_LABEL, ALL_TYPES,
   getEventsForDate, formatEventDateRange, formatTime, countDays,
   ptmSessionToEvent,
-  type SchoolEvent, type EventType,
+  type SchoolEvent, type EventType, type AudienceType,
 } from "../_data/events";
 import { type PtmSession } from "../../ptm/_data/ptm";
 import { ScheduleModal, BookingsModal } from "../../ptm/_components/PtmModals";
-import { toggleEventPublic } from "../actions";
+import { toggleEventPublic, createEvent } from "../actions";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+
+const ALL_AUDIENCES: AudienceType[] = ["all", "students", "parents", "staff", "teachers"];
+
+const inputClass =
+  "h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20";
+
+function AddEventModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [form, setForm] = useState({
+    title: "", type: "other" as EventType, date: todayStr(), endDate: "",
+    time: "", endTime: "", isAllDay: true, location: "", description: "",
+    audience: ["all"] as AudienceType[], isPublic: false,
+  });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function update<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
+    setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  function toggleAudience(a: AudienceType) {
+    setForm((f) => {
+      if (a === "all") return { ...f, audience: ["all"] };
+      const next = f.audience.filter((x) => x !== "all");
+      return { ...f, audience: next.includes(a) ? next.filter((x) => x !== a) : [...next, a] };
+    });
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.title.trim()) { setError("Event title is required."); return; }
+    setBusy(true);
+    setError(null);
+    try {
+      await createEvent({
+        title: form.title,
+        type: form.type,
+        date: form.date,
+        endDate: form.endDate || null,
+        time: form.time || null,
+        endTime: form.endTime || null,
+        isAllDay: form.isAllDay,
+        location: form.location || null,
+        description: form.description || null,
+        audience: form.audience,
+        isPublic: form.isPublic,
+      });
+      onCreated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create event");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-md rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xl max-h-[85vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-gray-200 dark:border-zinc-800 px-5 py-4">
+          <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Add Event</p>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200">✕</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Title *</label>
+            <input className={inputClass} value={form.title} onChange={(e) => update("title", e.target.value)} required autoFocus />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Type</label>
+              <select className={inputClass} value={form.type} onChange={(e) => update("type", e.target.value as EventType)}>
+                {ALL_TYPES.map((t) => <option key={t} value={t}>{TYPE_LABEL[t]}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Location</label>
+              <input className={inputClass} value={form.location} onChange={(e) => update("location", e.target.value)} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Date *</label>
+              <input type="date" className={inputClass} value={form.date} onChange={(e) => update("date", e.target.value)} required />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">End date</label>
+              <input type="date" className={inputClass} value={form.endDate} onChange={(e) => update("endDate", e.target.value)} min={form.date} />
+            </div>
+          </div>
+
+          <label className="flex items-center gap-2 text-xs font-medium text-gray-600 dark:text-zinc-300">
+            <input type="checkbox" checked={form.isAllDay} onChange={(e) => update("isAllDay", e.target.checked)} className="h-4 w-4 rounded border-gray-300 dark:border-zinc-600 text-primary-500 focus:ring-primary-500/30" />
+            All day
+          </label>
+
+          {!form.isAllDay && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Start time</label>
+                <input type="time" className={inputClass} value={form.time} onChange={(e) => update("time", e.target.value)} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">End time</label>
+                <input type="time" className={inputClass} value={form.endTime} onChange={(e) => update("endTime", e.target.value)} />
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Description</label>
+            <textarea className={`${inputClass} h-auto py-2`} rows={2} value={form.description} onChange={(e) => update("description", e.target.value)} />
+          </div>
+
+          <div>
+            <p className="mb-1.5 text-xs font-medium text-gray-500 dark:text-zinc-400">Audience</p>
+            <div className="flex flex-wrap gap-1.5">
+              {ALL_AUDIENCES.map((a) => (
+                <button
+                  key={a}
+                  type="button"
+                  onClick={() => toggleAudience(a)}
+                  className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${form.audience.includes(a) ? "border-primary-400 bg-primary-500/10 text-primary-600 dark:text-primary-400" : "border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800"}`}
+                >
+                  {AUDIENCE_LABEL[a]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <label className="flex items-center gap-2 text-xs font-medium text-gray-600 dark:text-zinc-300">
+            <input type="checkbox" checked={form.isPublic} onChange={(e) => update("isPublic", e.target.checked)} className="h-4 w-4 rounded border-gray-300 dark:border-zinc-600 text-primary-500 focus:ring-primary-500/30" />
+            Show on public school site
+          </label>
+
+          {error && (
+            <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-400">
+              {error}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={onClose} className="h-9 rounded-lg border border-gray-200 dark:border-zinc-700 px-4 text-sm text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800">
+              Cancel
+            </button>
+            <FancyButton type="submit" disabled={busy} size="sm">
+              {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Add Event
+            </FancyButton>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -87,7 +246,10 @@ function StatsRow({ events }: { events: SchoolEvent[] }) {
   const monthStart = `${ty}-${tm}-01`;
   const monthEnd   = `${ty}-${tm}-31`;
 
-  const yearEvents = events.filter((e) => e.date >= "2026-04-01" && e.date <= "2027-03-31");
+  const ayStartYear = Number(tm) >= 4 ? Number(ty) : Number(ty) - 1;
+  const ayStart = `${ayStartYear}-04-01`;
+  const ayEnd   = `${ayStartYear + 1}-03-31`;
+  const yearEvents = events.filter((e) => e.date >= ayStart && e.date <= ayEnd);
   const thisMonth  = events.filter((e) => {
     const end = e.endDate ?? e.date;
     return e.date <= monthEnd && end >= monthStart;
@@ -616,12 +778,33 @@ export default function EventsClient({
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("calendar");
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [addEventOpen, setAddEventOpen] = useState(false);
   const [viewingSessionId, setViewingSessionId] = useState<string | null>(null);
 
   const events = useMemo(() => [
     ...initialEvents,
     ...initialSessions.filter((s) => s.status !== "cancelled").map(ptmSessionToEvent),
   ], [initialEvents, initialSessions]);
+
+  function exportCsv() {
+    const header = ["Title", "Type", "Date", "End Date", "All Day", "Time", "End Time", "Location", "Audience", "Public"];
+    const rows = events.map((e) => [
+      e.title, TYPE_LABEL[e.type], e.date, e.endDate ?? "",
+      e.isAllDay ? "Yes" : "No", e.time ?? "", e.endTime ?? "",
+      e.location ?? "", e.audience.map((a) => AUDIENCE_LABEL[a]).join("; "),
+      e.isPublic ? "Yes" : "No",
+    ]);
+    const csv = [header, ...rows]
+      .map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+      .join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `events-${todayStr()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   const viewingSession = initialSessions.find((s) => s.id === viewingSessionId) ?? null;
 
@@ -643,7 +826,7 @@ export default function EventsClient({
               <MoreHorizontal className="h-4 w-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" sideOffset={8} className="w-48">
-              <DropdownMenuItem className="cursor-pointer">
+              <DropdownMenuItem className="cursor-pointer" onClick={exportCsv}>
                 <Download className="h-3.5 w-3.5" /> Export
               </DropdownMenuItem>
               <DropdownMenuItem className="cursor-pointer" onClick={() => setScheduleOpen(true)}>
@@ -651,7 +834,7 @@ export default function EventsClient({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <FancyButton size="sm">
+          <FancyButton size="sm" onClick={() => setAddEventOpen(true)}>
             <Plus className="h-4 w-4" /> Add Event
           </FancyButton>
         </div>
@@ -694,6 +877,9 @@ export default function EventsClient({
       )}
       {viewingSession && (
         <BookingsModal session={viewingSession} onClose={() => setViewingSessionId(null)} />
+      )}
+      {addEventOpen && (
+        <AddEventModal onClose={() => setAddEventOpen(false)} onCreated={() => { setAddEventOpen(false); router.refresh(); }} />
       )}
     </div>
   );

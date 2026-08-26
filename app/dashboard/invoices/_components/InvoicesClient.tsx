@@ -56,8 +56,30 @@ export default function InvoicesClient({ invoices }: { invoices: PlatformInvoice
     return matchQ && matchStatus;
   });
 
+  function exportCsv() {
+    const header = ["Invoice No", "Institution", "Period", "Plan", "Amount", "Status", "Issued Date"];
+    const rows = filtered.map((i) => [
+      i.invoiceNo, i.schoolName, i.period, i.plan, i.amount, STATUS_LABEL[i.status], formatDate(i.issuedDate),
+    ]);
+    const csv = [header, ...rows]
+      .map((r) => r.map((cell) => `"${String(cell).replace(/"/g,'""')}"`).join(","))
+      .join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `invoices-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
-    <div className="w-full space-y-6 px-6 py-8">
+    <div className="w-full px-6 py-6 space-y-5">
+      <div>
+        <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Invoices</h1>
+        <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Platform-wide invoice history</p>
+      </div>
+
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {stats.map((s) => <StatCard key={s.label} {...s} />)}
       </div>
@@ -85,7 +107,7 @@ export default function InvoicesClient({ invoices }: { invoices: PlatformInvoice
           </select>
           <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
         </div>
-        <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
+        <button onClick={exportCsv} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
           <Download className="h-3.5 w-3.5" /> Export
         </button>
       </div>

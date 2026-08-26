@@ -11,7 +11,6 @@ export type AdmissionStatus =
   | "enrolled";
 
 export const ACADEMIC_YEARS = ["2026-27", "2025-26"];
-export const APPLY_CLASSES  = ["5", "6", "7", "8", "9", "10"];
 
 // ── Display helpers ───────────────────────────────────────────────────────────
 

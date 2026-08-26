@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { CalendarDays, Users2, Plus, Clock } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { STATUS_BADGE, formatDate, type PtmSession } from "../_data/ptm";
@@ -16,6 +17,7 @@ export default function MyPtmClient({
   sections: Section[];
   teachers: Teacher[];
 }) {
+  const router = useRouter();
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [viewSession, setViewSession] = useState<PtmSession | null>(null);
 
@@ -61,7 +63,7 @@ export default function MyPtmClient({
           sections={sections}
           teachers={teachers}
           onClose={() => setScheduleOpen(false)}
-          onScheduled={() => setScheduleOpen(false)}
+          onScheduled={() => { setScheduleOpen(false); router.refresh(); }}
         />
       )}
       {viewSession && <BookingsModal session={viewSession} onClose={() => setViewSession(null)} />}

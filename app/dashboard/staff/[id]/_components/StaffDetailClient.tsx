@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Pencil, Phone, Mail, Calendar, Briefcase, Building2,
   IndianRupee, CheckCircle2, AlertCircle, TrendingUp, Shield,
@@ -16,6 +17,7 @@ import {
 } from "../../../payroll/_data/payroll";
 import { LEAVE_TYPE_LABEL, STATUS_BADGE as LEAVE_STATUS_BADGE, type LeaveStatus } from "../../../leaves/_data/leaves";
 import AttendanceCredentialsCard from "../../../attendance/_components/AttendanceCredentialsCard";
+import { EditStaffModal } from "./edit-staff-modal";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -107,7 +109,9 @@ export default function StaffDetailClient({
   leaves: StaffLeave[];
   payroll: PayrollRecord[];
 }) {
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("overview");
+  const [editOpen, setEditOpen] = useState(false);
 
   const pendingLeaves = leaves.filter((l) => l.status === "pending").length;
   const latestPayroll = payroll[0];
@@ -153,7 +157,7 @@ export default function StaffDetailClient({
                   {staff.type === "teaching" ? "Teaching" : "Non-Teaching"}
                 </span>
               </div>
-              <FancyButton size="sm" className="w-full">
+              <FancyButton size="sm" className="w-full" onClick={() => setEditOpen(true)}>
                 <Pencil className="h-3.5 w-3.5" /> Edit Profile
               </FancyButton>
             </div>
@@ -456,6 +460,14 @@ export default function StaffDetailClient({
           )}
         </div>
       </div>
+
+      {editOpen && (
+        <EditStaffModal
+          staffId={staff.id}
+          onClose={() => setEditOpen(false)}
+          onSaved={() => { setEditOpen(false); router.refresh(); }}
+        />
+      )}
     </div>
   );
 }

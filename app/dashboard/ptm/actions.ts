@@ -28,7 +28,7 @@ export async function schedulePtmSession(input: {
     status: "scheduled",
   });
   if (error) throw new Error(error.message);
-  revalidatePath("/dashboard/events");
+  revalidatePath("/dashboard/ptm");
 }
 
 export async function bookPtmSlot(input: {

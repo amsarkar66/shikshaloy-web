@@ -11,6 +11,7 @@ export interface Contact {
   profileId: string;
   name: string;
   role: ContactRole;
+  phone?: string | null;
 }
 
 export interface Conversation {

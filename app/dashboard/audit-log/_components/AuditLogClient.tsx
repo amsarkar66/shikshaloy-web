@@ -50,6 +50,24 @@ export default function AuditLogClient({ entries }: { entries: AuditEntry[] }) {
 
   function clearFilters() { setQuery(""); setModuleFilter("all"); setActionFilter("all"); setPage(1); }
 
+  function exportCsv() {
+    const header = ["Timestamp", "Actor", "Role", "Action", "Module", "Description", "IP Address", ...(showSchool ? ["School"] : [])];
+    const rows = filtered.map((e) => [
+      formatDateTime(e.timestamp), e.actor, e.actorRole, e.action, e.module, e.description, e.ipAddress,
+      ...(showSchool ? [e.schoolName ?? ""] : []),
+    ]);
+    const csv = [header, ...rows]
+      .map((r) => r.map((cell) => `"${String(cell).replace(/"/g,'""')}"`).join(","))
+      .join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `audit-log-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   const showSchool = entries.some((e) => e.schoolName);
 
   return (
@@ -60,7 +78,7 @@ export default function AuditLogClient({ entries }: { entries: AuditEntry[] }) {
           <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Track who changed what, across every module</p>
         </div>
         <div className="flex gap-2 sm:ml-auto">
-          <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
+          <button onClick={exportCsv} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
             <Download className="h-3.5 w-3.5" /> Export
           </button>
         </div>

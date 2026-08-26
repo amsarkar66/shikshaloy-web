@@ -3,6 +3,71 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
+import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
+import type { EventType, AudienceType } from "./_data/events";
+
+export interface CreateEventInput {
+  title: string;
+  type: EventType;
+  date: string;
+  endDate?: string | null;
+  time?: string | null;
+  endTime?: string | null;
+  isAllDay: boolean;
+  location?: string | null;
+  description?: string | null;
+  audience: AudienceType[];
+  isPublic: boolean;
+}
+
+export async function createEvent(input: CreateEventInput): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const role = user?.user_metadata?.role as string | undefined;
+  if (!user || (role !== "admin" && role !== "super_admin")) {
+    throw new Error("Unauthorized");
+  }
+
+  if (!input.title.trim()) throw new Error("Event title is required");
+  if (!input.date) throw new Error("Event date is required");
+
+  const schoolId = await getCurrentSchoolIdOrThrow();
+  const academicYearId = await getCurrentAcademicYearId();
+
+  const { data: event, error } = await supabaseAdmin
+    .from("school_events")
+    .insert({
+      school_id: schoolId,
+      academic_year_id: academicYearId,
+      title: input.title.trim(),
+      type: input.type,
+      date: input.date,
+      end_date: input.endDate || null,
+      time: input.isAllDay ? null : input.time || null,
+      end_time: input.isAllDay ? null : input.endTime || null,
+      location: input.location?.trim() || null,
+      description: input.description?.trim() || null,
+      is_all_day: input.isAllDay,
+      is_public: input.isPublic,
+    })
+    .select("id")
+    .single();
+
+  if (error || !event) throw new Error(error?.message ?? "Failed to create event");
+
+  const audiences = input.audience.length ? input.audience : (["all"] as AudienceType[]);
+  const { error: audienceError } = await supabaseAdmin
+    .from("event_audiences")
+    .insert(audiences.map((audience_type) => ({ event_id: event.id, audience_type })));
+
+  if (audienceError) throw new Error(`Event created, but failed to set audience: ${audienceError.message}`);
+
+  revalidatePath("/dashboard/events");
+}
 
 export async function toggleEventPublic(id: string, isPublic: boolean): Promise<void> {
   const supabase = await createClient();

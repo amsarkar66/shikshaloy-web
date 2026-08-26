@@ -13,7 +13,7 @@ import {
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
 import {
-  ACADEMIC_YEARS, APPLY_CLASSES,
+  ACADEMIC_YEARS,
   STATUS_LABEL, STATUS_BADGE, formatDate, calcAge,
   TRANSITIONS, MENU_ITEM_COLOR,
   type AdmissionStatus,
@@ -311,6 +311,11 @@ export default function AdmissionsClient({ initialApps }: { initialApps: Applica
 
   const yearApps = useMemo(() => initialApps.filter((a) => a.academicYear===yearFilter), [yearFilter, initialApps]);
 
+  const classOptions = useMemo(
+    () => Array.from(new Set(initialApps.map((a) => a.applyingForClass))).sort((a, b) => parseInt(a) - parseInt(b)),
+    [initialApps]
+  );
+
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
     return yearApps.filter((a) => {
@@ -324,6 +329,24 @@ export default function AdmissionsClient({ initialApps }: { initialApps: Applica
   const hasFilter = query||statusFilter!=="all"||classFilter!=="all";
   const clearFilters = useCallback(() => { setQuery(""); setStatus("all"); setClass("all"); }, []);
 
+  function exportCsv() {
+    const header = ["Application No", "Applicant", "Class", "Status", "Parent", "Phone", "Email", "Submitted"];
+    const rows = filtered.map((a) => [
+      a.applicationNo, a.applicantName, a.applyingForClass, STATUS_LABEL[a.status],
+      a.parentName, a.parentPhone, a.parentEmail, formatDate(a.submittedDate),
+    ]);
+    const csv = [header, ...rows]
+      .map((r) => r.map((cell) => `"${String(cell).replace(/"/g,'""')}"`).join(","))
+      .join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `admissions-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="w-full px-6 py-6 space-y-5">
       {credentials && (
@@ -336,7 +359,7 @@ export default function AdmissionsClient({ initialApps }: { initialApps: Applica
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div><h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Admissions</h1><p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Manage student applications and enrolments</p></div>
         <div className="flex gap-2 sm:ml-auto">
-          <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5"/> Export</button>
+          <button onClick={exportCsv} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5"/> Export</button>
           <FancyButton href="/dashboard/admissions/new" size="sm" className="shrink-0"><Plus className="h-4 w-4"/> New Application</FancyButton>
         </div>
       </div>
@@ -362,7 +385,7 @@ export default function AdmissionsClient({ initialApps }: { initialApps: Applica
         <div className="relative">
           <select value={classFilter} onChange={(e)=>setClass(e.target.value)} className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
             <option value="all">All Classes</option>
-            {APPLY_CLASSES.map((c)=><option key={c} value={c}>Class {c}</option>)}
+            {classOptions.map((c)=><option key={c} value={c}>Class {c}</option>)}
           </select>
           <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
         </div>

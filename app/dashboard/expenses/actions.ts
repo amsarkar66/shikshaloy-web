@@ -42,3 +42,24 @@ export async function addExpense(input: {
   if (error) throw new Error(error.message);
   revalidatePath("/dashboard/expenses");
 }
+
+export async function updateExpenseStatus(expenseId: string, status: "approved" | "rejected") {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const role = user?.user_metadata?.role as string | undefined;
+  if (!role || !["admin", "super_admin"].includes(role)) {
+    throw new Error("Only an admin can approve or reject an expense.");
+  }
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
+  const { error } = await supabaseAdmin
+    .from("expenses")
+    .update({ status })
+    .eq("id", expenseId)
+    .eq("school_id", schoolId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/dashboard/expenses");
+}

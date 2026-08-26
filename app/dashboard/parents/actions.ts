@@ -139,3 +139,161 @@ export async function searchStudentsForParentLink(query: string): Promise<{ id: 
     };
   });
 }
+
+export interface ParentEditData {
+  id: string;
+  fullName: string;
+  phone: string;
+  email: string;
+  occupation: string;
+  address: string;
+  active: boolean;
+  children: { id: string; label: string; sublabel: string; relationship: ParentRelationship }[];
+}
+
+export async function getParentForEdit(parentId: string): Promise<ParentEditData> {
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
+  const { data } = await supabaseAdmin
+    .from("parents")
+    .select(`
+      id, full_name, phone, email, occupation, address, status,
+      student_parents (
+        relationship,
+        students ( id, full_name, roll_no, sections ( name, grades ( level ) ) )
+      )
+    `)
+    .eq("school_id", schoolId)
+    .eq("id", parentId)
+    .single();
+
+  if (!data) throw new Error("Parent not found");
+
+  const row = data as unknown as {
+    id: string;
+    full_name: string | null;
+    phone: string | null;
+    email: string | null;
+    occupation: string | null;
+    address: string | null;
+    status: string | null;
+    student_parents: {
+      relationship: string | null;
+      students: {
+        id: string;
+        full_name: string | null;
+        roll_no: string | null;
+        sections: { name: string | null; grades: { level: number | null } | null } | null;
+      } | null;
+    }[] | null;
+  };
+
+  const children = (row.student_parents ?? []).flatMap((sp) => {
+    const s = sp.students;
+    if (!s) return [];
+    const classLabel = s.sections?.grades?.level ? `Class ${s.sections.grades.level}${s.sections?.name ? `-${s.sections.name}` : ""}` : null;
+    return [{
+      id: s.id,
+      label: s.full_name ?? "Unknown",
+      sublabel: [classLabel, s.roll_no ? `Roll ${s.roll_no}` : null].filter(Boolean).join(" · ") || "Student",
+      relationship: (sp.relationship ?? "guardian") as ParentRelationship,
+    }];
+  });
+
+  return {
+    id: row.id,
+    fullName: row.full_name ?? "",
+    phone: row.phone ?? "",
+    email: row.email ?? "",
+    occupation: row.occupation ?? "",
+    address: row.address ?? "",
+    active: row.status !== "inactive",
+    children,
+  };
+}
+
+export interface UpdateParentInput {
+  parentId: string;
+  fullName: string;
+  phone?: string | null;
+  occupation?: string | null;
+  address?: string | null;
+  active: boolean;
+  children: { studentId: string; relationship: ParentRelationship }[];
+}
+
+export async function updateParent(input: UpdateParentInput): Promise<void> {
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
+  const fullName = input.fullName.trim();
+  if (!fullName) throw new Error("Parent name is required");
+
+  const { error: updateError } = await supabaseAdmin
+    .from("parents")
+    .update({
+      full_name: fullName,
+      phone: input.phone?.trim() || null,
+      occupation: input.occupation?.trim() || null,
+      address: input.address?.trim() || null,
+      status: input.active ? "active" : "inactive",
+    })
+    .eq("school_id", schoolId)
+    .eq("id", input.parentId);
+
+  if (updateError) throw new Error(`Failed to update parent: ${updateError.message}`);
+
+  const { error: deleteError } = await supabaseAdmin
+    .from("student_parents")
+    .delete()
+    .eq("parent_id", input.parentId);
+  if (deleteError) throw new Error(`Failed to update linked children: ${deleteError.message}`);
+
+  if (input.children.length > 0) {
+    const rows = input.children.map((c, i) => ({
+      student_id: c.studentId,
+      parent_id: input.parentId,
+      relationship: c.relationship,
+      is_primary: i === 0,
+    }));
+    const { error: linkError } = await supabaseAdmin.from("student_parents").insert(rows);
+    if (linkError) throw new Error(`Failed to link children: ${linkError.message}`);
+  }
+
+  await logAuditEvent({
+    schoolId,
+    action: "update",
+    module: "Parents",
+    description: `Updated parent — ${fullName}`,
+  });
+
+  revalidatePath("/dashboard/parents");
+  revalidatePath(`/dashboard/parents/${input.parentId}`);
+}
+
+export async function deleteParent(parentId: string): Promise<void> {
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
+  const { data: parent } = await supabaseAdmin
+    .from("parents")
+    .select("full_name")
+    .eq("school_id", schoolId)
+    .eq("id", parentId)
+    .maybeSingle();
+  if (!parent) throw new Error("Parent not found");
+
+  const { error } = await supabaseAdmin
+    .from("parents")
+    .delete()
+    .eq("school_id", schoolId)
+    .eq("id", parentId);
+  if (error) throw new Error(`Failed to delete parent: ${error.message}`);
+
+  await logAuditEvent({
+    schoolId,
+    action: "delete",
+    module: "Parents",
+    description: `Deleted parent — ${parent.full_name}`,
+  });
+
+  revalidatePath("/dashboard/parents");
+}

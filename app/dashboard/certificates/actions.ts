@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import type { CertType } from "./_data/certificates";
@@ -74,6 +75,42 @@ export async function rejectCertificateRequest(id: string) {
   const { error } = await supabaseAdmin
     .from("certificate_requests")
     .update({ status: "rejected" })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/dashboard/reports");
+  revalidatePath("/dashboard/certificates");
+}
+
+export async function markCertificateReady(id: string) {
+  const { error } = await supabaseAdmin
+    .from("certificate_requests")
+    .update({ status: "ready" })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/dashboard/reports");
+  revalidatePath("/dashboard/certificates");
+}
+
+export async function markCertificateIssued(id: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const { data: staffRow } = await supabaseAdmin
+    .from("staff_members")
+    .select("id")
+    .eq("profile_id", user.id)
+    .maybeSingle();
+
+  const { error } = await supabaseAdmin
+    .from("certificate_requests")
+    .update({
+      status: "issued",
+      issued_on: new Date().toISOString().slice(0, 10),
+      issued_by: staffRow?.id ?? null,
+    })
     .eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/dashboard/reports");

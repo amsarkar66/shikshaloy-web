@@ -128,3 +128,39 @@ export async function createAdditionalSchool(input: SchoolFormData): Promise<{ e
   revalidatePath("/dashboard");
   return {};
 }
+
+export async function deleteSchool(schoolId: string): Promise<void> {
+  const {
+    data: { user },
+  } = await getUser();
+  if (!user || user.user_metadata?.role !== "super_admin") throw new Error("Unauthorized");
+
+  const institutionId = await getCurrentInstitutionIdOrThrow();
+
+  const { data: school } = await supabaseAdmin
+    .from("schools")
+    .select("id, institution_id")
+    .eq("id", schoolId)
+    .maybeSingle();
+  if (!school || school.institution_id !== institutionId) throw new Error("Unauthorized");
+
+  const { count: schoolCount } = await supabaseAdmin
+    .from("schools")
+    .select("id", { count: "exact", head: true })
+    .eq("institution_id", institutionId);
+
+  if ((schoolCount ?? 0) <= 1) {
+    throw new Error("You can't remove your only school. Contact support if you need to close your account.");
+  }
+
+  const { error } = await supabaseAdmin.rpc("delete_school_cascade", { p_school_id: schoolId });
+  if (error) throw new Error(`Failed to remove school: ${error.message}`);
+
+  await supabaseAdmin
+    .from("school_subscriptions")
+    .update({ schools_used: Math.max(0, (schoolCount ?? 1) - 1) })
+    .eq("institution_id", institutionId);
+
+  revalidatePath("/dashboard/schools");
+  revalidatePath("/dashboard");
+}

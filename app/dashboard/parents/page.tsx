@@ -9,12 +9,13 @@ interface ParentRow {
   occupation: string | null;
   phone: string | null;
   email: string | null;
-  active: boolean | null;
+  status: string | null;
   student_parents: {
     students: {
       id: string;
       full_name: string | null;
       roll_no: string | null;
+      fee_status: string | null;
       sections: { name: string | null; grades: { level: number | null } | null } | null;
     } | null;
   }[] | null;
@@ -26,10 +27,10 @@ export default async function ParentsPage() {
   const { data: parentRows } = await supabaseAdmin
     .from("parents")
     .select(`
-      id, full_name, occupation, phone, email, active,
+      id, full_name, occupation, phone, email, status,
       student_parents (
         students (
-          id, full_name, roll_no,
+          id, full_name, roll_no, fee_status,
           sections ( name, grades ( level ) )
         )
       )
@@ -47,7 +48,7 @@ export default async function ParentsPage() {
         rollNo:    s.roll_no ?? "",
         class:     String(s.sections?.grades?.level ?? ""),
         section:   s.sections?.name ?? "",
-        feeStatus: "paid" as const,
+        feeStatus: (s.fee_status ?? "overdue") as Child["feeStatus"],
       }];
     });
 
@@ -57,7 +58,7 @@ export default async function ParentsPage() {
       occupation: p.occupation ?? "",
       phone:      p.phone ?? "",
       email:      p.email ?? "",
-      active:     p.active ?? true,
+      active:     p.status !== "inactive",
       children,
     };
   });

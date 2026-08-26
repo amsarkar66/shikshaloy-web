@@ -254,6 +254,34 @@ export default function AnalyticsClient({
   gradeDist: GradeSlice[];
   subjectPerf: SubjectPerf[];
 }) {
+  function exportCsv() {
+    const esc = (cell: string | number) => `"${String(cell).replace(/"/g,'""')}"`;
+    const section = (title: string, header: string[], rows: (string | number)[][]) => [
+      esc(title), header.map(esc).join(","), ...rows.map((r) => r.map(esc).join(",")),
+    ].join("\r\n");
+
+    const csv = [
+      section("Summary", ["Metric", "Value"], [
+        ["Total Students", kpi.totalStudents],
+        ["Avg Attendance", `${kpi.avgAttendance}%`],
+        ["Fee Collection Rate", `${kpi.feeCollectionRate}%`],
+        ["Overall Pass Rate", `${kpi.overallPassRate}%`],
+      ]),
+      section("Fee Collection (Lakhs)", ["Month", "Due", "Collected"], feeMonths.map((f) => [f.month, f.due, f.collected])),
+      section("Class Attendance", ["Class", "Attendance %", "Students"], classAttendance.map((c) => [c.label, c.value, c.students])),
+      section("Grade Distribution", ["Grade", "Percent"], gradeDist.map((g) => [g.grade, g.pct])),
+      section("Subject Performance", ["Subject", "Pass Rate", "Average"], subjectPerf.map((s) => [s.subject, s.passRate, s.avg])),
+    ].join("\r\n\r\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `analytics-${academicYear}-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="w-full px-6 py-6 space-y-6">
 
@@ -265,7 +293,7 @@ export default function AnalyticsClient({
         </div>
 
         <div className="flex gap-2 sm:ml-auto">
-          <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
+          <button onClick={exportCsv} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
             <Download className="h-3.5 w-3.5" /> Export
           </button>
         </div>

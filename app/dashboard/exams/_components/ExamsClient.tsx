@@ -1,16 +1,90 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  ClipboardCheck, Trophy, CheckCircle2, Clock,
+  ClipboardCheck, Trophy, CheckCircle2, Clock, Plus, Loader2,
   CalendarDays, BookOpen, Download, ChevronDown, ChevronRight, ListChecks,
 } from "lucide-react";
 import {
   formatDate, formatDateShort,
   TYPE_LABEL, TYPE_STYLE, STATUS_LABEL, STATUS_STYLE,
-  type Exam,
+  type Exam, type ExamType,
 } from "../_data/exams";
+import { createExam } from "../actions";
+import { FancyButton } from "@/components/ui/fancy-button";
+
+const inputClass =
+  "h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20";
+
+function AddExamModal({ onClose, onCreated }: { onClose: () => void; onCreated: (examId: string) => void }) {
+  const [form, setForm] = useState({ name: "", type: "unit_test" as ExamType, startDate: "", endDate: "" });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function update<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
+    setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.name.trim()) { setError("Exam name is required."); return; }
+    setBusy(true);
+    setError(null);
+    try {
+      const id = await createExam(form);
+      onCreated(id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create exam");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-gray-200 dark:border-zinc-800 px-5 py-4">
+          <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">New Exam</p>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200">✕</button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Exam Name *</label>
+            <input className={inputClass} value={form.name} onChange={(e) => update("name", e.target.value)} placeholder="e.g. Mid-Term Exam" required autoFocus />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Type</label>
+            <select className={inputClass} value={form.type} onChange={(e) => update("type", e.target.value as ExamType)}>
+              {(Object.keys(TYPE_LABEL) as ExamType[]).map((t) => <option key={t} value={t}>{TYPE_LABEL[t]}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Start Date *</label>
+              <input type="date" className={inputClass} value={form.startDate} onChange={(e) => update("startDate", e.target.value)} required />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">End Date *</label>
+              <input type="date" className={inputClass} value={form.endDate} onChange={(e) => update("endDate", e.target.value)} min={form.startDate} required />
+            </div>
+          </div>
+          {error && (
+            <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-400">{error}</div>
+          )}
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={onClose} className="h-9 rounded-lg border border-gray-200 dark:border-zinc-700 px-4 text-sm text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800">Cancel</button>
+            <FancyButton type="submit" disabled={busy} size="sm">
+              {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Create Exam
+            </FancyButton>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 function ExamStatsRow({ exams }: { exams: Exam[] }) {
   const total = exams.length;
@@ -89,12 +163,29 @@ const STATUS_FILTER_OPTIONS = [
 ];
 
 export default function ExamsClient({ exams }: { exams: Exam[] }) {
+  const router = useRouter();
   const academicYears = useMemo(() => Array.from(new Set(exams.map((e) => e.academicYear))), [exams]);
   const [yearFilter, setYearFilter] = useState(academicYears[0] ?? "");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [addOpen, setAddOpen] = useState(false);
 
   const yearExams = useMemo(() => exams.filter((e) => e.academicYear === yearFilter), [exams, yearFilter]);
   const filteredExams = useMemo(() => statusFilter === "all" ? yearExams : yearExams.filter((e) => e.status === statusFilter), [yearExams, statusFilter]);
+
+  function exportCsv() {
+    const header = ["Name", "Type", "Status", "Start Date", "End Date", "Academic Year", "Subjects"];
+    const rows = filteredExams.map((e) => [e.name, TYPE_LABEL[e.type], STATUS_LABEL[e.status], formatDate(e.startDate), formatDate(e.endDate), e.academicYear, e.subjects.join("; ")]);
+    const csv = [header, ...rows]
+      .map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+      .join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `exams-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <div className="w-full px-6 py-6 space-y-5">
@@ -113,7 +204,8 @@ export default function ExamsClient({ exams }: { exams: Exam[] }) {
             </div>
           )}
           <Link href="/dashboard/exams/preferences" className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><ListChecks className="h-3.5 w-3.5" /> Exam Preference</Link>
-          <button className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5" /> Export</button>
+          <button onClick={exportCsv} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5" /> Export</button>
+          <FancyButton size="sm" onClick={() => setAddOpen(true)}><Plus className="h-4 w-4" /> New Exam</FancyButton>
         </div>
       </div>
 
@@ -139,6 +231,13 @@ export default function ExamsClient({ exams }: { exams: Exam[] }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredExams.map((exam) => <ExamCard key={exam.id} exam={exam} />)}
         </div>
+      )}
+
+      {addOpen && (
+        <AddExamModal
+          onClose={() => setAddOpen(false)}
+          onCreated={(examId) => router.push(`/dashboard/exams/${examId}`)}
+        />
       )}
     </div>
   );
