@@ -30,12 +30,16 @@ const STATUS_BADGE: Record<string, string> = {
   late:    "bg-amber-500/10 text-amber-600 dark:text-amber-400",
 };
 
-const TREND_DAYS = 14;
+// Server fetches this many days up front; the client-side range dropdown
+// slices down from it, so switching ranges never needs a refetch.
+const TREND_DAYS = 90;
 
 // Builds a fixed-length daily attendance-rate series (oldest → newest, today
 // included) from raw status rows, so the Overview trend chart always has one
-// bar per day even on days nothing was marked yet.
-function buildAttendanceTrend(rows: { date: string; status: string }[], totalEnrolled: number): { date: string; rate: number }[] {
+// bar per day even on days nothing was marked yet. rate is null (not 0) for
+// a day with no attendance rows at all, so the chart can tell "nobody showed
+// up" apart from "nobody took attendance".
+function buildAttendanceTrend(rows: { date: string; status: string }[], totalEnrolled: number): { date: string; rate: number | null }[] {
   const byDate = new Map<string, { present: number; late: number }>();
   for (const r of rows) {
     const entry = byDate.get(r.date) ?? { present: 0, late: 0 };
@@ -44,13 +48,13 @@ function buildAttendanceTrend(rows: { date: string; status: string }[], totalEnr
     byDate.set(r.date, entry);
   }
 
-  const days: { date: string; rate: number }[] = [];
+  const days: { date: string; rate: number | null }[] = [];
   for (let i = TREND_DAYS - 1; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
     const dateStr = d.toISOString().split("T")[0];
     const entry = byDate.get(dateStr);
-    const rate = entry && totalEnrolled > 0 ? Math.round(((entry.present + entry.late) / totalEnrolled) * 100) : 0;
+    const rate = entry && totalEnrolled > 0 ? Math.round(((entry.present + entry.late) / totalEnrolled) * 100) : null;
     days.push({ date: dateStr, rate });
   }
   return days;
@@ -315,7 +319,7 @@ export default async function AttendancePage() {
 
     supabaseAdmin
       .from("staff_attendance")
-      .select("staff_id, status")
+      .select("staff_id, status, checked_in_at, checked_out_at")
       .eq("school_id", schoolId)
       .eq("date", today),
 
@@ -361,14 +365,21 @@ export default async function AttendancePage() {
     });
   }
 
+  const staffCheckTimes: Record<string, { checkedInAt: string | null; checkedOutAt: string | null }> = {};
+  for (const r of staffAttRows ?? []) {
+    staffCheckTimes[r.staff_id] = { checkedInAt: r.checked_in_at, checkedOutAt: r.checked_out_at };
+  }
+
   const staff: AttendanceStaff[] = (staffRows ?? []).map((s) => ({
-    id:          s.id,
-    name:        s.full_name ?? "",
-    designation: s.designation ?? "",
-    department:  s.department ?? "",
-    employeeId:  s.employee_id ?? "",
-    type:        (s.type ?? "teaching") as AttendanceStaff["type"],
-    status:      s.status ?? "active",
+    id:           s.id,
+    name:         s.full_name ?? "",
+    designation:  s.designation ?? "",
+    department:   s.department ?? "",
+    employeeId:   s.employee_id ?? "",
+    type:         (s.type ?? "teaching") as AttendanceStaff["type"],
+    status:       s.status ?? "active",
+    checkedInAt:  staffCheckTimes[s.id]?.checkedInAt ?? null,
+    checkedOutAt: staffCheckTimes[s.id]?.checkedOutAt ?? null,
   }));
 
   // Build today's attendance maps

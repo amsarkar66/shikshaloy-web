@@ -9,8 +9,9 @@ const DEPT_COLORS: Record<string, string> = {
   "Library":               "bg-purple-500/10 text-purple-700 dark:text-purple-300",
   "Counseling":            "bg-rose-500/10   text-rose-700   dark:text-rose-300",
   "Accounts":              "bg-sky-500/10    text-sky-700    dark:text-sky-300",
-  "Sports & Physical Ed.": "bg-cyan-500/10   text-cyan-700   dark:text-cyan-300",
+  "Sports Physical Ed":    "bg-cyan-500/10   text-cyan-700   dark:text-cyan-300",
   "Computer Science":      "bg-pink-500/10   text-pink-700   dark:text-pink-300",
+  "Academics":             "bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300",
 };
 
 export function deptColor(dept: string) {
