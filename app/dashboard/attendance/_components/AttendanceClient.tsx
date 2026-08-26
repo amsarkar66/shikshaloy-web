@@ -6,7 +6,7 @@ import {
   UserCheck, UserX, Clock, TrendingUp,
   ChevronLeft, ChevronRight, ChevronDown, Download,
   ArrowLeft, CheckSquare, Users,
-  LayoutGrid, Search, X, BarChart3, GraduationCap, ScanLine, Radio, Eye, Check, LineChart,
+  LayoutGrid, Search, X, BarChart3, GraduationCap, ScanLine, Radio, Eye, Check,
 } from "lucide-react";
 import { AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip } from "recharts";
 import { deptColor } from "../../staff/_data/staff";
@@ -41,13 +41,15 @@ export interface AttendanceSec {
 }
 
 export interface AttendanceStudent {
-  id:         string;
-  name:       string;
-  rollNo:     string;
-  attendance: number;
-  sectionId:  string;
-  classNum:   string;
-  section:    string;
+  id:            string;
+  name:          string;
+  rollNo:        string;
+  attendance:    number;
+  sectionId:     string;
+  classNum:      string;
+  section:       string;
+  checkedInAt?:  string | null;
+  checkedOutAt?: string | null;
 }
 
 export interface AttendanceStaff {
@@ -70,14 +72,6 @@ function todayStr() { return new Date().toISOString().split("T")[0]; }
 function addDays(d: string, n: number) { const dt=new Date(d+"T00:00:00"); dt.setDate(dt.getDate()+n); return dt.toISOString().split("T")[0]; }
 function formatLong(d: string) { return new Date(d+"T00:00:00").toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"}); }
 function formatTime(iso?: string | null) { return iso ? new Date(iso).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",hour12:true}) : "—"; }
-function formatWorkHours(checkedInAt?: string | null, checkedOutAt?: string | null) {
-  if (!checkedInAt || !checkedOutAt) return "—";
-  const ms = new Date(checkedOutAt).getTime() - new Date(checkedInAt).getTime();
-  if (ms <= 0) return "—";
-  const h = Math.floor(ms / 3600000);
-  const m = Math.floor((ms % 3600000) / 60000);
-  return `${String(h).padStart(2,"0")}h ${String(m).padStart(2,"0")}m`;
-}
 
 function rateColor(r: number) { if(r>=90)return"text-emerald-600 dark:text-emerald-400";if(r>=80)return"text-amber-600 dark:text-amber-400";return"text-red-600 dark:text-red-400"; }
 function rateBar(r: number)   { if(r>=90)return"bg-emerald-500";if(r>=80)return"bg-amber-500";return"bg-red-500"; }
@@ -163,105 +157,19 @@ function StaffStatsRow({ present, absent, late, onLeave }: { present: number; ab
 
 // ── Overview tab ──────────────────────────────────────────────────────────────
 
-const TREND_W = 900;
 const TREND_H = 180;
-const TREND_PAD_L = 2;
-const TREND_PAD_R = 2;
-const TREND_PAD_T = 18;
-const TREND_PAD_B = 24;
-const TREND_LABEL_GAP = 3;
 
 function trendDateLabel(date: string) {
   return new Date(date + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" });
-}
-
-function trendBarColor(rate: number) {
-  return rate >= 90 ? "text-emerald-500" : rate >= 80 ? "text-amber-500" : "text-red-500";
 }
 
 function trendDotHex(rate: number) {
   return rate >= 90 ? "#10b981" : rate >= 80 ? "#f59e0b" : "#ef4444";
 }
 
-// Mirrors FeeBarChart's SVG bar-chart style (gridlines, axis labels, native
-// tooltips) so every trend chart in the dashboard reads the same way.
-function TrendBars({ history }: { history: { date: string; rate: number | null }[] }) {
-  if (history.every((h) => h.rate === null)) {
-    return <p className="py-10 text-center text-sm text-gray-400 dark:text-zinc-500">No attendance history yet</p>;
-  }
-
-  const chartW = TREND_W - TREND_PAD_L - TREND_PAD_R;
-  const chartH = TREND_H - TREND_PAD_T - TREND_PAD_B;
-  const barGroupW = chartW / Math.max(history.length, 1);
-  const barW = Math.max(barGroupW * 0.55, 1);
-  const yTicks = [0, 50, 100];
-  // Cap the label count regardless of range so 90 bars don't crowd the axis.
-  // Small ranges have room for every date; only thin the labels out once
-  // there are more bars than can fit without overlapping.
-  const labelInterval = history.length <= 15 ? 1 : Math.ceil(history.length / 12);
-
-  function xStart(i: number) { return TREND_PAD_L + i * barGroupW + (barGroupW - barW) / 2; }
-  function barH(v: number) { return (v / 100) * chartH; }
-  function yTop(v: number) { return TREND_PAD_T + chartH - barH(v); }
-  function yOf(v: number) { return TREND_PAD_T + (1 - v / 100) * chartH; }
-  function pctX(x: number) { return (x / TREND_W) * 100; }
-  function pctY(y: number) { return (y / TREND_H) * 100; }
-
-  return (
-    <div className="relative w-full" style={{ height: TREND_H }}>
-      <svg viewBox={`0 0 ${TREND_W} ${TREND_H}`} preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-        {yTicks.map((t) => (
-          <line
-            key={t}
-            x1={TREND_PAD_L} y1={yOf(t)} x2={TREND_W - TREND_PAD_R} y2={yOf(t)}
-            stroke="currentColor" strokeWidth="0.5" vectorEffect="non-scaling-stroke"
-            className="text-gray-100 dark:text-zinc-800"
-          />
-        ))}
-        {history.map((h, i) => {
-          const x = xStart(i);
-          if (h.rate === null) {
-            // No attendance taken that day — leave the column empty; the hit
-            // area is transparent so hovering still surfaces a tooltip.
-            return (
-              <rect key={h.date} x={x} y={TREND_PAD_T} width={barW} height={chartH} fill="transparent">
-                <title>{trendDateLabel(h.date)}: No data</title>
-              </rect>
-            );
-          }
-          return (
-            <rect key={h.date} x={x} y={yTop(h.rate)} width={barW} height={barH(h.rate)} rx="2" fill="currentColor" className={trendBarColor(h.rate)}>
-              <title>{trendDateLabel(h.date)}: {h.rate}%</title>
-            </rect>
-          );
-        })}
-      </svg>
-
-      {yTicks.map((t) => (
-        <span
-          key={t}
-          className="absolute -translate-y-full whitespace-nowrap text-left text-[9px] text-gray-400 dark:text-zinc-600"
-          style={{ left: 0, top: `${pctY(yOf(t) - TREND_LABEL_GAP)}%` }}
-        >
-          {t}%
-        </span>
-      ))}
-      {history.map((h, i) => {
-        const showLabel = i === 0 || i === history.length - 1 || i % labelInterval === 0;
-        if (!showLabel) return null;
-        const x = xStart(i);
-        return (
-          <span
-            key={h.date}
-            className="absolute bottom-0 -translate-x-1/2 whitespace-nowrap text-[9px] text-gray-400 dark:text-zinc-600"
-            style={{ left: `${pctX(x + barW / 2)}%` }}
-          >
-            {trendDateLabel(h.date)}
-          </span>
-        );
-      })}
-    </div>
-  );
+// Shared axis/label config for both chart variants below.
+function trendTickInterval(days: number) {
+  return days <= 15 ? 0 : Math.ceil(days / 12) - 1;
 }
 
 const trendChartConfig: ChartConfig = {
@@ -294,8 +202,7 @@ function TrendAreaChart({ history }: { history: { date: string; rate: number | n
   if (data.length === 0) {
     return <p className="py-10 text-center text-sm text-gray-400 dark:text-zinc-500">No attendance history yet</p>;
   }
-  // Cap the label count regardless of range so 90 points don't crowd the axis.
-  const tickInterval = history.length <= 15 ? 0 : Math.ceil(history.length / 12) - 1;
+  const tickInterval = trendTickInterval(history.length);
 
   return (
     <ChartContainer config={trendChartConfig} className="aspect-auto w-full" style={{ height: TREND_H }}>
@@ -388,80 +295,128 @@ function StatusDonut({ slices, centerLabel }: { slices: DonutSlice[]; centerLabe
   );
 }
 
+interface TodaysRow {
+  key:              string;
+  id:               string;
+  type:             "staff" | "student";
+  name:             string;
+  idLabel:          string;
+  groupLabel:       string;
+  groupClass:       string;
+  checkedInAt?:     string | null;
+  checkedOutAt?:    string | null;
+  statusLabel:      string;
+  statusBadgeClass: string;
+  href:             string;
+}
+
+const CLASS_CHIP = "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400";
+
 function TodaysAttendanceTable({
-  staff, staffStatusMap, dateStr, onViewAll,
+  staff, staffStatusMap, studentsBySection, statusMap, onViewAll,
 }: {
   staff: AttendanceStaff[];
   staffStatusMap: Record<string, StaffAttendanceStatus>;
-  dateStr: string;
+  studentsBySection: Record<string, AttendanceStudent[]>;
+  statusMap: Record<string, AttendanceStatus>;
   onViewAll: () => void;
 }) {
   const activeStaff = useMemo(() => staff.filter((s) => s.status !== "inactive"), [staff]);
-  const sorted = useMemo(() => [...activeStaff].sort((a, b) => {
+  const allStudents = useMemo(() => Object.values(studentsBySection).flat(), [studentsBySection]);
+
+  const byRecency = (a: { checkedInAt?: string | null; name: string }, b: { checkedInAt?: string | null; name: string }) => {
     if (!a.checkedInAt && !b.checkedInAt) return a.name.localeCompare(b.name);
     if (!a.checkedInAt) return 1;
     if (!b.checkedInAt) return -1;
     return a.checkedInAt.localeCompare(b.checkedInAt);
-  }), [activeStaff]);
-  const rows = sorted.slice(0, 5);
+  };
+
+  // Reserve slots for both populations so students aren't crowded out by
+  // staff whenever staff have more check-in events on file (e.g. manually
+  // marked student attendance doesn't record a check-in timestamp).
+  const staffRows: TodaysRow[] = useMemo(() => [...activeStaff].sort(byRecency).slice(0, 3).map((s) => {
+    const status = staffStatusMap[s.id] ?? "unmarked";
+    return {
+      key: `staff-${s.id}`, id: s.id, type: "staff", name: s.name, idLabel: s.employeeId,
+      groupLabel: s.department, groupClass: deptColor(s.department),
+      checkedInAt: s.checkedInAt, checkedOutAt: s.checkedOutAt,
+      statusLabel: STAFF_STATUS[status].label, statusBadgeClass: STAFF_BADGE[status],
+      href: `/dashboard/staff/${s.id}`,
+    };
+  }), [activeStaff, staffStatusMap]);
+
+  const studentRows: TodaysRow[] = useMemo(() => [...allStudents].sort(byRecency).slice(0, 3).map((st) => {
+    const status = statusMap[st.id] ?? "unmarked";
+    return {
+      key: `student-${st.id}`, id: st.id, type: "student", name: st.name, idLabel: st.rollNo,
+      groupLabel: `Class ${st.classNum}–${st.section}`, groupClass: CLASS_CHIP,
+      checkedInAt: st.checkedInAt, checkedOutAt: st.checkedOutAt,
+      statusLabel: STATUS[status].label, statusBadgeClass: STATUS_BADGE[status],
+      href: `/dashboard/students/${st.id}`,
+    };
+  }), [allStudents, statusMap]);
+
+  const rows = useMemo(() => [...staffRows, ...studentRows].sort(byRecency), [staffRows, studentRows]);
+  const total = activeStaff.length + allStudents.length;
 
   return (
     <Table
       header={
         <div className="flex flex-wrap items-center gap-2.5 px-5 py-4 border-b border-gray-100 dark:border-zinc-700/50">
           <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Today&apos;s Attendance</p>
-          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-primary-500/10 text-primary-600 dark:text-primary-400 whitespace-nowrap">{formatLong(dateStr)}</span>
           <button onClick={onViewAll} className="ml-auto flex items-center gap-1 text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline">
             View all <ChevronRight className="h-3.5 w-3.5" />
           </button>
         </div>
       }
       footer={
-        activeStaff.length > 0 && (
+        total > 0 && (
           <div className="px-5 py-3 border-t border-gray-100 dark:border-zinc-700/50">
             <p className="text-xs text-gray-400 dark:text-zinc-500">
-              Showing <span className="font-medium text-gray-700 dark:text-zinc-300">{rows.length}</span> of <span className="font-medium text-gray-700 dark:text-zinc-300">{activeStaff.length}</span> staff members
+              Showing <span className="font-medium text-gray-700 dark:text-zinc-300">{staffRows.length} staff</span> and <span className="font-medium text-gray-700 dark:text-zinc-300">{studentRows.length} students</span> of {total} total
             </p>
           </div>
         )
       }
     >
       <TableHead>
-        <Th position="first">Employee</Th>
-        <Th>Department</Th>
+        <Th position="first">Person</Th>
+        <Th>Class / Dept.</Th>
         <Th>Check-in</Th>
         <Th>Check-out</Th>
-        <Th>Work Hours</Th>
         <Th>Status</Th>
         <Th position="last" align="right">Action</Th>
       </TableHead>
       <TableBody>
         {rows.length === 0 ? (
-          <TableEmptyRow colSpan={7} icon={UserCheck} message="No staff records yet" />
-        ) : rows.map((s) => {
-          const status = staffStatusMap[s.id] ?? "unmarked";
-          const punctuality = status === "late" ? "Late" : status === "present" ? "On time" : "";
+          <TableEmptyRow colSpan={6} icon={UserCheck} message="No attendance records yet" />
+        ) : rows.map((r) => {
+          const punctuality = r.type === "staff" && r.statusLabel === "Late" ? "Late" : r.type === "staff" && r.statusLabel === "Present" ? "On time" : "";
           return (
-            <Tr key={s.id}>
+            <Tr key={r.key}>
               <Td position="first">
                 <div className="flex items-center gap-2.5">
-                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ${uuidAvatarColor(s.id)}`}>{nameInitials(s.name)}</div>
+                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ${uuidAvatarColor(r.id)}`}>{nameInitials(r.name)}</div>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 dark:text-zinc-100 leading-tight truncate">{s.name}</p>
-                    <p className="text-xs text-gray-400 dark:text-zinc-500">{s.employeeId}</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-zinc-100 leading-tight truncate">{r.name}</p>
+                    <p className="flex items-center gap-1 text-xs text-gray-400 dark:text-zinc-500">
+                      {r.idLabel}
+                      <span className="text-gray-300 dark:text-zinc-600">·</span>
+                      {r.type === "staff" ? <UserCheck className="h-2.5 w-2.5" /> : <GraduationCap className="h-2.5 w-2.5" />}
+                      {r.type === "staff" ? "Staff" : "Student"}
+                    </p>
                   </div>
                 </div>
               </Td>
-              <Td><span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md whitespace-nowrap ${deptColor(s.department)}`}>{s.department}</span></Td>
+              <Td><span className={`inline-flex items-center rounded-full border border-current/20 px-2 py-0.5 text-xs font-medium whitespace-nowrap ${r.groupClass}`}>{r.groupLabel}</span></Td>
               <Td>
-                <div className="text-sm text-gray-700 dark:text-zinc-300 whitespace-nowrap">{formatTime(s.checkedInAt)}</div>
+                <div className="text-sm text-gray-700 dark:text-zinc-300 whitespace-nowrap">{formatTime(r.checkedInAt)}</div>
                 {punctuality && <div className={`text-xs ${punctuality==="Late"?"text-amber-600 dark:text-amber-400":"text-emerald-600 dark:text-emerald-400"}`}>{punctuality}</div>}
               </Td>
-              <Td className="text-sm text-gray-700 dark:text-zinc-300 whitespace-nowrap">{formatTime(s.checkedOutAt)}</Td>
-              <Td className="text-sm text-gray-700 dark:text-zinc-300 whitespace-nowrap">{formatWorkHours(s.checkedInAt, s.checkedOutAt)}</Td>
-              <Td><span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STAFF_BADGE[status]}`}>{STAFF_STATUS[status].label}</span></Td>
+              <Td className="text-sm text-gray-700 dark:text-zinc-300 whitespace-nowrap">{formatTime(r.checkedOutAt)}</Td>
+              <Td><span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${r.statusBadgeClass}`}>{r.statusLabel}</span></Td>
               <Td position="last" align="right">
-                <Link href={`/dashboard/staff/${s.id}`} className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Eye className="h-3.5 w-3.5" /></Link>
+                <Link href={r.href} className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Eye className="h-3.5 w-3.5" /></Link>
               </Td>
             </Tr>
           );
@@ -487,13 +442,16 @@ const TIMELINE_BADGE: Record<TimelineEvent["badge"], string> = {
 };
 
 function ActivityTimeline({
-  staff, staffStatusMap, onViewAll,
+  staff, staffStatusMap, studentsBySection, statusMap, onViewAll,
 }: {
   staff: AttendanceStaff[];
   staffStatusMap: Record<string, StaffAttendanceStatus>;
+  studentsBySection: Record<string, AttendanceStudent[]>;
+  statusMap: Record<string, AttendanceStatus>;
   onViewAll: () => void;
 }) {
   const activeStaff = useMemo(() => staff.filter((s) => s.status !== "inactive"), [staff]);
+  const allStudents = useMemo(() => Object.values(studentsBySection).flat(), [studentsBySection]);
 
   const events = useMemo(() => {
     const list: TimelineEvent[] = [];
@@ -501,7 +459,7 @@ function ActivityTimeline({
       const status = staffStatusMap[s.id] ?? "unmarked";
       if (s.checkedInAt) {
         list.push({
-          key: `${s.id}-in`, time: s.checkedInAt,
+          key: `staff-${s.id}-in`, time: s.checkedInAt,
           title: status === "late" ? "Late Check-in" : "Check-in",
           subtitle: `${s.name} (${s.department})`,
           badge: status === "late" ? "Late" : "On time",
@@ -510,7 +468,7 @@ function ActivityTimeline({
       }
       if (s.checkedOutAt) {
         list.push({
-          key: `${s.id}-out`, time: s.checkedOutAt,
+          key: `staff-${s.id}-out`, time: s.checkedOutAt,
           title: "Check-out",
           subtitle: `${s.name} (${s.department})`,
           badge: "On time",
@@ -518,21 +476,53 @@ function ActivityTimeline({
         });
       }
     }
+    for (const st of allStudents) {
+      const status = statusMap[st.id] ?? "unmarked";
+      if (st.checkedInAt) {
+        list.push({
+          key: `student-${st.id}-in`, time: st.checkedInAt,
+          title: status === "late" ? "Late Check-in" : "Check-in",
+          subtitle: `${st.name} (Class ${st.classNum}–${st.section})`,
+          badge: status === "late" ? "Late" : "On time",
+          icon: "in",
+        });
+      }
+      if (st.checkedOutAt) {
+        list.push({
+          key: `student-${st.id}-out`, time: st.checkedOutAt,
+          title: "Check-out",
+          subtitle: `${st.name} (Class ${st.classNum}–${st.section})`,
+          badge: "On time",
+          icon: "out",
+        });
+      }
+    }
     return list.sort((a, b) => a.time.localeCompare(b.time)).slice(0, 3);
-  }, [activeStaff, staffStatusMap]);
+  }, [activeStaff, staffStatusMap, allStudents, statusMap]);
 
   const pendingCount = useMemo(
-    () => activeStaff.filter((s) => s.checkedInAt && !s.checkedOutAt).length,
-    [activeStaff],
+    () => activeStaff.filter((s) => s.checkedInAt && !s.checkedOutAt).length
+        + allStudents.filter((st) => st.checkedInAt && !st.checkedOutAt).length,
+    [activeStaff, allStudents],
   );
 
   const hasContent = events.length > 0 || pendingCount > 0;
 
   return (
     <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5 flex flex-col h-full">
-      <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50 mb-4">Today&apos;s Activity Timeline</p>
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Today&apos;s Activity Timeline</p>
+        {hasContent && (
+          <button onClick={onViewAll} className="flex items-center gap-1 text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline">
+            View all <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
       {!hasContent ? (
-        <p className="flex-1 flex items-center justify-center text-sm text-gray-400 dark:text-zinc-500 py-8">No activity yet</p>
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 py-4">
+          <img src="/illustrations/no-activity.png" alt="" className="h-44 w-auto rounded-lg object-cover" />
+          <p className="text-sm text-gray-400 dark:text-zinc-500">No activity yet</p>
+        </div>
       ) : (
         <div className="flex-1">
           {events.map((e, i) => (
@@ -565,7 +555,7 @@ function ActivityTimeline({
                 <div className="flex items-center justify-between gap-2 mt-0.5">
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-gray-900 dark:text-zinc-100">Pending Check-out</p>
-                    <p className="text-xs text-gray-400 dark:text-zinc-500">{pendingCount} employee{pendingCount===1?"":"s"}</p>
+                    <p className="text-xs text-gray-400 dark:text-zinc-500">{pendingCount} {pendingCount===1?"person":"people"}</p>
                   </div>
                   <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${TIMELINE_BADGE.Pending}`}>Pending</span>
                 </div>
@@ -574,9 +564,6 @@ function ActivityTimeline({
           )}
         </div>
       )}
-      <button onClick={onViewAll} className="mt-1 flex items-center gap-1 text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline pt-3 border-t border-gray-100 dark:border-zinc-700/50">
-        View all activity <ChevronRight className="h-3.5 w-3.5" />
-      </button>
     </div>
   );
 }
@@ -585,7 +572,7 @@ const TREND_RANGES = [7, 14, 30, 90] as const;
 type TrendRange = (typeof TREND_RANGES)[number];
 
 function OverviewTab({
-  history, studentsBySection, statusMap, staff, staffStatusMap, allowStaffTab, dateStr, onViewAllStaff,
+  history, studentsBySection, statusMap, staff, staffStatusMap, allowStaffTab, onViewAllStaff,
 }: {
   history: { date: string; rate: number | null }[];
   studentsBySection: Record<string, AttendanceStudent[]>;
@@ -593,11 +580,9 @@ function OverviewTab({
   staff: AttendanceStaff[];
   staffStatusMap: Record<string, StaffAttendanceStatus>;
   allowStaffTab: boolean;
-  dateStr: string;
   onViewAllStaff: () => void;
 }) {
   const [trendRange, setTrendRange] = useState<TrendRange>(14);
-  const [chartType, setChartType] = useState<"bar" | "line">("line");
   const trendHistory = useMemo(() => history.slice(-trendRange), [history, trendRange]);
 
   const activeStaff = useMemo(() => staff.filter((s) => s.status !== "inactive"), [staff]);
@@ -623,44 +608,18 @@ function OverviewTab({
             <BarChart3 className="h-4 w-4 text-gray-400 dark:text-zinc-500" />
             <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Attendance Rate Trend</p>
           </div>
-          <div className="flex items-center gap-3">
-            {[
-              { color: "bg-emerald-500", label: "≥90%" },
-              { color: "bg-amber-500",   label: "80–89%" },
-              { color: "bg-red-500",     label: "<80%" },
-            ].map((l) => (
-              <span key={l.label} className="flex items-center gap-1.5 text-[10px] text-gray-400 dark:text-zinc-500">
-                <span className={`h-2 w-2 rounded-sm ${l.color}`} />
-                {l.label}
-              </span>
-            ))}
-            <div className="flex items-center gap-0.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-0.5">
-              <button
-                type="button" onClick={() => setChartType("bar")} title="Bar chart"
-                className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors ${chartType === "bar" ? "bg-primary-500 text-white" : "text-gray-400 dark:text-zinc-500 hover:text-gray-700 dark:hover:text-zinc-200"}`}
-              >
-                <BarChart3 className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button" onClick={() => setChartType("line")} title="Line chart"
-                className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors ${chartType === "line" ? "bg-primary-500 text-white" : "text-gray-400 dark:text-zinc-500 hover:text-gray-700 dark:hover:text-zinc-200"}`}
-              >
-                <LineChart className="h-3.5 w-3.5" />
-              </button>
-            </div>
-            <div className="relative shrink-0">
-              <select
-                value={trendRange}
-                onChange={(e) => setTrendRange(Number(e.target.value) as TrendRange)}
-                className="h-8 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-7 text-xs font-medium text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
-              >
-                {TREND_RANGES.map((r) => <option key={r} value={r}>Last {r} days</option>)}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
-            </div>
+          <div className="relative shrink-0">
+            <select
+              value={trendRange}
+              onChange={(e) => setTrendRange(Number(e.target.value) as TrendRange)}
+              className="h-8 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-7 text-xs font-medium text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
+            >
+              {TREND_RANGES.map((r) => <option key={r} value={r}>Last {r} days</option>)}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
           </div>
         </div>
-        {chartType === "bar" ? <TrendBars history={trendHistory} /> : <TrendAreaChart history={trendHistory} />}
+        <TrendAreaChart history={trendHistory} />
       </div>
 
       <div className={`grid grid-cols-1 gap-6 ${allowStaffTab ? "lg:grid-cols-2" : ""}`}>
@@ -686,9 +645,9 @@ function OverviewTab({
       {allowStaffTab && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
           <div className="lg:col-span-2">
-            <TodaysAttendanceTable staff={staff} staffStatusMap={staffStatusMap} dateStr={dateStr} onViewAll={onViewAllStaff} />
+            <TodaysAttendanceTable staff={staff} staffStatusMap={staffStatusMap} studentsBySection={studentsBySection} statusMap={statusMap} onViewAll={onViewAllStaff} />
           </div>
-          <ActivityTimeline staff={staff} staffStatusMap={staffStatusMap} onViewAll={onViewAllStaff} />
+          <ActivityTimeline staff={staff} staffStatusMap={staffStatusMap} studentsBySection={studentsBySection} statusMap={statusMap} onViewAll={onViewAllStaff} />
         </div>
       )}
     </div>
@@ -1203,7 +1162,6 @@ export default function AttendanceClient({
           staff={initialStaff}
           staffStatusMap={staffStatusMap}
           allowStaffTab={allowStaffTab}
-          dateStr={dateStr}
           onViewAllStaff={() => handleTabChange("staff")}
         />
       )}

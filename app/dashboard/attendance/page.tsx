@@ -313,7 +313,7 @@ export default async function AttendancePage() {
 
     supabaseAdmin
       .from("student_attendance")
-      .select("student_id, status")
+      .select("student_id, status, checked_in_at, checked_out_at")
       .eq("school_id", schoolId)
       .eq("date", today),
 
@@ -349,19 +349,26 @@ export default async function AttendancePage() {
   const classLabelBySection: Record<string, { classNum: string; section: string }> = {};
   for (const s of sections) classLabelBySection[s.id] = { classNum: s.classNum, section: s.section };
 
+  const studentCheckTimes: Record<string, { checkedInAt: string | null; checkedOutAt: string | null }> = {};
+  for (const r of studentAttRows ?? []) {
+    studentCheckTimes[r.student_id] = { checkedInAt: r.checked_in_at, checkedOutAt: r.checked_out_at };
+  }
+
   // Group students by section
   const studentsBySection: Record<string, AttendanceStudent[]> = {};
   for (const st of studentRows ?? []) {
     if (!st.section_id) continue;
     if (!studentsBySection[st.section_id]) studentsBySection[st.section_id] = [];
     studentsBySection[st.section_id].push({
-      id:         st.id,
-      name:       st.full_name ?? "Unknown",
-      rollNo:     st.roll_no ?? "",
-      attendance: Math.round(Number(st.attendance_pct ?? 0)),
-      sectionId:  st.section_id,
-      classNum:   classLabelBySection[st.section_id]?.classNum ?? "?",
-      section:    classLabelBySection[st.section_id]?.section ?? "",
+      id:           st.id,
+      name:         st.full_name ?? "Unknown",
+      rollNo:       st.roll_no ?? "",
+      attendance:   Math.round(Number(st.attendance_pct ?? 0)),
+      sectionId:    st.section_id,
+      classNum:     classLabelBySection[st.section_id]?.classNum ?? "?",
+      section:      classLabelBySection[st.section_id]?.section ?? "",
+      checkedInAt:  studentCheckTimes[st.id]?.checkedInAt ?? null,
+      checkedOutAt: studentCheckTimes[st.id]?.checkedOutAt ?? null,
     });
   }
 
