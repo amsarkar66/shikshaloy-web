@@ -4,8 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   Building2, Clock, CheckCircle2, XCircle, Search,
-  MapPin, Phone, Globe, Mail, Users, Briefcase,
-  CalendarDays, GraduationCap, Hash,
+  MapPin, Phone,
   List, LayoutGrid,
 } from "lucide-react";
 import { StatusBadge, TypeBadge, BoardBadge, SchoolCountBadge, InstitutionActions } from "./institution-ui";
@@ -43,116 +42,90 @@ function TopStats({ institutions }: { institutions: PendingInstitution[] }) {
   );
 }
 
-// ── List view — full detail, one institution per row ────────────────────────
-
-function InstitutionListCard({ inst }: { inst: PendingInstitution }) {
-  const submitted = new Date(inst.created_at).toLocaleDateString("en-IN", {
-    day: "numeric", month: "short", year: "numeric",
-  });
-  const location = [inst.address, inst.city, inst.state, inst.pin_code, inst.country]
-    .filter(Boolean)
-    .join(", ");
-  const grades = inst.grades_from && inst.grades_to ? `${inst.grades_from} – ${inst.grades_to}` : null;
-
+function InstitutionsTable({
+  institutions, search, statusFilter, onClearFilters,
+}: {
+  institutions: PendingInstitution[];
+  search: string;
+  statusFilter: StatusFilter;
+  onClearFilters: () => void;
+}) {
   return (
-    <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5 transition-colors hover:bg-gray-50 dark:hover:bg-zinc-800">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-base font-semibold text-gray-900 dark:text-zinc-50">
-              <Link href={`/dashboard/institutions/${inst.id}`} className="hover:underline">
-                {inst.name ?? "—"}
-              </Link>
-            </h3>
-            <TypeBadge type={inst.institution_type} />
-            <BoardBadge board={inst.board} />
-            <SchoolCountBadge count={inst.schools.length} />
-            <StatusBadge status={inst.status} />
-            {inst.established_year && (
-              <span className="text-xs text-primary-500 dark:text-zinc-500">Est. {inst.established_year}</span>
-            )}
-          </div>
+    <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50">
+      <table className="w-full min-w-[900px] text-left text-sm">
+        <thead>
+          <tr className="border-b border-gray-200 dark:border-zinc-800 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-zinc-400">
+            <th className="px-4 py-3">Institution</th>
+            <th className="px-4 py-3">Location</th>
+            <th className="px-4 py-3">Owner</th>
+            <th className="px-4 py-3">Status</th>
+            <th className="px-4 py-3">Submitted</th>
+            <th className="px-4 py-3 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
+          {institutions.map((inst) => {
+            const location = [inst.city, inst.state].filter(Boolean).join(", ");
+            const submitted = new Date(inst.created_at).toLocaleDateString("en-IN", {
+              day: "numeric", month: "short", year: "numeric",
+            });
+            const initial = (inst.name ?? "?").trim().charAt(0).toUpperCase() || "?";
 
-          {inst.tagline && (
-            <p className="text-xs italic text-primary-500 dark:text-zinc-500">{inst.tagline}</p>
-          )}
-
-          <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-sm text-primary-600 dark:text-zinc-400">
-            {location && (
-              <span className="flex items-center gap-1.5">
-                <MapPin className="h-3.5 w-3.5 text-primary-500" />
-                {location}
-              </span>
-            )}
-            {inst.phone && (
-              <span className="flex items-center gap-1.5">
-                <Phone className="h-3.5 w-3.5 text-primary-500" />
-                {inst.phone}
-              </span>
-            )}
-            {inst.email && (
-              <span className="flex items-center gap-1.5">
-                <Mail className="h-3.5 w-3.5 text-primary-500" />
-                {inst.email}
-              </span>
-            )}
-            {inst.website && (
-              <a href={inst.website} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1.5 hover:text-primary-800 dark:hover:text-zinc-200 transition-colors">
-                <Globe className="h-3.5 w-3.5 text-primary-500" />
-                {inst.website.replace(/^https?:\/\//, "")}
-              </a>
-            )}
-            {inst.student_range && (
-              <span className="flex items-center gap-1.5">
-                <Users className="h-3.5 w-3.5 text-primary-500" />
-                {inst.student_range} students
-              </span>
-            )}
-            {inst.staff_range && (
-              <span className="flex items-center gap-1.5">
-                <Briefcase className="h-3.5 w-3.5 text-primary-500" />
-                {inst.staff_range} staff
-              </span>
-            )}
-            {grades && (
-              <span className="flex items-center gap-1.5">
-                <GraduationCap className="h-3.5 w-3.5 text-primary-500" />
-                Grades {grades}
-              </span>
-            )}
-            {inst.udise_code && (
-              <span className="flex items-center gap-1.5">
-                <Hash className="h-3.5 w-3.5 text-primary-500" />
-                UDISE+ {inst.udise_code}
-              </span>
-            )}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-gray-100 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 px-3 py-2 text-sm">
-            <span className="font-medium text-gray-900 dark:text-zinc-50">{inst.owner_full_name ?? "—"}</span>
-            <span className="flex items-center gap-1 text-primary-600 dark:text-zinc-400">
-              <Mail className="h-3 w-3" />
-              {inst.owner_email ?? "—"}
-            </span>
-          </div>
-
-          {(inst.principal_name || inst.principal_email) && (
-            <p className="text-xs text-primary-500 dark:text-zinc-500">
-              Principal: {inst.principal_name ?? "—"}
-              {inst.principal_designation ? ` · ${inst.principal_designation}` : ""}
-              {inst.principal_email ? ` · ${inst.principal_email}` : ""}
-            </p>
-          )}
-
-          <p className="flex items-center gap-1.5 text-xs text-primary-500 dark:text-zinc-500">
-            <CalendarDays className="h-3.5 w-3.5" />
-            Submitted {submitted}
-          </p>
-        </div>
-
-        <InstitutionActions inst={inst} />
-      </div>
+            return (
+              <tr key={inst.id} className="transition-colors hover:bg-gray-50 dark:hover:bg-zinc-800/70">
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-500/10 text-xs font-semibold text-primary-600 dark:text-primary-400">
+                      {initial}
+                    </div>
+                    <div className="min-w-0">
+                      <Link href={`/dashboard/institutions/${inst.id}`} className="block truncate font-medium text-gray-900 dark:text-zinc-50 hover:underline">
+                        {inst.name ?? "—"}
+                      </Link>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-1">
+                        <TypeBadge type={inst.institution_type} />
+                        <BoardBadge board={inst.board} />
+                        <SchoolCountBadge count={inst.schools.length} />
+                      </div>
+                    </div>
+                  </div>
+                </td>
+                <td className="whitespace-nowrap px-4 py-3 text-primary-600 dark:text-zinc-400">{location || "—"}</td>
+                <td className="px-4 py-3">
+                  <p className="max-w-[200px] truncate font-medium text-gray-900 dark:text-zinc-50">{inst.owner_full_name ?? "—"}</p>
+                  <p className="max-w-[200px] truncate text-xs text-primary-500 dark:text-zinc-500">{inst.owner_email ?? "—"}</p>
+                </td>
+                <td className="px-4 py-3">
+                  <StatusBadge status={inst.status} />
+                </td>
+                <td className="whitespace-nowrap px-4 py-3 text-xs text-primary-500 dark:text-zinc-500">{submitted}</td>
+                <td className="px-4 py-3">
+                  <div className="flex justify-end">
+                    <InstitutionActions inst={inst} compact />
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+        <tfoot>
+          <tr className="border-t border-gray-200 dark:border-zinc-800">
+            <td colSpan={6} className="px-4 py-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="text-xs text-gray-500 dark:text-zinc-400">
+                  {institutions.length} {institutions.length === 1 ? "institution" : "institutions"}
+                  {search && ` matching "${search}"`}
+                </p>
+                {(search || statusFilter !== "all") && (
+                  <button onClick={onClearFilters} className="text-xs text-primary-600 dark:text-primary-400 hover:underline">
+                    Clear filters
+                  </button>
+                )}
+              </div>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
     </div>
   );
 }
@@ -224,11 +197,16 @@ export default function InstitutionsClient({ institutions }: { institutions: Pen
   });
 
   return (
-    <div className="w-full space-y-6 px-6 py-8">
+    <div className="w-full px-6 py-6 space-y-5">
+      <div>
+        <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Institutions</h1>
+        <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Manage institution accounts</p>
+      </div>
+
       <TopStats institutions={institutions} />
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <div className="relative flex-1 max-w-xs">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
           <input
             type="text"
@@ -283,17 +261,6 @@ export default function InstitutionsClient({ institutions }: { institutions: Pen
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        <p className="text-xs text-gray-500 dark:text-zinc-400">
-          {filtered.length} {filtered.length === 1 ? "institution" : "institutions"}{search && ` matching "${search}"`}
-        </p>
-        {(search || statusFilter !== "all") && (
-          <button onClick={() => { setSearch(""); setStatusFilter("all"); }} className="text-xs text-primary-600 dark:text-primary-400 hover:underline">
-            Clear filters
-          </button>
-        )}
-      </div>
-
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 py-14 text-center">
           <Building2 className="h-8 w-8 text-primary-400 dark:text-zinc-600" />
@@ -301,12 +268,27 @@ export default function InstitutionsClient({ institutions }: { institutions: Pen
           <p className="text-xs text-primary-500 dark:text-zinc-500">Try adjusting your search or filter.</p>
         </div>
       ) : viewMode === "list" ? (
-        <div className="space-y-3">
-          {filtered.map((inst) => <InstitutionListCard key={inst.id} inst={inst} />)}
-        </div>
+        <InstitutionsTable
+          institutions={filtered}
+          search={search}
+          statusFilter={statusFilter}
+          onClearFilters={() => { setSearch(""); setStatusFilter("all"); }}
+        />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-          {filtered.map((inst) => <InstitutionGridCard key={inst.id} inst={inst} />)}
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            {filtered.map((inst) => <InstitutionGridCard key={inst.id} inst={inst} />)}
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-xs text-gray-500 dark:text-zinc-400">
+              {filtered.length} {filtered.length === 1 ? "institution" : "institutions"}{search && ` matching "${search}"`}
+            </p>
+            {(search || statusFilter !== "all") && (
+              <button onClick={() => { setSearch(""); setStatusFilter("all"); }} className="text-xs text-primary-600 dark:text-primary-400 hover:underline">
+                Clear filters
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
