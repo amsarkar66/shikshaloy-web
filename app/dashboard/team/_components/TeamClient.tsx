@@ -158,7 +158,12 @@ export default function TeamClient({
   const canInvite = currentPermission === "owner";
 
   return (
-    <div className="w-full space-y-6 px-6 py-8">
+    <div className="w-full px-6 py-6 space-y-5">
+      <div>
+        <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Platform Team</h1>
+        <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Shikshaloy product owner accounts</p>
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5">
         <div>
           <h2 className="mb-1 text-base font-semibold text-gray-900 dark:text-zinc-50">Invite a platform teammate</h2>

@@ -200,7 +200,12 @@ export default async function PlatformAnalyticsPage() {
   const topPageTotal = topPageItems.reduce((a, it) => a + it.count, 0);
 
   return (
-    <div className="w-full space-y-6 px-6 py-8">
+    <div className="w-full px-6 py-6 space-y-5">
+      <div>
+        <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Platform Analytics</h1>
+        <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Signups, plan mix, and approval trends</p>
+      </div>
+
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {stats.map((s) => <StatCard key={s.label} {...s} />)}
       </div>

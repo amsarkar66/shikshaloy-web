@@ -17,6 +17,15 @@ const TYPE_DOT: Record<string, string> = {
   docs: "bg-zinc-400",
 };
 
+function formatReleaseDate(date: string) {
+  const [year, month, day] = date.split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 function ReleaseInfo() {
   const release = RELEASES[0];
   const [open, setOpen] = useState(false);
@@ -45,7 +54,7 @@ function ReleaseInfo() {
         <div className="absolute left-0 top-full z-50 mt-2 w-64 rounded-xl border border-primary-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 text-left shadow-xl">
           <div className="flex items-center justify-between">
             <p className="text-xs font-bold text-gray-900 dark:text-zinc-50">v{release.version}</p>
-            <p className="text-[10px] text-gray-400 dark:text-zinc-600">{release.date}</p>
+            <p className="text-[10px] text-gray-400 dark:text-zinc-600">{formatReleaseDate(release.date)}</p>
           </div>
           <ul className="mt-2 space-y-1.5">
             {release.entries.map((entry, i) => (

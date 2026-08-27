@@ -20,6 +20,7 @@ import {
 const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   "/dashboard":               { title: "Overview",      subtitle: "Welcome back" },
   "/dashboard/institutions":  { title: "Institutions",  subtitle: "Manage institution accounts" },
+  "/dashboard/users":         { title: "Users",         subtitle: "Every account across every role and institution on the platform" },
   "/dashboard/schools":       { title: "Schools",       subtitle: "Schools under your institution" },
   "/dashboard/schools/new":   { title: "Add School",    subtitle: "Register a new school" },
   "/dashboard/admissions":    { title: "Admissions",    subtitle: "Manage student applications and enrolments" },
@@ -183,6 +184,7 @@ export function DashboardHeader({
     PAGE_META[pathname] ??
     (/^\/dashboard\/schools\/[^/]+\/edit$/.test(pathname) ? { title: "Edit School", subtitle: "Update school profile" } :
      /^\/dashboard\/schools\/[^/]+$/.test(pathname) ? { title: "School Details", subtitle: "Overview, staff, and activity" } :
+     /^\/dashboard\/invoices\/[^/]+$/.test(pathname) ? { title: "Invoice Details", subtitle: "Billing details and payment status" } :
      { title: "Dashboard", subtitle: "" });
   const name = (user.user_metadata?.full_name as string) || user.email || "";
   const initials = getInitials(name);
