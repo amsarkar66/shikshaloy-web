@@ -1,5 +1,6 @@
 import { Navbar } from "@/components/marketing/navbar";
 import { Footer } from "@/components/marketing/footer";
+import { UtmCapture } from "@/components/marketing/utm-capture";
 import { organizationJsonLd, websiteJsonLd } from "@/lib/seo";
 
 export default function MarketingLayout({
@@ -17,6 +18,7 @@ export default function MarketingLayout({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd()) }}
       />
+      <UtmCapture />
       <Navbar />
       {children}
       <Footer />

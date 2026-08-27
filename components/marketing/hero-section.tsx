@@ -32,23 +32,24 @@ export function HeroSection() {
             <FadeIn delay={0}>
               <Badge className="mb-6 h-auto bg-white text-primary-700 border border-zinc-200 shadow-sm px-4 py-1.5 text-sm gap-1.5">
                 <Sparkles className="h-3.5 w-3.5" />
-                Modern School Management System
+                Best School Management System
               </Badge>
             </FadeIn>
 
             <FadeIn delay={0.1}>
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-zinc-900 leading-[1.05] tracking-tight text-balance">
-                The complete platform{" "}
+                The modern school management system{" "}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-500 to-primary-400">
-                  for modern schools
+                  for the way schools actually run
                 </span>
               </h1>
             </FadeIn>
 
             <FadeIn delay={0.2}>
               <p className="mt-6 text-lg sm:text-xl text-zinc-500 max-w-lg mx-auto lg:mx-0 leading-relaxed text-balance">
-                Shikshaloy unifies administration, teaching, parents, and students in
-                one powerful platform — built for the way schools actually work.
+                Shikshaloy is an all-in-one school management software and school
+                app — admissions, attendance, fees, exams, and communication for
+                admins, teachers, students, and parents.
               </p>
             </FadeIn>
 

@@ -1,6 +1,7 @@
 "use server";
 
 import { supabaseAdmin } from "@/lib/supabase/service";
+import { getStoredUtm } from "@/lib/marketing/utm-server";
 
 export interface ContactFormData {
   name: string;
@@ -28,11 +29,14 @@ export async function submitContactForm(
     return { error: "Please enter a valid email address." };
   }
 
+  const utm = await getStoredUtm();
+
   const { error } = await supabaseAdmin.from("contact_submissions").insert({
     name,
     email,
     topic,
     message,
+    ...utm,
   });
 
   if (error) {

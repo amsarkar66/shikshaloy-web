@@ -24,7 +24,7 @@ export default async function SupportPage() {
     getAllSupportRequests(),
     supabaseAdmin
       .from("contact_submissions")
-      .select("id, name, email, topic, message, created_at, replied_at, flagged, viewed_at")
+      .select("id, name, email, topic, message, created_at, replied_at, flagged, viewed_at, utm_source, utm_medium, utm_campaign")
       .order("created_at", { ascending: false }),
   ]);
 
@@ -54,6 +54,9 @@ export default async function SupportPage() {
     repliedAt: l.replied_at,
     flagged: l.flagged,
     viewedAt: l.viewed_at,
+    utmSource: l.utm_source,
+    utmMedium: l.utm_medium,
+    utmCampaign: l.utm_campaign,
   }));
 
   return (

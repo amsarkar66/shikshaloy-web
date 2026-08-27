@@ -24,6 +24,9 @@ export interface ContactLead {
   repliedAt: string | null;
   flagged: boolean;
   viewedAt: string | null;
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
 }
 
 export interface PlatformGrievance {
@@ -672,6 +675,12 @@ function LeadDetail({ lead, onBack, onChanged }: { lead: ContactLead; onBack: ()
               {lead.name} <span className="font-normal text-gray-400 dark:text-zinc-500">&lt;{lead.email}&gt;</span>
             </p>
             <p className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5">to Shikshaloy</p>
+            {(lead.utmSource || lead.utmCampaign) && (
+              <p className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5">
+                via {[lead.utmSource, lead.utmMedium].filter(Boolean).join("/") || "unknown"}
+                {lead.utmCampaign && <> — {lead.utmCampaign}</>}
+              </p>
+            )}
           </div>
 
           <div className="flex shrink-0 items-center gap-0.5">

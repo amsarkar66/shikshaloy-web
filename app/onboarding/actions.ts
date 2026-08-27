@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getUser } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { listKernelUsers } from "@/lib/supabase/admin";
+import { getStoredUtm } from "@/lib/marketing/utm-server";
 import { sendInstitutionSubmittedEmail, sendNewInstitutionSubmittedEmail } from "@/lib/email/resend";
 import { PLANS } from "@/app/dashboard/billing/_data/billing";
 import type { InstitutionFormData } from "./_institution-form";
@@ -95,9 +96,13 @@ export async function submitOnboarding(
       await supabaseAdmin.from("schools").update(schoolFields).eq("id", existingSchool.id);
     }
   } else {
+    // Only recorded on a brand-new institution — a resubmission keeps the
+    // attribution from the visitor's original first touch.
+    const utm = await getStoredUtm();
+
     const { data: institution, error: institutionError } = await supabaseAdmin
       .from("institutions")
-      .insert(institutionFields)
+      .insert({ ...institutionFields, ...utm })
       .select("id")
       .single();
     if (institutionError || !institution) {

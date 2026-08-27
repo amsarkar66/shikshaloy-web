@@ -2,10 +2,10 @@ export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.shiksh
 
 export const SITE_NAME = "Shikshaloy";
 
-export const DEFAULT_TITLE = "Shikshaloy — Modern School Management System";
+export const DEFAULT_TITLE = "Shikshaloy — Best School Management System";
 
 export const DEFAULT_DESCRIPTION =
-  "Shikshaloy is a complete school management platform for admissions, attendance, fees, exams, homework, and communication — with dedicated dashboards for admins, teachers, students, parents, staff, and drivers.";
+  "Shikshaloy is a modern school management system and school app for admissions, attendance, fees, exams, homework, and communication — with dedicated dashboards for admins, teachers, students, parents, staff, and drivers.";
 
 export function absoluteUrl(path: string): string {
   return `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
