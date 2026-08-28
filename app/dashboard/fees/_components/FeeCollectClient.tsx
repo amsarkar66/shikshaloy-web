@@ -16,7 +16,7 @@ import { recordFeePayment } from "../actions";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { DatePicker } from "@/components/ui/date-picker";
 
-interface RecentEntry {
+export interface RecentEntry {
   key: string;
   studentName: string;
   monthStr: string;
@@ -171,7 +171,7 @@ export default function FeeCollectClient({
   );
 }
 
-function StudentCollectPanel({
+export function StudentCollectPanel({
   student, outstanding, onDone, onChangeStudent,
 }: {
   student: FeeStudent;

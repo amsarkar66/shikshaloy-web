@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, DoorOpen, Users, BookOpen, TrendingUp,
-  GraduationCap, Eye,
+  GraduationCap, Eye, UserCheck, UserX, Clock, HelpCircle,
 } from "lucide-react";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
@@ -28,6 +28,22 @@ const FEE_BADGE: Record<string, string> = {
   partial: "bg-amber-500/10  text-amber-600   dark:text-amber-400   border-amber-500/20",
   overdue: "bg-red-500/10    text-red-600     dark:text-red-400     border-red-500/20",
 };
+
+type TodayAttendanceStatus = "present" | "absent" | "late" | "unmarked";
+
+const TODAY_STATUS_LABEL: Record<TodayAttendanceStatus, string> = {
+  present: "Present", absent: "Absent", late: "Late", unmarked: "Not Marked",
+};
+const TODAY_STATUS_BADGE: Record<TodayAttendanceStatus, string> = {
+  present:  "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+  late:     "bg-amber-500/10   text-amber-600   dark:text-amber-400   border-amber-500/20",
+  absent:   "bg-red-500/10     text-red-600     dark:text-red-400     border-red-500/20",
+  unmarked: "bg-gray-500/10    text-gray-500    dark:text-zinc-400    border-gray-500/20",
+};
+
+function formatCheckTime(iso: string | null) {
+  return iso ? new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true }) : "—";
+}
 
 interface SectionRow {
   id: string;
@@ -77,7 +93,9 @@ export default async function ClassRosterPage({
   if (!sectionRow) notFound();
   const section = sectionRow as unknown as SectionRow;
 
-  const [{ data: studentRows }, { data: subjectRows }] = await Promise.all([
+  const today = new Date().toISOString().split("T")[0];
+
+  const [{ data: studentRows }, { data: subjectRows }, { data: attRows }] = await Promise.all([
     supabaseAdmin
       .from("students")
       .select("id, full_name, roll_no, gender, phone, attendance_pct, fee_status, status, photo_url")
@@ -91,9 +109,29 @@ export default async function ClassRosterPage({
       .eq("school_id", schoolId)
       .eq("section_id", id)
       .eq("academic_year_id", section.academic_year_id ?? ""),
+
+    supabaseAdmin
+      .from("student_attendance")
+      .select("student_id, status, checked_in_at")
+      .eq("school_id", schoolId)
+      .eq("section_id", id)
+      .eq("date", today),
   ]);
 
   const students = (studentRows ?? []) as unknown as RosterStudentRow[];
+
+  const todayByStudent: Record<string, { status: TodayAttendanceStatus; checkedInAt: string | null }> = {};
+  for (const r of attRows ?? []) {
+    todayByStudent[r.student_id] = { status: r.status as TodayAttendanceStatus, checkedInAt: r.checked_in_at };
+  }
+  const todayCounts = students.reduce(
+    (acc, s) => {
+      const status = todayByStudent[s.id]?.status ?? "unmarked";
+      acc[status] += 1;
+      return acc;
+    },
+    { present: 0, absent: 0, late: 0, unmarked: 0 } as Record<TodayAttendanceStatus, number>,
+  );
   const subjects = ((subjectRows ?? []) as unknown as SectionSubjectRow[]).map((s) => ({
     name: s.subjects?.name ?? "Subject",
     code: s.subjects?.code ?? "",
@@ -161,6 +199,29 @@ export default async function ClassRosterPage({
         </div>
       </div>
 
+      {/* Today's attendance */}
+      <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5">
+        <p className="text-sm font-semibold text-gray-900 dark:text-zinc-100 mb-4">Today&apos;s Attendance</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-emerald-500 bg-emerald-500/10"><UserCheck className="h-4.5 w-4.5"/></div>
+            <div><p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{todayCounts.present}</p><p className="text-xs text-gray-500 dark:text-zinc-400">Present</p></div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-red-500 bg-red-500/10"><UserX className="h-4.5 w-4.5"/></div>
+            <div><p className="text-lg font-bold text-red-600 dark:text-red-400">{todayCounts.absent}</p><p className="text-xs text-gray-500 dark:text-zinc-400">Absent</p></div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-amber-500 bg-amber-500/10"><Clock className="h-4.5 w-4.5"/></div>
+            <div><p className="text-lg font-bold text-amber-600 dark:text-amber-400">{todayCounts.late}</p><p className="text-xs text-gray-500 dark:text-zinc-400">Late</p></div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-500 bg-gray-500/10"><HelpCircle className="h-4.5 w-4.5"/></div>
+            <div><p className="text-lg font-bold text-gray-600 dark:text-zinc-400">{todayCounts.unmarked}</p><p className="text-xs text-gray-500 dark:text-zinc-400">Not Marked</p></div>
+          </div>
+        </div>
+      </div>
+
       {/* Subjects & teachers */}
       <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
         <div className="border-b border-gray-100 dark:border-zinc-700/50 px-5 py-3">
@@ -202,6 +263,7 @@ export default async function ClassRosterPage({
                   <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Gender</th>
                   <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Phone</th>
                   <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Attendance</th>
+                  <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Today</th>
                   <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Fee Status</th>
                   <th className="py-3 pl-3 pr-4 text-right text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Actions</th>
                 </tr>
@@ -210,6 +272,8 @@ export default async function ClassRosterPage({
                 {students.map((s) => {
                   const att = Math.round(Number(s.attendance_pct ?? 0));
                   const feeStatus = s.fee_status ?? "overdue";
+                  const todayRec = todayByStudent[s.id];
+                  const todayStatus: TodayAttendanceStatus = todayRec?.status ?? "unmarked";
                   return (
                     <tr key={s.id} className="hover:bg-gray-50 dark:hover:bg-zinc-700/30 transition-colors">
                       <td className="py-3 pl-4 pr-3">
@@ -240,6 +304,12 @@ export default async function ClassRosterPage({
                           </div>
                           <span className={`text-xs font-semibold tabular-nums ${attendanceColor(att)}`}>{att}%</span>
                         </div>
+                      </td>
+                      <td className="px-3 py-3">
+                        <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap ${TODAY_STATUS_BADGE[todayStatus]}`}>
+                          {TODAY_STATUS_LABEL[todayStatus]}
+                        </span>
+                        {todayRec?.checkedInAt && <p className="mt-1 text-xs text-gray-400 dark:text-zinc-500">{formatCheckTime(todayRec.checkedInAt)}</p>}
                       </td>
                       <td className="px-3 py-3">
                         <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${FEE_BADGE[feeStatus] ?? FEE_BADGE.overdue}`}>

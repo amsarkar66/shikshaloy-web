@@ -14,6 +14,7 @@ export interface AttendanceDeviceRow {
   type: DeviceType;
   location: string | null;
   keyPrefix: string;
+  serialNumber: string | null;
   isActive: boolean;
   lastSeenAt: string | null;
   createdAt: string;
@@ -38,7 +39,7 @@ export async function listAttendanceDevices(): Promise<AttendanceDeviceRow[]> {
 
   const { data } = await supabaseAdmin
     .from("attendance_devices")
-    .select("id, name, type, location, key_prefix, is_active, last_seen_at, created_at")
+    .select("id, name, type, location, key_prefix, serial_number, is_active, last_seen_at, created_at")
     .eq("school_id", schoolId)
     .order("created_at", { ascending: false });
 
@@ -48,6 +49,7 @@ export async function listAttendanceDevices(): Promise<AttendanceDeviceRow[]> {
     type: d.type as DeviceType,
     location: d.location,
     keyPrefix: d.key_prefix,
+    serialNumber: d.serial_number,
     isActive: d.is_active,
     lastSeenAt: d.last_seen_at,
     createdAt: d.created_at,
@@ -58,6 +60,7 @@ export async function createAttendanceDevice(
   name: string,
   type: DeviceType,
   location?: string,
+  serialNumber?: string,
 ): Promise<{ plaintextKey: string }> {
   await requireSchoolAdmin();
   const schoolId = await getCurrentSchoolIdOrThrow();
@@ -72,9 +75,13 @@ export async function createAttendanceDevice(
     location: location?.trim() || null,
     key_hash: keyHash,
     key_prefix: deviceKeyPrefix(plaintextKey),
+    serial_number: serialNumber?.trim() || null,
   });
 
-  if (error) throw new Error(`Failed to register device: ${error.message}`);
+  if (error) {
+    if (error.code === "23505") throw new Error("A device with this serial number is already registered");
+    throw new Error(`Failed to register device: ${error.message}`);
+  }
 
   revalidatePath("/dashboard/attendance/devices");
   return { plaintextKey };

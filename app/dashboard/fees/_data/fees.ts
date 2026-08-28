@@ -38,6 +38,7 @@ export interface FeeStructure {
   amount: number;
   frequency: "monthly" | "quarterly" | "annual";
   isOptional: boolean;
+  isOneTime: boolean; // bills once at enrollment, e.g. Admission Fee — never via generateMonthlyFees
 }
 
 export interface MonthlyFeeRecord {

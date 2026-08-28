@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, Pencil, Plus, Trash2, Users, BookOpen,
-  CalendarClock, Layers, GraduationCap, Loader2,
+  CalendarClock, Layers, GraduationCap, Loader2, ClipboardCheck,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { avatarColor, initials } from "../../_data/subjects";
@@ -135,12 +135,20 @@ export default function SubjectDetailClient({
               <p className="mt-0.5 text-xs font-mono text-gray-400 dark:text-zinc-500">{subject.code}</p>
             </div>
           </div>
-          <button
-            onClick={() => setEditingSubject(true)}
-            className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 text-sm font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
-          >
-            <Pencil className="h-3.5 w-3.5" /> Edit Subject
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/dashboard/subjects/attendance?subject=${subject.id}`}
+              className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 text-sm font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
+            >
+              <ClipboardCheck className="h-3.5 w-3.5" /> Subject Attendance
+            </Link>
+            <button
+              onClick={() => setEditingSubject(true)}
+              className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 text-sm font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
+            >
+              <Pencil className="h-3.5 w-3.5" /> Edit Subject
+            </button>
+          </div>
         </div>
       </div>
 

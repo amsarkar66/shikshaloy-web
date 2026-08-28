@@ -95,6 +95,59 @@ export async function markStaffAttendance(staffId: string, date: string, status:
   revalidatePath("/dashboard/attendance");
 }
 
+export interface DayAttendanceSummary { date: string; rate: number | null }
+
+// Combined student+staff attendance rate for every day of a given month, for
+// the calendar picker in AttendanceClient. Teachers only see their own
+// sections' students (no staff, matching what they're allowed to mark);
+// admins/super_admins see the whole school. Days after `todayStr` (the
+// caller's local "today", since the server can't know the browser's
+// timezone) are returned with rate: null rather than queried.
+export async function getMonthAttendanceSummary(year: number, month: number, todayStr: string): Promise<DayAttendanceSummary[]> {
+  const marker = await requireAttendanceMarker();
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const first = `${year}-${pad(month)}-01`;
+  const last = `${year}-${pad(month)}-${pad(daysInMonth)}`;
+  const restrictedToSections = marker.teacherSectionIds;
+
+  let studentAttQuery = supabaseAdmin.from("student_attendance").select("date, status").eq("school_id", schoolId).gte("date", first).lte("date", last);
+  let studentCountQuery = supabaseAdmin.from("students").select("id", { count: "exact", head: true }).eq("school_id", schoolId);
+  if (restrictedToSections) {
+    studentAttQuery = studentAttQuery.in("section_id", restrictedToSections);
+    studentCountQuery = studentCountQuery.in("section_id", restrictedToSections);
+  }
+
+  const [{ data: studentAttRows }, { count: totalStudents }, staffResult] = await Promise.all([
+    studentAttQuery,
+    studentCountQuery,
+    restrictedToSections
+      ? Promise.resolve({ attRows: [] as { date: string; status: string }[], total: 0 })
+      : Promise.all([
+          supabaseAdmin.from("staff_attendance").select("date, status").eq("school_id", schoolId).gte("date", first).lte("date", last),
+          supabaseAdmin.from("staff_members").select("id", { count: "exact", head: true }).eq("school_id", schoolId).neq("status", "inactive"),
+        ]).then(([att, count]) => ({ attRows: (att.data ?? []) as { date: string; status: string }[], total: count.count ?? 0 })),
+  ]);
+
+  const totalPeople = (totalStudents ?? 0) + staffResult.total;
+  const presentByDate = new Map<string, number>();
+  const markedDates = new Set<string>();
+  for (const r of [...((studentAttRows ?? []) as { date: string; status: string }[]), ...staffResult.attRows]) {
+    markedDates.add(r.date);
+    if (r.status === "present" || r.status === "late") presentByDate.set(r.date, (presentByDate.get(r.date) ?? 0) + 1);
+  }
+
+  const days: DayAttendanceSummary[] = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = `${year}-${pad(month)}-${pad(d)}`;
+    if (date > todayStr || totalPeople === 0 || !markedDates.has(date)) { days.push({ date, rate: null }); continue; }
+    days.push({ date, rate: Math.round(((presentByDate.get(date) ?? 0) / totalPeople) * 100) });
+  }
+  return days;
+}
+
 export async function markTransportAttendance(
   studentId: string,
   routeId: string,

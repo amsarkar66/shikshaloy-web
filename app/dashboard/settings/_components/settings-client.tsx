@@ -36,9 +36,11 @@ import {
 } from "../actions";
 import { createAcademicYear } from "@/lib/academic-years/actions";
 import { PublishKeyPanel } from "./publish-key-panel";
+import { CustomDomainPanel } from "./custom-domain-panel";
 import { GradeBandsPanel } from "./GradeBandsPanel";
 import { ReportCardSettingsPanel } from "./ReportCardSettingsPanel";
 import type { PublishKeyRow } from "@/lib/publish-keys/actions";
+import type { DomainRow } from "@/lib/domains/actions";
 import type { SchoolBanner } from "@/lib/schools/banner-actions";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -68,6 +70,8 @@ export interface SettingsData {
   } | null;
   roleTemplates: Template[];
   publishKeys: PublishKeyRow[];
+  domains: DomainRow[];
+  domainCnameTarget: string;
   banners: SchoolBanner[];
 }
 
@@ -272,7 +276,15 @@ function SaveBar({ onSave, saved, busy }: { onSave: () => void; saved: boolean; 
 // NOTE: institution-level (multi-school) profile has no backing table yet —
 // kept as a local-only placeholder until multi-tenant institution settings ship.
 
-function InstitutionTab({ publishKeys }: { publishKeys: PublishKeyRow[] }) {
+function InstitutionTab({
+  publishKeys,
+  domains,
+  domainCnameTarget,
+}: {
+  publishKeys: PublishKeyRow[];
+  domains: DomainRow[];
+  domainCnameTarget: string;
+}) {
   const [name,    setName]    = useState("Sunrise Education Group");
   const [email,   setEmail]   = useState("admin@sunrise.edu");
   const [phone,   setPhone]   = useState("+91 98765 00000");
@@ -304,6 +316,7 @@ function InstitutionTab({ publishKeys }: { publishKeys: PublishKeyRow[] }) {
         </div>
       </SectionCard>
       <SaveBar onSave={handleSave} saved={saved} />
+      <CustomDomainPanel initialDomains={domains} cnameTarget={domainCnameTarget} />
       <PublishKeyPanel initialKeys={publishKeys} />
     </div>
   );
@@ -1265,7 +1278,9 @@ export function SettingsPageClient({ role, data }: { role: string; data: Setting
           <PublishKeyPanel initialKeys={data.publishKeys} />
         </div>
       )}
-      {activeTab === "institution" && role !== "kernel" && <InstitutionTab publishKeys={data.publishKeys} />}
+      {activeTab === "institution" && role !== "kernel" && (
+        <InstitutionTab publishKeys={data.publishKeys} domains={data.domains} domainCnameTarget={data.domainCnameTarget} />
+      )}
       {activeTab === "academic"      && <AcademicTab settings={data.academicSettings} />}
       {activeTab === "permissions"   && <PermissionsTab initialTemplates={data.roleTemplates} />}
       {activeTab === "notifications" && <NotificationsTab prefs={data.notifPrefs} profileId={data.profile.id} />}

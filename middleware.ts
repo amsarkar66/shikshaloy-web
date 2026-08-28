@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isAppHost, resolveDomainOwner } from "@/lib/domains/resolve-host";
 
 const ROLE_HOME: Record<string, string> = {
   kernel: "/dashboard",
@@ -11,6 +12,19 @@ const ROLE_HOME: Record<string, string> = {
 };
 
 export async function middleware(request: NextRequest) {
+  const host = request.headers.get("host") ?? "";
+
+  // A connected school domain never needs auth/session handling — it's an
+  // anonymous public site — so resolve and rewrite before any of that runs.
+  if (host && !isAppHost(host)) {
+    const ownerId = await resolveDomainOwner(host);
+    const url = request.nextUrl.clone();
+    // Single-page site for now — sub-paths all resolve to the same page
+    // until per-section public routes exist.
+    url.pathname = ownerId ? `/public-site/${ownerId}` : "/public-site/not-connected";
+    return NextResponse.rewrite(url);
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(

@@ -64,6 +64,7 @@ export default function DevicesClient({ initialDevices }: { initialDevices: Atte
   const [name, setName] = useState("");
   const [type, setType] = useState<DeviceType>("rfid");
   const [location, setLocation] = useState("");
+  const [serialNumber, setSerialNumber] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [revealKey, setRevealKey] = useState<string | null>(null);
@@ -74,7 +75,7 @@ export default function DevicesClient({ initialDevices }: { initialDevices: Atte
     setBusy(true);
     setError(null);
     try {
-      const { plaintextKey } = await createAttendanceDevice(name, type, location);
+      const { plaintextKey } = await createAttendanceDevice(name, type, location, serialNumber);
       setRevealKey(plaintextKey);
       setDevices((prev) => [
         {
@@ -83,6 +84,7 @@ export default function DevicesClient({ initialDevices }: { initialDevices: Atte
           type,
           location: location.trim() || null,
           keyPrefix: plaintextKey.slice(0, 14),
+          serialNumber: serialNumber.trim() || null,
           isActive: true,
           lastSeenAt: null,
           createdAt: new Date().toISOString(),
@@ -91,6 +93,7 @@ export default function DevicesClient({ initialDevices }: { initialDevices: Atte
       ]);
       setName("");
       setLocation("");
+      setSerialNumber("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to register device");
     } finally {
@@ -159,6 +162,20 @@ export default function DevicesClient({ initialDevices }: { initialDevices: Atte
           </FancyButton>
         </div>
 
+        <div>
+          <input
+            value={serialNumber}
+            onChange={(e) => setSerialNumber(e.target.value)}
+            placeholder="Serial number (optional — for push-mode devices like ZKTeco)"
+            className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 dark:focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+          />
+          <p className="mt-1 text-[11px] text-gray-400 dark:text-zinc-500">
+            Only needed for devices that push their own check-ins over the network (e.g. a ZKTeco biometric
+            terminal). Find it on the device sticker or its Device Info menu — the device must be configured
+            to point at this server itself; the API key above isn&apos;t used for these.
+          </p>
+        </div>
+
         {devices.length === 0 ? (
           <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-gray-200 dark:border-zinc-700 py-8">
             <Radio className="h-6 w-6 text-gray-300 dark:text-zinc-600" />
@@ -178,6 +195,7 @@ export default function DevicesClient({ initialDevices }: { initialDevices: Atte
                       <p className="text-sm font-medium text-gray-900 dark:text-zinc-100 truncate">{d.name}</p>
                       <p className="mt-0.5 text-xs text-gray-500 dark:text-zinc-400">
                         {meta.label}{d.location ? ` · ${d.location}` : ""} · <span className="font-mono">{d.keyPrefix}…</span>
+                        {d.serialNumber && <> · SN <span className="font-mono">{d.serialNumber}</span></>}
                       </p>
                       <p className="mt-0.5 text-[11px] text-gray-400 dark:text-zinc-500">Last seen {formatDateTime(d.lastSeenAt)}</p>
                     </div>

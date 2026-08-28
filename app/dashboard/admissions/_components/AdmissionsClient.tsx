@@ -19,7 +19,9 @@ import {
   type AdmissionStatus,
 } from "../_data/admissions";
 import { updateApplicationStatus, enrollApplication, type EnrollResult } from "../actions";
+import type { PaymentMode } from "../../fees/_data/fees";
 import { CredentialsDialog } from "./CredentialsDialog";
+import { EnrollFeeDialog } from "./EnrollFeeDialog";
 
 export interface Application {
   id:               string;
@@ -119,6 +121,7 @@ function RowActionsMenu({
   const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showEnrollDialog, setShowEnrollDialog] = useState(false);
   const transitions = TRANSITIONS[app.status] ?? [];
 
   function handleToggle() {
@@ -130,16 +133,31 @@ function RowActionsMenu({
   }
 
   async function handleTransition(next: AdmissionStatus) {
+    if (next === "enrolled") {
+      setShowEnrollDialog(true);
+      onClose();
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
-      if (next === "enrolled") {
-        const result = await enrollApplication(app.id);
-        onEnrolled(app, result);
-      } else {
-        await updateApplicationStatus(app.id, next);
-      }
+      await updateApplicationStatus(app.id, next);
       onClose();
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmEnroll(collectedAmount: number, paymentMode: PaymentMode) {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await enrollApplication(app.id, { collectedAmount, paymentMode });
+      setShowEnrollDialog(false);
+      onEnrolled(app, result);
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
@@ -194,6 +212,17 @@ function RowActionsMenu({
             ))}
           </div>
         </>
+      )}
+      {showEnrollDialog && (
+        <EnrollFeeDialog
+          applicantName={app.applicantName}
+          applyingForGrade={app.applyingForClass}
+          academicYearId={app.academicYearId}
+          busy={busy}
+          error={error}
+          onCancel={() => setShowEnrollDialog(false)}
+          onConfirm={confirmEnroll}
+        />
       )}
     </div>
   );

@@ -44,9 +44,9 @@ function StatCard({ stat }: { stat: Stat }) {
   );
 }
 
-interface ScheduleItem { time: string; label: string; done: boolean; now: boolean }
+interface ScheduleItem { time: string; label: string; done: boolean; now: boolean; slotId?: string }
 
-function TodaySchedule({ items }: { items: ScheduleItem[] }) {
+function TodaySchedule({ items, todayISO }: { items: ScheduleItem[]; todayISO: string }) {
   return (
     <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5">
       <div className="mb-4 flex items-center justify-between">
@@ -69,12 +69,17 @@ function TodaySchedule({ items }: { items: ScheduleItem[] }) {
                   : s.now ? <div className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse" />
                   : <Clock className="h-3.5 w-3.5 text-gray-300 dark:text-zinc-600" />}
               </div>
-              <span className={`text-xs font-medium ${
+              <span className={`text-xs font-medium truncate ${
                 s.done ? "line-through text-gray-400 dark:text-zinc-600" :
                 s.now  ? "text-indigo-700 dark:text-indigo-300" :
                 "text-gray-700 dark:text-zinc-300"
               }`}>{s.label}</span>
-              {s.now && <span className="ml-auto text-[10px] font-semibold text-primary-600 dark:text-primary-400 bg-primary-500/10 px-1.5 py-0.5 rounded-full">Now</span>}
+              {s.now && <span className="ml-auto shrink-0 text-[10px] font-semibold text-primary-600 dark:text-primary-400 bg-primary-500/10 px-1.5 py-0.5 rounded-full">Now</span>}
+              {s.slotId && (s.now || s.done) && (
+                <Link href={`/dashboard/subjects/attendance/${s.slotId}?date=${todayISO}`} className={`shrink-0 text-[11px] font-medium text-primary-600 dark:text-primary-400 hover:underline ${s.now ? "" : "ml-auto"}`}>
+                  Take Attendance
+                </Link>
+              )}
             </div>
           ))}
         </div>
@@ -207,7 +212,7 @@ export async function TeacherView({ user }: { user: User }) {
       .order("start_time"),
 
     supabaseAdmin.from("timetable_slots")
-      .select("period_number, subjects ( name ), sections ( name, grades ( level ) )")
+      .select("id, period_number, subjects ( name ), sections ( name, grades ( level ) )")
       .eq("teacher_id", teacher.id)
       .eq("day_of_week", dayOfWeek),
 
@@ -229,14 +234,15 @@ export async function TeacherView({ user }: { user: User }) {
       .limit(5),
   ]);
 
-  const slotByPeriod: Record<number, string> = {};
+  const slotByPeriod: Record<number, { label: string; slotId: string }> = {};
   for (const s of (slotRows ?? []) as unknown as {
+    id: string;
     period_number: number;
     subjects: { name: string | null } | null;
     sections: { name: string | null; grades: { level: number | null } | null } | null;
   }[]) {
     const cls = `${s.sections?.grades?.level ?? "?"}-${s.sections?.name ?? ""}`;
-    slotByPeriod[s.period_number] = `${s.subjects?.name ?? "Class"} — Class ${cls}`;
+    slotByPeriod[s.period_number] = { label: `${s.subjects?.name ?? "Class"} — Class ${cls}`, slotId: s.id };
   }
 
   const scheduleItems: ScheduleItem[] = ((periodRows ?? []) as unknown as {
@@ -247,10 +253,12 @@ export async function TeacherView({ user }: { user: User }) {
       const [h, m] = p.start_time.split(":").map(Number);
       const [eh, em] = p.end_time.split(":").map(Number);
       const startMin = h * 60 + m, endMin = eh * 60 + em;
-      const label = p.is_break ? (p.break_label ?? "Break") : slotByPeriod[p.number];
+      const slot = slotByPeriod[p.number];
+      const label = p.is_break ? (p.break_label ?? "Break") : (slot?.label ?? "Class");
       return {
         time: p.start_time.slice(0, 5), label,
         done: nowMinutes >= endMin, now: nowMinutes >= startMin && nowMinutes < endMin,
+        slotId: p.is_break ? undefined : slot?.slotId,
       };
     });
 
@@ -289,7 +297,7 @@ export async function TeacherView({ user }: { user: User }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <TodaySchedule items={scheduleItems} />
+          <TodaySchedule items={scheduleItems} todayISO={todayISO} />
           <RecentHomework rows={homework} />
         </div>
         <div className="space-y-5">

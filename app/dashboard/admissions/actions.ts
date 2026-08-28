@@ -294,9 +294,16 @@ export interface EnrollResult {
   loginEmail: string;
   loginPassword: string;
   parentLogin: ParentLogin | null;
+  admissionFeeDue: number;
+  admissionFeeCollected: number;
 }
 
-export async function enrollApplication(applicationId: string): Promise<EnrollResult> {
+export interface AdmissionFeeCollection {
+  collectedAmount: number;
+  paymentMode: "online" | "cash" | "cheque" | "upi";
+}
+
+export async function enrollApplication(applicationId: string, fee?: AdmissionFeeCollection): Promise<EnrollResult> {
   const { data: app, error: fetchError } = await supabaseAdmin
     .from("admission_applications")
     .select("applicant_name, dob, gender, applying_for_grade, academic_year_id, parent_name, parent_phone, parent_email, photo_url")
@@ -320,6 +327,8 @@ export async function enrollApplication(applicationId: string): Promise<EnrollRe
     parentPhone: app.parent_phone,
     parentEmail: app.parent_email,
     photoUrl: app.photo_url,
+    admissionFeeCollected: fee?.collectedAmount,
+    admissionFeePaymentMode: fee?.paymentMode,
   });
 
   const { error: updateError } = await supabaseAdmin
@@ -333,17 +342,22 @@ export async function enrollApplication(applicationId: string): Promise<EnrollRe
     schoolId,
     action: "create",
     module: "Admissions",
-    description: `Enrolled ${app.applicant_name} from admission application`,
+    description: fee && fee.collectedAmount > 0
+      ? `Enrolled ${app.applicant_name} from admission application — collected ${fee.collectedAmount.toLocaleString("en-IN")} admission fee (${fee.paymentMode})`
+      : `Enrolled ${app.applicant_name} from admission application`,
   });
 
   revalidatePath("/dashboard/admissions");
   revalidatePath(`/dashboard/admissions/${applicationId}`);
   revalidatePath("/dashboard/students");
+  revalidatePath("/dashboard/fees");
 
   return {
     rollNo: result.rollNo,
     loginEmail: result.loginEmail,
     loginPassword: result.loginPassword,
     parentLogin: result.parentLogin,
+    admissionFeeDue: result.admissionFeeDue,
+    admissionFeeCollected: result.admissionFeeCollected,
   };
 }

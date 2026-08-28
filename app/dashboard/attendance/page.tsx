@@ -12,6 +12,8 @@ import type {
 } from "./_components/AttendanceClient";
 import DriverAttendanceClient, { type TripStatus } from "./_components/DriverAttendanceClient";
 import { CheckCircle2, XCircle, Clock as ClockIcon, TrendingUp } from "lucide-react";
+import type { AttendanceSource } from "@/lib/attendance/resolve";
+import { TREND_DAYS, buildAttendanceTrend } from "@/lib/attendance/trend";
 
 interface SectionAttendanceRow {
   id: string;
@@ -29,36 +31,6 @@ const STATUS_BADGE: Record<string, string> = {
   absent:  "bg-red-500/10 text-red-600 dark:text-red-400",
   late:    "bg-amber-500/10 text-amber-600 dark:text-amber-400",
 };
-
-// Server fetches this many days up front; the client-side range dropdown
-// slices down from it, so switching ranges never needs a refetch.
-const TREND_DAYS = 90;
-
-// Builds a fixed-length daily attendance-rate series (oldest → newest, today
-// included) from raw status rows, so the Overview trend chart always has one
-// bar per day even on days nothing was marked yet. rate is null (not 0) for
-// a day with no attendance rows at all, so the chart can tell "nobody showed
-// up" apart from "nobody took attendance".
-function buildAttendanceTrend(rows: { date: string; status: string }[], totalEnrolled: number): { date: string; rate: number | null }[] {
-  const byDate = new Map<string, { present: number; late: number }>();
-  for (const r of rows) {
-    const entry = byDate.get(r.date) ?? { present: 0, late: 0 };
-    if (r.status === "present") entry.present += 1;
-    if (r.status === "late") entry.late += 1;
-    byDate.set(r.date, entry);
-  }
-
-  const days: { date: string; rate: number | null }[] = [];
-  for (let i = TREND_DAYS - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().split("T")[0];
-    const entry = byDate.get(dateStr);
-    const rate = entry && totalEnrolled > 0 ? Math.round(((entry.present + entry.late) / totalEnrolled) * 100) : null;
-    days.push({ date: dateStr, rate });
-  }
-  return days;
-}
 
 async function StudentAttendance({ userId }: { userId: string }) {
   const student = await getStudentContext(userId);
@@ -313,13 +285,13 @@ export default async function AttendancePage() {
 
     supabaseAdmin
       .from("student_attendance")
-      .select("student_id, status, checked_in_at, checked_out_at")
+      .select("student_id, status, checked_in_at, checked_out_at, source")
       .eq("school_id", schoolId)
       .eq("date", today),
 
     supabaseAdmin
       .from("staff_attendance")
-      .select("staff_id, status, checked_in_at, checked_out_at")
+      .select("staff_id, status, checked_in_at, checked_out_at, source")
       .eq("school_id", schoolId)
       .eq("date", today),
 
@@ -349,9 +321,9 @@ export default async function AttendancePage() {
   const classLabelBySection: Record<string, { classNum: string; section: string }> = {};
   for (const s of sections) classLabelBySection[s.id] = { classNum: s.classNum, section: s.section };
 
-  const studentCheckTimes: Record<string, { checkedInAt: string | null; checkedOutAt: string | null }> = {};
+  const studentCheckTimes: Record<string, { checkedInAt: string | null; checkedOutAt: string | null; source: AttendanceSource | null }> = {};
   for (const r of studentAttRows ?? []) {
-    studentCheckTimes[r.student_id] = { checkedInAt: r.checked_in_at, checkedOutAt: r.checked_out_at };
+    studentCheckTimes[r.student_id] = { checkedInAt: r.checked_in_at, checkedOutAt: r.checked_out_at, source: r.source as AttendanceSource | null };
   }
 
   // Group students by section
@@ -369,12 +341,13 @@ export default async function AttendancePage() {
       section:      classLabelBySection[st.section_id]?.section ?? "",
       checkedInAt:  studentCheckTimes[st.id]?.checkedInAt ?? null,
       checkedOutAt: studentCheckTimes[st.id]?.checkedOutAt ?? null,
+      source:       studentCheckTimes[st.id]?.source ?? null,
     });
   }
 
-  const staffCheckTimes: Record<string, { checkedInAt: string | null; checkedOutAt: string | null }> = {};
+  const staffCheckTimes: Record<string, { checkedInAt: string | null; checkedOutAt: string | null; source: AttendanceSource | null }> = {};
   for (const r of staffAttRows ?? []) {
-    staffCheckTimes[r.staff_id] = { checkedInAt: r.checked_in_at, checkedOutAt: r.checked_out_at };
+    staffCheckTimes[r.staff_id] = { checkedInAt: r.checked_in_at, checkedOutAt: r.checked_out_at, source: r.source as AttendanceSource | null };
   }
 
   const staff: AttendanceStaff[] = (staffRows ?? []).map((s) => ({
@@ -387,6 +360,7 @@ export default async function AttendancePage() {
     status:       s.status ?? "active",
     checkedInAt:  staffCheckTimes[s.id]?.checkedInAt ?? null,
     checkedOutAt: staffCheckTimes[s.id]?.checkedOutAt ?? null,
+    source:       staffCheckTimes[s.id]?.source ?? null,
   }));
 
   // Build today's attendance maps

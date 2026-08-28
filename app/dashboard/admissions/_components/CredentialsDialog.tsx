@@ -28,6 +28,20 @@ export function CredentialsDialog({ result, studentName, onClose }: { result: En
             <p className="text-xs text-gray-500 dark:text-zinc-400">{studentName} · Roll No {result.rollNo}</p>
           </div>
         </div>
+
+        {result.admissionFeeDue > 0 && (
+          <div className="mt-3 flex items-center justify-between rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/50 px-3 py-2 text-xs">
+            <span className="text-gray-500 dark:text-zinc-400">Admission fee</span>
+            <span className="font-medium text-gray-800 dark:text-zinc-200">
+              {result.admissionFeeCollected >= result.admissionFeeDue
+                ? `₹${result.admissionFeeDue.toLocaleString("en-IN")} collected`
+                : result.admissionFeeCollected > 0
+                  ? `₹${result.admissionFeeCollected.toLocaleString("en-IN")} of ₹${result.admissionFeeDue.toLocaleString("en-IN")} collected`
+                  : `₹${result.admissionFeeDue.toLocaleString("en-IN")} outstanding`}
+            </span>
+          </div>
+        )}
+
         <p className="mt-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Student login</p>
         <div className="mt-1.5 space-y-2 rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/50 p-3">
           <div className="flex items-center gap-2 text-xs">

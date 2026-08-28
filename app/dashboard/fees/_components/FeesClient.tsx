@@ -16,6 +16,7 @@ import {
 } from "../_data/fees";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
+import CollectFeesModal from "./CollectFeesModal";
 
 // ── Month navigation ──────────────────────────────────────────────────────────
 
@@ -455,6 +456,7 @@ export default function FeesClient({
 }) {
   const months = useMemo(() => Array.from(new Set(payments.map((p) => p.monthStr))).sort(), [payments]);
   const [monthFilter, setMonthFilter] = useState<string>("all"); // "all" | a monthStr
+  const [collectOpen, setCollectOpen] = useState(false);
 
   const activeStudents = useMemo(() => students.filter((s) => s.active), [students]);
 
@@ -519,11 +521,13 @@ export default function FeesClient({
           >
             <Settings2 className="h-3.5 w-3.5" /> Fee Structure
           </Link>
-          <FancyButton href="/dashboard/fees/collect" size="sm">
+          <FancyButton onClick={() => setCollectOpen(true)} size="sm">
             <Banknote className="h-4 w-4" /> Collect Fees
           </FancyButton>
         </div>
       </div>
+
+      {collectOpen && <CollectFeesModal students={students} payments={payments} onClose={() => setCollectOpen(false)} />}
 
       {months.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-gray-200 dark:border-zinc-700 py-20">

@@ -1,32 +1,25 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import Link from "next/link";
 import {
   UserCheck, UserX, Clock, TrendingUp,
   ChevronLeft, ChevronRight, ChevronDown, Download,
-  ArrowLeft, CheckSquare, Users,
-  LayoutGrid, Search, X, BarChart3, GraduationCap, ScanLine, Radio, Eye, Check,
+  CheckSquare, Users,
+  Search, X, BarChart3, GraduationCap, ScanLine, Radio, Eye, Check,
+  Calendar as CalendarIcon,
 } from "lucide-react";
-import { AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip } from "recharts";
 import { deptColor } from "../../staff/_data/staff";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
-import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
-import { markStudentAttendance, markStaffAttendance } from "../actions";
+import { markStudentAttendance, markStaffAttendance, getMonthAttendanceSummary, type DayAttendanceSummary } from "../actions";
+import type { AttendanceSource } from "@/lib/attendance/resolve";
+import { TrendBarChart } from "./TrendBarChart";
+import {
+  type AttendanceStatus, STATUS, STATUS_BADGE, SOURCE_META,
+  uuidAvatarColor, nameInitials, todayStr, addDays, formatLong, formatTime, downloadCsv,
+} from "./attendance-shared";
 
-function downloadCsv(filename: string, header: string[], rows: (string | number)[][]) {
-  const esc = (cell: string | number) => `"${String(cell).replace(/"/g,'""')}"`;
-  const csv = [header, ...rows].map((r) => r.map(esc).join(",")).join("\r\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-export type AttendanceStatus      = "present" | "absent" | "late" | "unmarked";
+export type { AttendanceStatus };
 export type MarkedAttendanceStatus = Exclude<AttendanceStatus, "unmarked">;
 export type StaffAttendanceStatus = "present" | "absent" | "late" | "on_leave" | "unmarked";
 export type MarkedStaffAttendanceStatus = Exclude<StaffAttendanceStatus, "unmarked">;
@@ -50,6 +43,7 @@ export interface AttendanceStudent {
   section:       string;
   checkedInAt?:  string | null;
   checkedOutAt?: string | null;
+  source?:       AttendanceSource | null;
 }
 
 export interface AttendanceStaff {
@@ -62,32 +56,9 @@ export interface AttendanceStaff {
   status:        string;
   checkedInAt?:  string | null;
   checkedOutAt?: string | null;
+  source?:       AttendanceSource | null;
 }
 
-const AVATAR_COLORS = ["bg-blue-500","bg-violet-500","bg-emerald-500","bg-rose-500","bg-amber-500","bg-teal-500","bg-indigo-500","bg-pink-500","bg-cyan-500","bg-orange-500"];
-function uuidAvatarColor(id: string) { const n=id.split("").reduce((a,c)=>a+c.charCodeAt(0),0); return AVATAR_COLORS[n%AVATAR_COLORS.length]; }
-function nameInitials(name: string)  { return name.split(" ").slice(0,2).map((w)=>w[0]).join("").toUpperCase(); }
-
-function todayStr() { return new Date().toISOString().split("T")[0]; }
-function addDays(d: string, n: number) { const dt=new Date(d+"T00:00:00"); dt.setDate(dt.getDate()+n); return dt.toISOString().split("T")[0]; }
-function formatLong(d: string) { return new Date(d+"T00:00:00").toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"}); }
-function formatTime(iso?: string | null) { return iso ? new Date(iso).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",hour12:true}) : "—"; }
-
-function rateColor(r: number) { if(r>=90)return"text-emerald-600 dark:text-emerald-400";if(r>=80)return"text-amber-600 dark:text-amber-400";return"text-red-600 dark:text-red-400"; }
-function rateBar(r: number)   { if(r>=90)return"bg-emerald-500";if(r>=80)return"bg-amber-500";return"bg-red-500"; }
-
-const STATUS: Record<AttendanceStatus,{label:string;active:string;ghost:string;dot:string}> = {
-  present:  { label:"Present",    active:"bg-emerald-500 text-white border-emerald-500", ghost:"border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400", dot:"bg-emerald-500" },
-  late:     { label:"Late",       active:"bg-amber-500  text-white border-amber-500",    ghost:"border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 hover:border-amber-400  hover:text-amber-600  dark:hover:text-amber-400",  dot:"bg-amber-500"  },
-  absent:   { label:"Absent",     active:"bg-red-500    text-white border-red-500",      ghost:"border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 hover:border-red-400    hover:text-red-600    dark:hover:text-red-400",    dot:"bg-red-500"    },
-  unmarked: { label:"Not Marked", active:"bg-gray-400   text-white border-gray-400",     ghost:"border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400", dot:"bg-gray-400"   },
-};
-const STATUS_BADGE: Record<AttendanceStatus,string> = {
-  present:  "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-  late:     "bg-amber-500/10   text-amber-600   dark:text-amber-400   border-amber-500/20",
-  absent:   "bg-red-500/10     text-red-600     dark:text-red-400     border-red-500/20",
-  unmarked: "bg-gray-500/10    text-gray-500    dark:text-zinc-400    border-gray-500/20",
-};
 const STAFF_STATUS: Record<StaffAttendanceStatus,{label:string;active:string;ghost:string}> = {
   present:  { label:"Present",    active:"bg-emerald-500 text-white border-emerald-500", ghost:"border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400" },
   late:     { label:"Late",       active:"bg-amber-500   text-white border-amber-500",   ghost:"border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 hover:border-amber-400  hover:text-amber-600  dark:hover:text-amber-400"  },
@@ -102,18 +73,132 @@ const STAFF_BADGE: Record<StaffAttendanceStatus,string> = {
   on_leave:"bg-purple-500/10  text-purple-700  dark:text-purple-300  border-purple-500/20",
   unmarked:"bg-gray-500/10    text-gray-500    dark:text-zinc-400    border-gray-500/20",
 };
-
 function DateNav({ dateStr, onChange }: { dateStr: string; onChange: (d: string) => void }) {
   const isToday = dateStr===todayStr();
+  const [calOpen, setCalOpen] = useState(false);
   return (
     <div className="flex items-center gap-2">
       <button onClick={()=>onChange(addDays(dateStr,-1))} className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><ChevronLeft className="h-4 w-4"/></button>
-      <div className="flex items-center gap-2 px-4 h-9 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
-        <span className="text-sm font-medium text-gray-800 dark:text-zinc-200 whitespace-nowrap">{formatLong(dateStr)}</span>
-        {isToday&&<span className="text-[10px] font-bold uppercase tracking-wider text-primary-500 bg-primary-500/10 px-1.5 py-0.5 rounded-full">Today</span>}
+      <div className="relative">
+        <button onClick={()=>setCalOpen((v)=>!v)} className="flex items-center gap-2 px-4 h-9 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:border-primary-400 dark:hover:border-primary-500 transition-colors">
+          <CalendarIcon className="h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+          <span className="text-sm font-medium text-gray-800 dark:text-zinc-200 whitespace-nowrap">{formatLong(dateStr)}</span>
+          {isToday&&<span className="text-[10px] font-bold uppercase tracking-wider text-primary-500 bg-primary-500/10 px-1.5 py-0.5 rounded-full">Today</span>}
+        </button>
+        {calOpen && <CalendarPopover selectedDate={dateStr} onSelect={onChange} onClose={()=>setCalOpen(false)} />}
       </div>
       <button onClick={()=>onChange(addDays(dateStr,1))} disabled={isToday} className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:enabled:text-gray-900 dark:hover:enabled:text-zinc-100 disabled:opacity-30 transition-colors"><ChevronRight className="h-4 w-4"/></button>
     </div>
+  );
+}
+
+// A calendar-month grid where each day shows a ring for the combined
+// student+staff attendance rate that day, so a manager can spot low-attendance
+// days at a glance while picking a date. Fetched one month at a time (and
+// cached per month for the life of the popover) rather than bulk-loaded,
+// since browsing arbitrary months could otherwise mean unbounded history.
+function DayRing({ day, rate, active, isToday, disabled, onClick }: { day: number; rate: number | null; active: boolean; isToday: boolean; disabled: boolean; onClick: () => void }) {
+  const R = 12, C = 2 * Math.PI * R;
+  const dash = ((rate ?? 0) / 100) * C;
+  const color = rate === null ? null : rate >= 90 ? "#10b981" : rate >= 80 ? "#f59e0b" : "#ef4444";
+  return (
+    <button type="button" onClick={onClick} disabled={disabled}
+      className={`relative flex items-center justify-center rounded-lg p-1 transition-colors ${disabled?"opacity-30 cursor-not-allowed":active?"":"hover:bg-gray-100 dark:hover:bg-zinc-800"} ${active?"bg-primary-500/15 dark:bg-primary-500/25":""}`}
+    >
+      <svg width="28" height="28" viewBox="0 0 28 28">
+        <circle cx="14" cy="14" r={R} fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-100 dark:text-zinc-700" />
+        {color && dash > 0 && <circle cx="14" cy="14" r={R} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round"
+          strokeDasharray={`${dash} ${C-dash}`} transform="rotate(-90 14 14)" />}
+        <text x="14" y="14" textAnchor="middle" dominantBaseline="central" fontSize="9" fontWeight={isToday?700:500}
+          className={isToday?"fill-primary-600 dark:fill-primary-400":"fill-gray-700 dark:fill-zinc-300"}>{day}</text>
+      </svg>
+    </button>
+  );
+}
+
+const WEEKDAY_LABELS = ["S","M","T","W","T","F","S"];
+
+function CalendarPopover({ selectedDate, onSelect, onClose }: { selectedDate: string; onSelect: (d: string) => void; onClose: () => void }) {
+  const [selY, selM] = selectedDate.split("-").map(Number);
+  const [viewYear, setViewYear] = useState(selY);
+  const [viewMonth, setViewMonth] = useState(selM - 1); // 0-indexed
+  const [cache, setCache] = useState<Record<string, DayAttendanceSummary[]>>({});
+  const key = `${viewYear}-${viewMonth}`;
+  const monthData = cache[key];
+
+  useEffect(() => {
+    if (cache[key]) return;
+    let cancelled = false;
+    getMonthAttendanceSummary(viewYear, viewMonth + 1, todayStr()).then((data) => {
+      if (!cancelled) setCache((c) => ({ ...c, [key]: data }));
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  const rateByDate = useMemo(() => {
+    const m: Record<string, number | null> = {};
+    for (const d of monthData ?? []) m[d.date] = d.rate;
+    return m;
+  }, [monthData]);
+
+  const today = todayStr();
+  const now = new Date();
+  const isCurrentMonth = viewYear === now.getFullYear() && viewMonth === now.getMonth();
+  const firstWeekday = new Date(viewYear, viewMonth, 1).getDay();
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const monthLabel = new Date(viewYear, viewMonth, 1).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+  const cells: (number | null)[] = [...Array(firstWeekday).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+
+  function goPrevMonth() { if (viewMonth===0) { setViewYear((y)=>y-1); setViewMonth(11); } else setViewMonth((m)=>m-1); }
+  function goNextMonth() { if (isCurrentMonth) return; if (viewMonth===11) { setViewYear((y)=>y+1); setViewMonth(0); } else setViewMonth((m)=>m+1); }
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div className="absolute left-1/2 top-full z-50 mt-2 w-80 -translate-x-1/2 rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-gray-200 dark:border-zinc-800 px-4 py-3">
+          <button onClick={goPrevMonth} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800"><ChevronLeft className="h-4 w-4"/></button>
+          <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">{monthLabel}</p>
+          <button onClick={goNextMonth} disabled={isCurrentMonth} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-500 dark:text-zinc-400 hover:enabled:bg-gray-100 dark:hover:enabled:bg-zinc-800 disabled:opacity-30"><ChevronRight className="h-4 w-4"/></button>
+        </div>
+        <div className="p-4">
+          <div className="grid grid-cols-7 mb-1">
+            {WEEKDAY_LABELS.map((d,i) => (
+              <div key={i} className="flex h-6 items-center justify-center text-[10px] font-semibold uppercase text-gray-400 dark:text-zinc-500">{d}</div>
+            ))}
+          </div>
+          {!monthData ? (
+            <div className="grid grid-cols-7 gap-y-1">
+              {cells.map((day, i) => (
+                <div key={i} className="flex items-center justify-center p-1">
+                  {day!==null && <div className="h-7 w-7 animate-pulse rounded-full bg-gray-100 dark:bg-zinc-800" />}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-7 gap-y-1">
+              {cells.map((day, i) => {
+                if (day===null) return <div key={i} />;
+                const dateStr = `${viewYear}-${String(viewMonth+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+                return (
+                  <div key={dateStr} className="flex items-center justify-center">
+                    <DayRing day={day} rate={rateByDate[dateStr] ?? null} active={dateStr===selectedDate} isToday={dateStr===today}
+                      disabled={dateStr > today} onClick={()=>{ onSelect(dateStr); onClose(); }} />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-3 border-t border-gray-200 dark:border-zinc-800 px-4 py-2.5 text-[10px] text-gray-500 dark:text-zinc-400">
+          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500"/>≥90%</span>
+          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-amber-500"/>≥80%</span>
+          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-red-500"/>&lt;80%</span>
+          <span className="ml-auto">Staff + Students</span>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -156,97 +241,6 @@ function StaffStatsRow({ present, absent, late, onLeave }: { present: number; ab
 }
 
 // ── Overview tab ──────────────────────────────────────────────────────────────
-
-const TREND_H = 180;
-
-function trendDateLabel(date: string) {
-  return new Date(date + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" });
-}
-
-function trendDotHex(rate: number) {
-  return rate >= 90 ? "#10b981" : rate >= 80 ? "#f59e0b" : "#ef4444";
-}
-
-// Shared axis/label config for both chart variants below.
-function trendTickInterval(days: number) {
-  return days <= 15 ? 0 : Math.ceil(days / 12) - 1;
-}
-
-const trendChartConfig: ChartConfig = {
-  rate: { label: "Attendance Rate", color: "var(--primary)" },
-};
-
-function TrendChartTooltip({ active, payload }: { active?: boolean; payload?: readonly { payload?: unknown }[] }) {
-  if (!active || !payload?.length) return null;
-  const point = payload[0].payload as { date: string; rate: number } | undefined;
-  if (!point) return null;
-  return (
-    <div className="rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1.5 text-xs shadow-lg">
-      <p className="font-medium text-gray-900 dark:text-zinc-50">{trendDateLabel(point.date)}</p>
-      <p className="text-gray-500 dark:text-zinc-400">{point.rate}% attendance</p>
-    </div>
-  );
-}
-
-function TrendDot(props: { cx?: number; cy?: number; payload?: { rate: number } }) {
-  const { cx, cy, payload } = props;
-  if (cx === undefined || cy === undefined || !payload) return null;
-  return <circle cx={cx} cy={cy} r={3} fill={trendDotHex(payload.rate)} stroke="none" />;
-}
-
-// Recharts/shadcn line chart — "no data" days are filtered out of the series
-// rather than plotted, so the line runs straight through the gap between the
-// two real points on either side instead of breaking there.
-function TrendAreaChart({ history }: { history: { date: string; rate: number | null }[] }) {
-  const data = history.filter((h): h is { date: string; rate: number } => h.rate !== null);
-  if (data.length === 0) {
-    return <p className="py-10 text-center text-sm text-gray-400 dark:text-zinc-500">No attendance history yet</p>;
-  }
-  const tickInterval = trendTickInterval(history.length);
-
-  return (
-    <ChartContainer config={trendChartConfig} className="aspect-auto w-full" style={{ height: TREND_H }}>
-      <AreaChart data={data} margin={{ top: 8, right: 4, left: 4, bottom: 0 }}>
-        <defs>
-          <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.28} />
-            <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid vertical={false} stroke="var(--border)" />
-        <XAxis
-          dataKey="date"
-          tickFormatter={trendDateLabel}
-          tickLine={false}
-          axisLine={false}
-          interval={tickInterval}
-          minTickGap={0}
-          tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
-          dy={6}
-        />
-        <YAxis
-          domain={[0, 100]}
-          ticks={[0, 50, 100]}
-          tickFormatter={(v: number) => `${v}%`}
-          tickLine={false}
-          axisLine={false}
-          width={30}
-          tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
-        />
-        <Tooltip cursor={{ stroke: "var(--border)", strokeDasharray: "3 3" }} content={TrendChartTooltip} />
-        <Area
-          type="monotone"
-          dataKey="rate"
-          stroke="var(--primary)"
-          strokeWidth={2}
-          fill="url(#trendFill)"
-          dot={<TrendDot />}
-          activeDot={{ r: 5, strokeWidth: 2, stroke: "var(--card)" }}
-        />
-      </AreaChart>
-    </ChartContainer>
-  );
-}
 
 interface DonutSlice { key: string; label: string; value: number; color: string }
 
@@ -305,6 +299,7 @@ interface TodaysRow {
   groupClass:       string;
   checkedInAt?:     string | null;
   checkedOutAt?:    string | null;
+  source?:          AttendanceSource | null;
   statusLabel:      string;
   statusBadgeClass: string;
   href:             string;
@@ -339,7 +334,7 @@ function TodaysAttendanceTable({
     return {
       key: `staff-${s.id}`, id: s.id, type: "staff", name: s.name, idLabel: s.employeeId,
       groupLabel: s.department, groupClass: deptColor(s.department),
-      checkedInAt: s.checkedInAt, checkedOutAt: s.checkedOutAt,
+      checkedInAt: s.checkedInAt, checkedOutAt: s.checkedOutAt, source: s.source,
       statusLabel: STAFF_STATUS[status].label, statusBadgeClass: STAFF_BADGE[status],
       href: `/dashboard/staff/${s.id}`,
     };
@@ -350,7 +345,7 @@ function TodaysAttendanceTable({
     return {
       key: `student-${st.id}`, id: st.id, type: "student", name: st.name, idLabel: st.rollNo,
       groupLabel: `Class ${st.classNum}–${st.section}`, groupClass: CLASS_CHIP,
-      checkedInAt: st.checkedInAt, checkedOutAt: st.checkedOutAt,
+      checkedInAt: st.checkedInAt, checkedOutAt: st.checkedOutAt, source: st.source,
       statusLabel: STATUS[status].label, statusBadgeClass: STATUS_BADGE[status],
       href: `/dashboard/students/${st.id}`,
     };
@@ -384,14 +379,16 @@ function TodaysAttendanceTable({
         <Th>Class / Dept.</Th>
         <Th>Check-in</Th>
         <Th>Check-out</Th>
+        <Th>Source</Th>
         <Th>Status</Th>
         <Th position="last" align="right">Action</Th>
       </TableHead>
       <TableBody>
         {rows.length === 0 ? (
-          <TableEmptyRow colSpan={6} icon={UserCheck} message="No attendance records yet" />
+          <TableEmptyRow colSpan={7} icon={UserCheck} message="No attendance records yet" />
         ) : rows.map((r) => {
           const punctuality = r.type === "staff" && r.statusLabel === "Late" ? "Late" : r.type === "staff" && r.statusLabel === "Present" ? "On time" : "";
+          const sourceMeta = r.source ? SOURCE_META[r.source] : null;
           return (
             <Tr key={r.key}>
               <Td position="first">
@@ -414,6 +411,13 @@ function TodaysAttendanceTable({
                 {punctuality && <div className={`text-xs ${punctuality==="Late"?"text-amber-600 dark:text-amber-400":"text-emerald-600 dark:text-emerald-400"}`}>{punctuality}</div>}
               </Td>
               <Td className="text-sm text-gray-700 dark:text-zinc-300 whitespace-nowrap">{formatTime(r.checkedOutAt)}</Td>
+              <Td>
+                {sourceMeta ? (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-zinc-400 whitespace-nowrap">
+                    <sourceMeta.icon className="h-3 w-3" /> {sourceMeta.label}
+                  </span>
+                ) : <span className="text-xs text-gray-300 dark:text-zinc-600">—</span>}
+              </Td>
               <Td><span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${r.statusBadgeClass}`}>{r.statusLabel}</span></Td>
               <Td position="last" align="right">
                 <Link href={r.href} className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Eye className="h-3.5 w-3.5" /></Link>
@@ -582,7 +586,7 @@ function OverviewTab({
   allowStaffTab: boolean;
   onViewAllStaff: () => void;
 }) {
-  const [trendRange, setTrendRange] = useState<TrendRange>(14);
+  const [trendRange, setTrendRange] = useState<TrendRange>(30);
   const trendHistory = useMemo(() => history.slice(-trendRange), [history, trendRange]);
 
   const activeStaff = useMemo(() => staff.filter((s) => s.status !== "inactive"), [staff]);
@@ -619,7 +623,7 @@ function OverviewTab({
             <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
           </div>
         </div>
-        <TrendAreaChart history={trendHistory} />
+        <TrendBarChart history={trendHistory} />
       </div>
 
       <div className={`grid grid-cols-1 gap-6 ${allowStaffTab ? "lg:grid-cols-2" : ""}`}>
@@ -654,159 +658,6 @@ function OverviewTab({
   );
 }
 
-function OverviewTable({
-  sections, studentsBySection, statusMap, onView,
-}: {
-  sections: AttendanceSec[];
-  studentsBySection: Record<string, AttendanceStudent[]>;
-  statusMap: Record<string, AttendanceStatus>;
-  onView: (sectionId: string) => void;
-}) {
-  return (
-    <Table>
-      <TableHead>
-        <Th position="first">Section</Th>
-        <Th>Class Teacher</Th>
-        <th className="px-3 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Total</th>
-        <th className="px-3 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Present</th>
-        <th className="px-3 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-red-500 dark:text-red-400">Absent</th>
-        <th className="px-3 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">Late</th>
-        <Th>Rate</Th>
-        <Th position="last" align="right">Action</Th>
-      </TableHead>
-      <TableBody>
-        {sections.map((sec) => {
-          const students = studentsBySection[sec.id] ?? [];
-          const present  = students.filter((st)=>statusMap[st.id]==="present").length;
-          const absent   = students.filter((st)=>statusMap[st.id]==="absent").length;
-          const late     = students.filter((st)=>statusMap[st.id]==="late").length;
-          const total    = students.length;
-          const rate     = total>0?Math.round(((present+late)/total)*100):0;
-          return (
-            <Tr key={sec.id}>
-              <Td position="first">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10"><span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400">{sec.classNum}–{sec.section}</span></div>
-                  <span className="text-sm font-medium text-gray-900 dark:text-zinc-100">Class {sec.classNum}–{sec.section}</span>
-                </div>
-              </Td>
-              <Td className="text-sm text-gray-600 dark:text-zinc-300">{sec.teacher||"—"}</Td>
-              <Td className="text-center text-sm font-medium text-gray-700 dark:text-zinc-300">{sec.enrolled}</Td>
-              <Td className="text-center"><span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{present}</span></Td>
-              <Td className="text-center"><span className="text-sm font-semibold text-red-600 dark:text-red-400">{absent}</span></Td>
-              <Td className="text-center"><span className="text-sm font-semibold text-amber-600 dark:text-amber-400">{late}</span></Td>
-              <Td>
-                <div className="flex items-center gap-2 min-w-[96px]">
-                  <div className="flex-1 h-1.5 rounded-full bg-gray-100 dark:bg-zinc-700"><div className={`h-1.5 rounded-full ${rateBar(rate)}`} style={{width:`${rate}%`}}/></div>
-                  <span className={`text-xs font-semibold tabular-nums w-9 text-right ${rateColor(rate)}`}>{rate}%</span>
-                </div>
-              </Td>
-              <Td position="last" align="right">
-                <button onClick={()=>onView(sec.id)} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:bg-primary-50 hover:text-primary-600 dark:hover:bg-primary-500/10 dark:hover:text-primary-400 transition-colors">
-                  <Users className="h-3 w-3"/> View
-                </button>
-              </Td>
-            </Tr>
-          );
-        })}
-      </TableBody>
-    </Table>
-  );
-}
-
-function DetailView({
-  sec, students, dateStr, statusMap, onStatusChange, onMarkAllPresent, onBack,
-}: {
-  sec: AttendanceSec;
-  students: AttendanceStudent[];
-  dateStr: string;
-  statusMap: Record<string, AttendanceStatus>;
-  onStatusChange: (id: string, s: MarkedAttendanceStatus) => void;
-  onMarkAllPresent: () => void;
-  onBack: () => void;
-}) {
-  const counts = useMemo(() => ({
-    present: students.filter((st)=>statusMap[st.id]==="present").length,
-    absent:  students.filter((st)=>statusMap[st.id]==="absent").length,
-    late:    students.filter((st)=>statusMap[st.id]==="late").length,
-  }), [students, statusMap]);
-  const total = students.length;
-  const rate  = total>0?Math.round(((counts.present+counts.late)/total)*100):0;
-
-  return (
-    <div className="space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-medium text-gray-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors self-start"><ArrowLeft className="h-4 w-4"/> All Sections</button>
-        <div className="sm:ml-2 flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500"><span className="text-[10px] font-bold text-white">{sec.classNum}{sec.section}</span></div>
-          <p className="text-sm font-bold text-gray-900 dark:text-zinc-100">Class {sec.classNum}–{sec.section} — {formatLong(dateStr)}</p>
-        </div>
-        <div className="sm:ml-auto flex gap-2">
-          <button onClick={onMarkAllPresent} className="flex h-8 items-center gap-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-500/10 px-3 text-xs font-medium text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors"><CheckSquare className="h-3.5 w-3.5"/> Mark All Present</button>
-          <Link href={`/dashboard/attendance/qr-sheet/${sec.id}`} target="_blank" className="flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><ScanLine className="h-3.5 w-3.5"/> QR Sheet</Link>
-          <button
-            onClick={() => downloadCsv(
-              `attendance-${sec.classNum}${sec.section}-${dateStr}.csv`,
-              ["Roll No", "Name", "Status"],
-              students.map((st) => [st.rollNo, st.name, statusMap[st.id] ?? "unmarked"])
-            )}
-            className="flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"
-          ><Download className="h-3.5 w-3.5"/> Export</button>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {[
-          {label:"Present",value:counts.present,color:"text-emerald-600 dark:text-emerald-400",bg:"bg-emerald-500/10"},
-          {label:"Absent", value:counts.absent,  color:"text-red-600     dark:text-red-400",     bg:"bg-red-500/10"    },
-          {label:"Late",   value:counts.late,    color:"text-amber-600   dark:text-amber-400",   bg:"bg-amber-500/10"  },
-          {label:"Rate",   value:`${rate}%`,     color:rateColor(rate),                           bg:"bg-indigo-500/10" },
-        ].map((s)=>(
-          <div key={s.label} className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 px-4 py-3 flex items-center justify-between">
-            <p className="text-xs text-gray-500 dark:text-zinc-400">{s.label}</p><p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
-          </div>
-        ))}
-      </div>
-      <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
-        {students.length===0?(
-          <div className="py-16 text-center"><Users className="h-8 w-8 text-gray-300 dark:text-zinc-600 mx-auto mb-2"/><p className="text-sm text-gray-500 dark:text-zinc-400">No students in this section</p></div>
-        ):(
-          <>
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-zinc-700/50">
-              <p className="text-xs text-gray-400 dark:text-zinc-500">Showing <span className="font-medium text-gray-700 dark:text-zinc-300">{students.length}</span> of <span className="font-medium text-gray-700 dark:text-zinc-300">{sec.enrolled}</span> enrolled students</p>
-              <div className="flex items-center gap-3 text-xs">
-                <span className="text-emerald-600 dark:text-emerald-400 font-medium">{counts.present} present</span>
-                <span className="text-red-600 dark:text-red-400 font-medium">{counts.absent} absent</span>
-                <span className="text-amber-600 dark:text-amber-400 font-medium">{counts.late} late</span>
-              </div>
-            </div>
-            <div className="divide-y divide-gray-100 dark:divide-zinc-700/50">
-              {students.map((st) => {
-                const status = statusMap[st.id] ?? "unmarked";
-                return (
-                  <div key={st.id} className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 dark:hover:bg-zinc-700/30 transition-colors">
-                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ${uuidAvatarColor(st.id)}`}>{nameInitials(st.name)}</div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-gray-900 dark:text-zinc-100 leading-tight">{st.name}</p>
-                      <p className="text-xs text-gray-400 dark:text-zinc-500">{st.rollNo}</p>
-                    </div>
-                    <span className={`sm:hidden inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[status]}`}>{STATUS[status].label}</span>
-                    <div className="hidden sm:flex items-center gap-1">
-                      {(["present","late","absent"] as MarkedAttendanceStatus[]).map((s)=>(
-                        <button key={s} onClick={()=>onStatusChange(st.id,s)} className={`h-7 rounded-lg border px-3 text-xs font-medium transition-colors ${status===s?STATUS[s].active:STATUS[s].ghost}`}>{STATUS[s].label}</button>
-                      ))}
-                    </div>
-                    <span className={`hidden sm:inline text-xs font-semibold tabular-nums w-10 text-right ${st.attendance>=90?"text-emerald-600 dark:text-emerald-400":st.attendance>=75?"text-amber-600 dark:text-amber-400":"text-red-600 dark:text-red-400"}`}>{st.attendance}%</span>
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function StudentRoster({
   studentsBySection, statusMap, onStatusChange, query, classFilter,
 }: {
@@ -834,51 +685,47 @@ function StudentRoster({
   }), [filtered, statusMap]);
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
-        {filtered.length === 0 ? (
-          <div className="py-16 text-center"><Users className="h-8 w-8 text-gray-300 dark:text-zinc-600 mx-auto mb-2" /><p className="text-sm text-gray-500 dark:text-zinc-400">No students match this search</p></div>
-        ) : (
-          <>
-            <div className="divide-y divide-gray-100 dark:divide-zinc-700/50">
-              {filtered.map((st) => {
-                const status = statusMap[st.id] ?? "unmarked";
-                return (
-                  <div key={st.id} className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 dark:hover:bg-zinc-700/30 transition-colors">
-                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ${uuidAvatarColor(st.id)}`}>{nameInitials(st.name)}</div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-gray-900 dark:text-zinc-100 leading-tight">{st.name}</p>
-                      <p className="text-xs text-gray-400 dark:text-zinc-500">{st.rollNo} · Class {st.classNum}–{st.section}</p>
-                    </div>
-                    <span className={`sm:hidden inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[status]}`}>{STATUS[status].label}</span>
-                    <div className="hidden sm:flex items-center gap-1">
-                      {(["present","late","absent"] as MarkedAttendanceStatus[]).map((s)=>(
-                        <button key={s} onClick={()=>onStatusChange(st.id,st.sectionId,s)} className={`h-7 rounded-lg border px-3 text-xs font-medium transition-colors ${status===s?STATUS[s].active:STATUS[s].ghost}`}>{STATUS[s].label}</button>
-                      ))}
-                    </div>
-                    <span className={`hidden sm:inline text-xs font-semibold tabular-nums w-10 text-right ${st.attendance>=90?"text-emerald-600 dark:text-emerald-400":st.attendance>=75?"text-amber-600 dark:text-amber-400":"text-red-600 dark:text-red-400"}`}>{st.attendance}%</span>
+    <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
+      {filtered.length === 0 ? (
+        <div className="py-16 text-center"><Users className="h-8 w-8 text-gray-300 dark:text-zinc-600 mx-auto mb-2" /><p className="text-sm text-gray-500 dark:text-zinc-400">No students match this search</p></div>
+      ) : (
+        <>
+          <div className="divide-y divide-gray-100 dark:divide-zinc-700/50">
+            {filtered.map((st) => {
+              const status = statusMap[st.id] ?? "unmarked";
+              return (
+                <div key={st.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-zinc-700/30 transition-colors">
+                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ${uuidAvatarColor(st.id)}`}>{nameInitials(st.name)}</div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-gray-900 dark:text-zinc-100 leading-tight">{st.name}</p>
+                    <p className="text-xs text-gray-400 dark:text-zinc-500">{st.rollNo} · Class {st.classNum}–{st.section}</p>
                   </div>
-                );
-              })}
+                  <span className={`sm:hidden inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[status]}`}>{STATUS[status].label}</span>
+                  <div className="hidden sm:flex items-center gap-1">
+                    {(["present","late","absent"] as MarkedAttendanceStatus[]).map((s)=>(
+                      <button key={s} onClick={()=>onStatusChange(st.id,st.sectionId,s)} className={`h-7 rounded-lg border px-3 text-xs font-medium transition-colors ${status===s?STATUS[s].active:STATUS[s].ghost}`}>{STATUS[s].label}</button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-zinc-700/50">
+            <p className="text-xs text-gray-400 dark:text-zinc-500">Showing <span className="font-medium text-gray-700 dark:text-zinc-300">{filtered.length}</span> of <span className="font-medium text-gray-700 dark:text-zinc-300">{allStudents.length}</span> students</p>
+            <div className="flex items-center gap-3 text-xs">
+              <span className="text-emerald-600 dark:text-emerald-400 font-medium">{counts.present} present</span>
+              <span className="text-red-600 dark:text-red-400 font-medium">{counts.absent} absent</span>
+              <span className="text-amber-600 dark:text-amber-400 font-medium">{counts.late} late</span>
             </div>
-            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-zinc-700/50">
-              <p className="text-xs text-gray-400 dark:text-zinc-500">Showing <span className="font-medium text-gray-700 dark:text-zinc-300">{filtered.length}</span> of <span className="font-medium text-gray-700 dark:text-zinc-300">{allStudents.length}</span> students</p>
-              <div className="flex items-center gap-3 text-xs">
-                <span className="text-emerald-600 dark:text-emerald-400 font-medium">{counts.present} present</span>
-                <span className="text-red-600 dark:text-red-400 font-medium">{counts.absent} absent</span>
-                <span className="text-amber-600 dark:text-amber-400 font-medium">{counts.late} late</span>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
-function StaffAttendanceView({ staff, dateStr, staffStatusMap, setStaffStatus }: {
+function StaffAttendanceView({ staff, staffStatusMap, setStaffStatus }: {
   staff: AttendanceStaff[];
-  dateStr: string;
   staffStatusMap: Record<string, StaffAttendanceStatus>;
   setStaffStatus: (id: string, s: MarkedStaffAttendanceStatus) => void;
 }) {
@@ -910,35 +757,27 @@ function StaffAttendanceView({ staff, dateStr, staffStatusMap, setStaffStatus }:
   },[activeStaff,query,typeFilter,deptFilter]);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
         <div className="relative flex-1 min-w-0 w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500 pointer-events-none" />
-          <input value={query} onChange={(e)=>setQuery(e.target.value)} placeholder="Search staff or employee ID…" className="h-8 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-8 pr-3 text-xs text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-zinc-500 pointer-events-none" />
+          <input value={query} onChange={(e)=>setQuery(e.target.value)} placeholder="Search staff or employee ID…" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
         </div>
         <div className="flex items-center gap-1">
           {(["all","teaching","non_teaching"] as const).map((t)=>(
-            <button key={t} onClick={()=>setTypeFilter(t)} className={`h-8 rounded-lg px-3 text-xs font-medium capitalize transition-colors ${typeFilter===t?"bg-primary-500 text-white shadow-sm":"border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
+            <button key={t} onClick={()=>setTypeFilter(t)} className={`h-9 rounded-lg px-3 text-sm font-medium capitalize transition-colors ${typeFilter===t?"bg-primary-500 text-white shadow-sm":"border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
               {t==="all"?"All":t==="teaching"?"Teaching":"Non-Teaching"}
             </button>
           ))}
         </div>
         <div className="relative">
-          <select value={deptFilter} onChange={(e)=>setDeptFilter(e.target.value)} className="h-8 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-7 text-xs text-gray-700 dark:text-zinc-300 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20">
+          <select value={deptFilter} onChange={(e)=>setDeptFilter(e.target.value)} className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20">
             {departments.map((d)=><option key={d} value={d}>{d==="all"?"All Departments":d}</option>)}
           </select>
-          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400 dark:text-zinc-500" />
+          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
         </div>
         <div className="sm:ml-auto flex gap-2">
-          <button onClick={markAllPresent} className="flex h-8 items-center gap-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-500/10 px-3 text-xs font-medium text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors"><CheckSquare className="h-3.5 w-3.5"/> Mark All Present</button>
-          <button
-            onClick={() => downloadCsv(
-              `staff-attendance-${dateStr}.csv`,
-              ["Employee ID", "Name", "Department", "Designation", "Status"],
-              filtered.map((st) => [st.employeeId, st.name, st.department, st.designation, staffStatusMap[st.id] ?? "unmarked"])
-            )}
-            className="flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"
-          ><Download className="h-3.5 w-3.5"/> Export</button>
+          <button onClick={markAllPresent} className="flex h-9 items-center gap-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-500/10 px-3 text-sm font-medium text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors"><CheckSquare className="h-3.5 w-3.5"/> Mark All Present</button>
         </div>
       </div>
       <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
@@ -952,7 +791,7 @@ function StaffAttendanceView({ staff, dateStr, staffStatusMap, setStaffStatus }:
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-medium text-gray-900 dark:text-zinc-100 leading-tight">{st.name}</p>
-                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md ${deptColor(st.department)}`}>{st.department}</span>
+                    <span className={`text-[10px] font-medium leading-none px-1.5 py-0.5 rounded-md ${deptColor(st.department)}`}>{st.department}</span>
                   </div>
                   <p className="text-xs text-gray-400 dark:text-zinc-500">{st.designation} · {st.employeeId}</p>
                 </div>
@@ -999,12 +838,9 @@ export default function AttendanceClient({
   allowStaffTab?:           boolean;
 }) {
   const [tab,        setTab]     = useState<"overview"|"students"|"staff">("overview");
-  const [studentsView, setStudentsView] = useState<"class"|"students">("class");
   const [studentQuery, setStudentQuery] = useState("");
   const [studentClassFilter, setStudentClassFilter] = useState("all");
   const [dateStr,    setDate]    = useState(todayStr);
-  const [view,       setView]    = useState<"overview"|"detail">("overview");
-  const [sectionId,  setSectionId] = useState("");
 
   // For today, use DB records; unmarked students stay "unmarked" until explicitly set
   const [statusMap, setStatusMap] = useState<Record<string, AttendanceStatus>>(() => {
@@ -1023,7 +859,6 @@ export default function AttendanceClient({
 
   function handleDateChange(d: string) {
     setDate(d);
-    if (view==="detail") setView("overview");
     // Reset to "unmarked" for non-today dates (no history in DB yet)
     const map: Record<string, AttendanceStatus> = {};
     for (const students of Object.values(initialStudentsBySection)) {
@@ -1035,10 +870,7 @@ export default function AttendanceClient({
     setStaffStatusMap(smap);
   }
 
-  function handleTabChange(t: "overview"|"students"|"staff") { setTab(t); setView("overview"); }
-  function handleStudentsViewChange(v: "class"|"students") { setStudentsView(v); setView("overview"); }
-  function openDetail(id: string) { setSectionId(id); setView("detail"); }
-  function backToOverview()       { setView("overview"); }
+  function handleTabChange(t: "overview"|"students"|"staff") { setTab(t); }
 
   const setStudentStatus  = useCallback((id: string, secId: string, s: MarkedAttendanceStatus) => {
     setStatusMap((prev)=>({...prev,[id]:s}));
@@ -1049,16 +881,6 @@ export default function AttendanceClient({
     setStaffStatusMap((prev)=>({...prev,[id]:s}));
     if (dateStr === todayStr()) void markStaffAttendance(id, dateStr, s);
   },[dateStr]);
-
-  const markSectionAllPresent = useCallback(()=>{
-    const students = initialStudentsBySection[sectionId] ?? [];
-    const map: Record<string, AttendanceStatus> = {};
-    students.forEach((st)=>{ map[st.id]="present"; });
-    setStatusMap((prev)=>({...prev,...map}));
-    if (dateStr === todayStr()) {
-      students.forEach((st) => { void markStudentAttendance(st.id, sectionId, dateStr, "present"); });
-    }
-  },[sectionId,initialStudentsBySection,dateStr]);
 
   const schoolStats = useMemo(()=>{
     const all = Object.values(initialStudentsBySection).flat();
@@ -1079,24 +901,6 @@ export default function AttendanceClient({
       onLeave: active.filter((s)=>staffStatusMap[s.id]==="on_leave").length,
     };
   },[initialStaff,staffStatusMap]);
-
-  const activeSec = initialSections.find((s)=>s.id===sectionId);
-
-  const filteredSections = useMemo(() => {
-    const q = studentQuery.toLowerCase();
-    return initialSections.filter((sec) => {
-      const matchQ = !q || `${sec.classNum}${sec.section}`.toLowerCase().includes(q) || sec.teacher.toLowerCase().includes(q);
-      const matchC = studentClassFilter === "all" || sec.id === studentClassFilter;
-      return matchQ && matchC;
-    });
-  }, [initialSections, studentQuery, studentClassFilter]);
-
-  const activeSecStudents = useMemo(() => {
-    const students = initialStudentsBySection[sectionId] ?? [];
-    const q = studentQuery.toLowerCase();
-    if (!q) return students;
-    return students.filter((st) => st.name.toLowerCase().includes(q) || st.rollNo.toLowerCase().includes(q));
-  }, [initialStudentsBySection, sectionId, studentQuery]);
 
   return (
     <div className="w-full px-6 py-6 space-y-5">
@@ -1171,46 +975,28 @@ export default function AttendanceClient({
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1 min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-zinc-500 pointer-events-none" />
-              <input value={studentQuery} onChange={(e)=>setStudentQuery(e.target.value)} placeholder={studentsView==="class"?"Search class or teacher…":"Search student name or roll no…"} className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
+              <input value={studentQuery} onChange={(e)=>setStudentQuery(e.target.value)} placeholder="Search student name or roll no…" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
             </div>
-            {studentsView==="students" && (
-              <div className="relative">
-                <select value={studentClassFilter} onChange={(e)=>setStudentClassFilter(e.target.value)} className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
-                  <option value="all">All Classes</option>
-                  {initialSections.map((sec) => <option key={sec.id} value={sec.id}>Class {sec.classNum}–{sec.section}</option>)}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
-              </div>
-            )}
-            {(studentQuery || (studentsView==="students" && studentClassFilter!=="all")) && (
+            <div className="relative">
+              <select value={studentClassFilter} onChange={(e)=>setStudentClassFilter(e.target.value)} className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+                <option value="all">All Classes</option>
+                {initialSections.map((sec) => <option key={sec.id} value={sec.id}>Class {sec.classNum}–{sec.section}</option>)}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+            </div>
+            {(studentQuery || studentClassFilter!=="all") && (
               <button onClick={()=>{ setStudentQuery(""); setStudentClassFilter("all"); }} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
                 <X className="h-3.5 w-3.5" /> Clear
               </button>
             )}
-            <div className="sm:ml-auto flex rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-0.5 w-fit">
-              {(["class","students"] as const).map((v)=>(
-                <button key={v} onClick={()=>handleStudentsViewChange(v)} className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${studentsView===v?"bg-primary-500 text-white shadow-sm":"text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
-                  {v==="class"?<LayoutGrid className="h-3.5 w-3.5"/>:<Users className="h-3.5 w-3.5"/>}
-                  {v==="class"?"Class":"Students"}
-                </button>
-              ))}
-            </div>
           </div>
 
-          {studentsView==="class"?(
-            view==="overview"?(
-              <OverviewTable sections={filteredSections} studentsBySection={initialStudentsBySection} statusMap={statusMap} onView={openDetail}/>
-            ):activeSec?(
-              <DetailView sec={activeSec} students={activeSecStudents} dateStr={dateStr} statusMap={statusMap} onStatusChange={(id,s)=>setStudentStatus(id,sectionId,s)} onMarkAllPresent={markSectionAllPresent} onBack={backToOverview}/>
-            ):null
-          ):(
-            <StudentRoster studentsBySection={initialStudentsBySection} statusMap={statusMap} onStatusChange={setStudentStatus} query={studentQuery} classFilter={studentClassFilter}/>
-          )}
+          <StudentRoster studentsBySection={initialStudentsBySection} statusMap={statusMap} onStatusChange={setStudentStatus} query={studentQuery} classFilter={studentClassFilter}/>
         </div>
       )}
 
       {tab==="staff" && allowStaffTab && (
-        <StaffAttendanceView staff={initialStaff} dateStr={dateStr} staffStatusMap={staffStatusMap} setStaffStatus={setStaffStatusFn}/>
+        <StaffAttendanceView staff={initialStaff} staffStatusMap={staffStatusMap} setStaffStatus={setStaffStatusFn}/>
       )}
     </div>
   );

@@ -8,6 +8,8 @@ import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 import { logAuditEvent } from "@/lib/audit/log";
 import { notifyRoles } from "@/lib/notifications/create";
 import { getUser } from "@/lib/supabase/server";
+import { pickGradeApplicable } from "@/lib/fees/resolve";
+import { recomputeStudentFeeStatus } from "@/lib/fees/recompute-status";
 
 async function requireFeeManagerRole() {
   const supabase = await createClient();
@@ -74,6 +76,8 @@ export async function recordFeePayment(
     remaining -= applied;
   }
 
+  await recomputeStudentFeeStatus(studentId);
+
   const { data: student } = await supabaseAdmin
     .from("students")
     .select("full_name")
@@ -109,6 +113,7 @@ export interface FeeStructureInput {
   gradeId: string | null; // null = applies to all grades
   frequency: "monthly" | "quarterly" | "annual";
   isOptional: boolean;
+  isOneTime: boolean;
 }
 
 export async function createFeeStructure(input: FeeStructureInput): Promise<{ id: string }> {
@@ -125,6 +130,7 @@ export async function createFeeStructure(input: FeeStructureInput): Promise<{ id
       amount: input.amount,
       frequency: input.frequency,
       is_optional: input.isOptional,
+      is_one_time: input.isOneTime,
     })
     .select("id")
     .single();
@@ -155,6 +161,7 @@ export async function updateFeeStructure(id: string, input: FeeStructureInput): 
       amount: input.amount,
       frequency: input.frequency,
       is_optional: input.isOptional,
+      is_one_time: input.isOneTime,
     })
     .eq("id", id)
     .eq("school_id", schoolId);
@@ -197,6 +204,43 @@ export async function deleteFeeStructure(id: string): Promise<void> {
   revalidatePath("/dashboard/fees/structure");
 }
 
+export interface FeeStructureLookup {
+  oneTime: { category: string; amount: number }[];
+  recurring: { category: string; amount: number; frequency: "monthly" | "quarterly" | "annual" }[];
+}
+
+// What a given grade is billed, split into one-time (admission fee, etc.) and
+// recurring (tuition, etc.) — used by the admissions enroll dialog to show
+// the fee before collecting it, without needing the student to exist yet.
+export async function getFeeStructuresForGrade(academicYearId: string, gradeLevel: number): Promise<FeeStructureLookup> {
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
+  const { data: grade } = await supabaseAdmin
+    .from("grades")
+    .select("id")
+    .eq("school_id", schoolId)
+    .eq("level", gradeLevel)
+    .maybeSingle();
+
+  if (!grade) return { oneTime: [], recurring: [] };
+
+  const { data: structures } = await supabaseAdmin
+    .from("fee_structures")
+    .select("category, amount, frequency, is_one_time, grade_id")
+    .eq("school_id", schoolId)
+    .eq("academic_year_id", academicYearId)
+    .or(`grade_id.eq.${grade.id},grade_id.is.null`);
+
+  const rows = structures ?? [];
+  const oneTimeRows = pickGradeApplicable(rows.filter((r) => r.is_one_time), grade.id);
+  const recurringRows = pickGradeApplicable(rows.filter((r) => !r.is_one_time), grade.id);
+
+  return {
+    oneTime: oneTimeRows.map((r) => ({ category: r.category, amount: Number(r.amount) })),
+    recurring: recurringRows.map((r) => ({ category: r.category, amount: Number(r.amount), frequency: (r.frequency as FeeStructureLookup["recurring"][number]["frequency"]) ?? "monthly" })),
+  };
+}
+
 // ── Monthly fee generation ────────────────────────────────────────────────────
 
 interface StudentGradeRow {
@@ -230,7 +274,7 @@ export async function generateMonthlyFees(monthStr: string): Promise<{ created: 
   const [{ data: structures }, { data: academicYear }] = await Promise.all([
     supabaseAdmin
       .from("fee_structures")
-      .select("grade_id, category, amount, frequency")
+      .select("grade_id, category, amount, frequency, is_one_time")
       .eq("school_id", schoolId)
       .eq("academic_year_id", academicYearId),
     supabaseAdmin
@@ -248,7 +292,9 @@ export async function generateMonthlyFees(monthStr: string): Promise<{ created: 
   }
 
   const offset = monthOffset(academicYear.start_date, monthStr);
-  const dueStructures = structures.filter((s) => frequencyAppliesToMonth(s.frequency as "monthly" | "quarterly" | "annual", offset));
+  const dueStructures = structures
+    .filter((s) => !s.is_one_time) // one-time fees (admission fee, etc.) bill only at enrollment, never here
+    .filter((s) => frequencyAppliesToMonth(s.frequency as "monthly" | "quarterly" | "annual", offset));
 
   if (dueStructures.length === 0) {
     return { created: 0 };
@@ -303,6 +349,11 @@ export async function generateMonthlyFees(monthStr: string): Promise<{ created: 
   if (rowsToInsert.length > 0) {
     const { error } = await supabaseAdmin.from("fee_payments").insert(rowsToInsert);
     if (error) throw new Error(`Failed to generate fees: ${error.message}`);
+
+    // A freshly-inserted row is always unpaid, so every affected student is
+    // now (at least) overdue — no need to re-derive from their full history.
+    const affectedStudentIds = [...new Set(rowsToInsert.map((r) => r.student_id))];
+    await supabaseAdmin.from("students").update({ fee_status: "overdue" }).in("id", affectedStudentIds);
 
     await logAuditEvent({
       schoolId,

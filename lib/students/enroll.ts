@@ -1,5 +1,9 @@
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { randomPassword } from "@/lib/auth/random-password";
+import { pickGradeApplicable } from "@/lib/fees/resolve";
+import { recomputeStudentFeeStatus } from "@/lib/fees/recompute-status";
+
+export type AdmissionPaymentMode = "online" | "cash" | "cheque" | "upi";
 
 export interface EnrollStudentInput {
   schoolId: string;
@@ -29,6 +33,9 @@ export interface EnrollStudentInput {
   emergencyContactRelation?: string | null;
   medicalConditions?: string | null;
   allergies?: string | null;
+  // Admission fee collected at the enrollment desk, if any — see billOneTimeFees.
+  admissionFeeCollected?: number;
+  admissionFeePaymentMode?: AdmissionPaymentMode;
 }
 
 export interface ParentLogin {
@@ -43,6 +50,8 @@ export interface EnrollStudentResult {
   loginEmail: string;
   loginPassword: string;
   parentLogin: ParentLogin | null;
+  admissionFeeDue: number;
+  admissionFeeCollected: number;
 }
 
 function slugify(name: string) {
@@ -193,7 +202,7 @@ async function pickSection(schoolId: string, gradeLevel: number, academicYearId:
 
   const { data: sections } = await supabaseAdmin
     .from("sections")
-    .select("id, name, students ( id )")
+    .select("id, name, grade_id, students ( id )")
     .eq("school_id", schoolId)
     .eq("grade_id", grade.id)
     .eq("academic_year_id", academicYearId)
@@ -203,18 +212,76 @@ async function pickSection(schoolId: string, gradeLevel: number, academicYearId:
 
   if (sectionName) {
     const match = sections.find((s) => s.name.toLowerCase() === sectionName.toLowerCase());
-    if (match) return match as { id: string; name: string };
+    if (match) return match as { id: string; name: string; grade_id: string };
   }
 
   const bySize = [...sections].sort(
     (a, b) => (a.students?.length ?? 0) - (b.students?.length ?? 0)
   );
-  return bySize[0] as { id: string; name: string };
+  return bySize[0] as { id: string; name: string; grade_id: string };
+}
+
+// Bills any one-time fee categories (admission fee, security deposit, ...)
+// configured for this student's grade — once, at enrollment. A grade-specific
+// structure takes priority over an "all grades" one for the same category so
+// admins can set a different admission fee per class without double-billing.
+// If the desk collected a payment on the spot, it's allocated across these
+// rows in order (same fill-the-balance approach as recordFeePayment) so the
+// fee_payments row lands paid/partial/overdue instead of always overdue.
+// Best-effort: a missing/misconfigured fee structure never blocks enrollment,
+// matching how student_academic_history above is also fire-and-forget.
+async function billOneTimeFees(
+  schoolId: string, academicYearId: string, gradeId: string, studentId: string,
+  collected?: { amount: number; paymentMode: AdmissionPaymentMode },
+): Promise<{ totalDue: number }> {
+  const { data: structures } = await supabaseAdmin
+    .from("fee_structures")
+    .select("category, amount, grade_id")
+    .eq("school_id", schoolId)
+    .eq("academic_year_id", academicYearId)
+    .eq("is_one_time", true)
+    .or(`grade_id.eq.${gradeId},grade_id.is.null`);
+
+  if (!structures || structures.length === 0) return { totalDue: 0 };
+
+  const applicable = pickGradeApplicable(structures, gradeId);
+  const totalDue = applicable.reduce((s, r) => s + Number(r.amount), 0);
+
+  const monthStr = new Date().toISOString().slice(0, 7);
+  const paidDate = new Date().toISOString().slice(0, 10);
+  const receiptNo = collected && collected.amount > 0
+    ? `RCP-${monthStr.replace("-", "")}-${Math.floor(Math.random() * 9000) + 1000}`
+    : null;
+
+  let remaining = collected?.amount ?? 0;
+  const rows = applicable.map((s) => {
+    const due = Number(s.amount);
+    const paid = Math.min(due, Math.max(remaining, 0));
+    remaining -= paid;
+    const status: "paid" | "partial" | "overdue" = paid >= due ? "paid" : paid > 0 ? "partial" : "overdue";
+    return {
+      school_id: schoolId,
+      student_id: studentId,
+      academic_year_id: academicYearId,
+      month_str: monthStr,
+      category: s.category,
+      amount_due: due,
+      amount_paid: paid,
+      status,
+      paid_date: paid > 0 ? paidDate : null,
+      payment_mode: paid > 0 ? collected!.paymentMode : null,
+      receipt_no: paid > 0 ? receiptNo : null,
+    };
+  });
+
+  await supabaseAdmin.from("fee_payments").insert(rows);
+  await recomputeStudentFeeStatus(studentId);
+  return { totalDue };
 }
 
 export async function enrollStudent(input: EnrollStudentInput): Promise<EnrollStudentResult> {
   const section = input.sectionId
-    ? (await supabaseAdmin.from("sections").select("id, name").eq("id", input.sectionId).single()).data
+    ? (await supabaseAdmin.from("sections").select("id, name, grade_id").eq("id", input.sectionId).single()).data
     : await pickSection(input.schoolId, input.gradeLevel, input.academicYearId, input.sectionName);
 
   if (!section) throw new Error("Could not resolve a section for this student");
@@ -297,6 +364,13 @@ export async function enrollStudent(input: EnrollStudentInput): Promise<EnrollSt
     outcome: "enrolled",
   });
 
+  const { totalDue: admissionFeeDue } = await billOneTimeFees(
+    input.schoolId, input.academicYearId, section.grade_id, studentRow.id,
+    input.admissionFeeCollected && input.admissionFeeCollected > 0
+      ? { amount: input.admissionFeeCollected, paymentMode: input.admissionFeePaymentMode ?? "cash" }
+      : undefined,
+  );
+
   let parentLogin: ParentLogin | null = null;
 
   if (input.parentName) {
@@ -343,5 +417,7 @@ export async function enrollStudent(input: EnrollStudentInput): Promise<EnrollSt
     loginEmail,
     loginPassword,
     parentLogin,
+    admissionFeeDue,
+    admissionFeeCollected: input.admissionFeeCollected ?? 0,
   };
 }
