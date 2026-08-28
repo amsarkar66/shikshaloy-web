@@ -21,6 +21,17 @@ export interface ChangelogRelease {
 // here is all that's needed to keep both in sync.
 export const RELEASES: ChangelogRelease[] = [
   {
+    version: "0.10.0",
+    hash: "a618b89",
+    date: "2026-08-28",
+    entries: [
+      { type: "feat", text: "Subject-wise attendance — teachers mark it per period, admins can cover a class" },
+      { type: "feat", text: "Custom domains for school public sites" },
+      { type: "feat", text: "Fee collection built into the admissions enrollment flow" },
+      { type: "improve", text: "Attendance now tracks how each check-in was recorded (manual, QR, RFID, biometric)" },
+    ],
+  },
+  {
     version: "0.9.0",
     hash: "90de18a",
     date: "2026-08-25",
