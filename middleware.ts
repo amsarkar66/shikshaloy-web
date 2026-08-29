@@ -19,9 +19,9 @@ export async function middleware(request: NextRequest) {
   if (host && !isAppHost(host)) {
     const ownerId = await resolveDomainOwner(host);
     const url = request.nextUrl.clone();
-    // Single-page site for now — sub-paths all resolve to the same page
-    // until per-section public routes exist.
-    url.pathname = ownerId ? `/public-site/${ownerId}` : "/public-site/not-connected";
+    url.pathname = ownerId
+      ? `/public-site/${ownerId}${request.nextUrl.pathname}`.replace(/\/$/, "") || `/public-site/${ownerId}`
+      : "/public-site/not-connected";
     return NextResponse.rewrite(url);
   }
 

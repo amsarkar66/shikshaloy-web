@@ -4,6 +4,9 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { createCustomHostname, getCustomHostname, deleteCustomHostname } from "./cloudflare";
+import { parkDomain, unparkDomain, isHostingerAutomationConfigured } from "./hostinger";
+
+const MAX_DOMAINS_PER_INSTITUTION = 1;
 
 export interface DomainRow {
   id: string;
@@ -13,6 +16,8 @@ export interface DomainRow {
   errorMessage: string | null;
   createdAt: string;
   verifiedAt: string | null;
+  ownershipTxtName: string | null;
+  ownershipTxtValue: string | null;
 }
 
 async function requireOwner() {
@@ -36,6 +41,8 @@ function toRow(r: {
   error_message: string | null;
   created_at: string;
   verified_at: string | null;
+  ownership_txt_name: string | null;
+  ownership_txt_value: string | null;
 }): DomainRow {
   return {
     id: r.id,
@@ -45,15 +52,20 @@ function toRow(r: {
     errorMessage: r.error_message,
     createdAt: r.created_at,
     verifiedAt: r.verified_at,
+    ownershipTxtName: r.ownership_txt_name,
+    ownershipTxtValue: r.ownership_txt_value,
   };
 }
+
+const DOMAIN_COLUMNS =
+  "id, domain, status, ssl_status, error_message, created_at, verified_at, ownership_txt_name, ownership_txt_value";
 
 export async function listDomains(): Promise<DomainRow[]> {
   const user = await requireOwner();
 
   const { data } = await supabaseAdmin
     .from("institution_domains")
-    .select("id, domain, status, ssl_status, error_message, created_at, verified_at")
+    .select(DOMAIN_COLUMNS)
     .eq("owner_id", user.id)
     .order("created_at", { ascending: false });
 
@@ -63,12 +75,32 @@ export async function listDomains(): Promise<DomainRow[]> {
 export async function addDomain(domainInput: string): Promise<DomainRow> {
   const user = await requireOwner();
 
+  const { count } = await supabaseAdmin
+    .from("institution_domains")
+    .select("id", { count: "exact", head: true })
+    .eq("owner_id", user.id);
+  if ((count ?? 0) >= MAX_DOMAINS_PER_INSTITUTION) {
+    throw new Error("You can only connect one custom domain. Remove the existing one first to add a different domain.");
+  }
+
   const domain = domainInput.trim().toLowerCase();
   if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(domain)) {
     throw new Error("Enter a valid domain, e.g. www.yourschool.edu.in");
   }
 
   const hostname = await createCustomHostname(domain);
+
+  // Best-effort — automates the Hostinger "parked domain" step so the
+  // origin's web server routes this hostname to our app. Not fatal if
+  // unconfigured or it fails: the domain still connects via Cloudflare,
+  // it just needs that one step done manually in hPanel as a fallback.
+  if (isHostingerAutomationConfigured()) {
+    try {
+      await parkDomain(domain);
+    } catch {
+      // swallow — see comment above
+    }
+  }
 
   const { data, error } = await supabaseAdmin
     .from("institution_domains")
@@ -78,8 +110,10 @@ export async function addDomain(domainInput: string): Promise<DomainRow> {
       status: "verifying",
       cloudflare_hostname_id: hostname.id,
       ssl_status: hostname.ssl.status,
+      ownership_txt_name: hostname.ownership_verification?.name ?? null,
+      ownership_txt_value: hostname.ownership_verification?.value ?? null,
     })
-    .select("id, domain, status, ssl_status, error_message, created_at, verified_at")
+    .select(DOMAIN_COLUMNS)
     .single();
 
   if (error) throw new Error(`Failed to save domain: ${error.message}`);
@@ -114,7 +148,7 @@ export async function refreshDomainStatus(domainId: string): Promise<DomainRow> 
       updated_at: new Date().toISOString(),
     })
     .eq("id", domainId)
-    .select("id, domain, status, ssl_status, error_message, created_at, verified_at")
+    .select(DOMAIN_COLUMNS)
     .single();
 
   if (error) throw new Error(`Failed to refresh domain: ${error.message}`);
@@ -128,7 +162,7 @@ export async function removeDomain(domainId: string): Promise<void> {
 
   const { data: row } = await supabaseAdmin
     .from("institution_domains")
-    .select("owner_id, cloudflare_hostname_id")
+    .select("owner_id, domain, cloudflare_hostname_id")
     .eq("id", domainId)
     .maybeSingle();
 
@@ -140,6 +174,14 @@ export async function removeDomain(domainId: string): Promise<void> {
     } catch {
       // Cloudflare-side cleanup is best-effort — don't block removing the
       // record locally if e.g. it was already deleted on their end.
+    }
+  }
+
+  if (isHostingerAutomationConfigured()) {
+    try {
+      await unparkDomain(row.domain);
+    } catch {
+      // best-effort — see addDomain
     }
   }
 

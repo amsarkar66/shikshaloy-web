@@ -21,6 +21,7 @@ import {
   Building2,
   Loader2,
   KeyRound,
+  Globe,
 } from "lucide-react";
 import {
   MODULES, MODULE_GROUPS, emptyPerms,
@@ -45,7 +46,7 @@ import type { SchoolBanner } from "@/lib/schools/banner-actions";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Tab = "school" | "institution" | "academic" | "permissions" | "notifications" | "account";
+type Tab = "school" | "institution" | "domain" | "academic" | "permissions" | "notifications" | "account";
 
 type NotifKey =
   | "feeReminder" | "attendanceAlert" | "examResult"
@@ -85,6 +86,7 @@ const ROLE_TABS: Record<string, { id: Tab; label: string; icon: React.ElementTyp
   ],
   super_admin: [
     { id: "institution",   label: "Institution",   icon: Building2 },
+    { id: "domain",        label: "Domain",        icon: Globe     },
     { id: "permissions",   label: "Permissions",   icon: Shield    },
     { id: "notifications", label: "Notifications", icon: Bell      },
     { id: "account",       label: "My Account",    icon: User      },
@@ -276,15 +278,7 @@ function SaveBar({ onSave, saved, busy }: { onSave: () => void; saved: boolean; 
 // NOTE: institution-level (multi-school) profile has no backing table yet —
 // kept as a local-only placeholder until multi-tenant institution settings ship.
 
-function InstitutionTab({
-  publishKeys,
-  domains,
-  domainCnameTarget,
-}: {
-  publishKeys: PublishKeyRow[];
-  domains: DomainRow[];
-  domainCnameTarget: string;
-}) {
+function InstitutionTab({ publishKeys }: { publishKeys: PublishKeyRow[] }) {
   const [name,    setName]    = useState("Sunrise Education Group");
   const [email,   setEmail]   = useState("admin@sunrise.edu");
   const [phone,   setPhone]   = useState("+91 98765 00000");
@@ -316,8 +310,17 @@ function InstitutionTab({
         </div>
       </SectionCard>
       <SaveBar onSave={handleSave} saved={saved} />
-      <CustomDomainPanel initialDomains={domains} cnameTarget={domainCnameTarget} />
       <PublishKeyPanel initialKeys={publishKeys} />
+    </div>
+  );
+}
+
+// ── Tab: Domain (super_admin) ─────────────────────────────────────────────────
+
+function DomainTab({ domains, cnameTarget }: { domains: DomainRow[]; cnameTarget: string }) {
+  return (
+    <div className="space-y-5">
+      <CustomDomainPanel initialDomains={domains} cnameTarget={cnameTarget} />
     </div>
   );
 }
@@ -1279,7 +1282,10 @@ export function SettingsPageClient({ role, data }: { role: string; data: Setting
         </div>
       )}
       {activeTab === "institution" && role !== "kernel" && (
-        <InstitutionTab publishKeys={data.publishKeys} domains={data.domains} domainCnameTarget={data.domainCnameTarget} />
+        <InstitutionTab publishKeys={data.publishKeys} />
+      )}
+      {activeTab === "domain"        && role === "super_admin" && (
+        <DomainTab domains={data.domains} cnameTarget={data.domainCnameTarget} />
       )}
       {activeTab === "academic"      && <AcademicTab settings={data.academicSettings} />}
       {activeTab === "permissions"   && <PermissionsTab initialTemplates={data.roleTemplates} />}

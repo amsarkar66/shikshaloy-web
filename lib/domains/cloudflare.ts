@@ -23,11 +23,18 @@ export interface CustomHostnameSslStatus {
   validation_errors?: { message: string }[];
 }
 
+export interface OwnershipVerification {
+  type: string; // "txt"
+  name: string; // e.g. "_cf-custom-hostname.example.com"
+  value: string;
+}
+
 export interface CustomHostname {
   id: string;
   hostname: string;
   status: string; // "pending" | "active" | "moved" | ...
   ssl: CustomHostnameSslStatus;
+  ownership_verification?: OwnershipVerification;
 }
 
 function requireConfig() {
