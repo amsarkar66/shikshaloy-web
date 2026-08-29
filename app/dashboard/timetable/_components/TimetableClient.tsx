@@ -1,15 +1,17 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import {
   CalendarDays, BookOpen, Users, Clock, Layers,
-  Printer, ChevronDown, CalendarX,
+  Printer, ChevronDown, CalendarX, Settings2,
 } from "lucide-react";
 import {
   DAYS, DEFAULT_STYLE, subjectStyle,
   computeStats, getTeacherSchedule, getTeacherSummaries,
   type ClassTimetable, type TeacherSummary, type Period, type RowItem,
 } from "../_data/timetable";
+import { ConfigureTimetableModal } from "./ConfigureTimetableModal";
 
 type ViewMode = "class" | "teacher";
 
@@ -136,7 +138,7 @@ function TimetableGrid({ tt, rowItems }: { tt: ClassTimetable; rowItems: RowItem
   );
 }
 
-function EmptyState({ label }: { label: string }) {
+function EmptyState({ label, onConfigure }: { label: string; onConfigure?: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/30 py-24">
       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 dark:bg-zinc-800">
@@ -146,9 +148,11 @@ function EmptyState({ label }: { label: string }) {
         <p className="text-sm font-semibold text-gray-700 dark:text-zinc-300">Timetable not configured</p>
         <p className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5">No schedule has been set up for <span className="font-medium">{label}</span> yet.</p>
       </div>
-      <button className="mt-1 flex items-center gap-1.5 rounded-lg bg-primary-500 hover:bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors shadow-sm">
-        <Layers className="h-3.5 w-3.5" /> Configure Timetable
-      </button>
+      {onConfigure && (
+        <button onClick={onConfigure} className="mt-1 flex items-center gap-1.5 rounded-lg bg-primary-500 hover:bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors shadow-sm">
+          <Layers className="h-3.5 w-3.5" /> Configure Timetable
+        </button>
+      )}
     </div>
   );
 }
@@ -225,16 +229,19 @@ function TeacherSummaryTable({ summaries, onSelect }: { summaries: TeacherSummar
 }
 
 export default function TimetableClient({
-  periods, rowItems, classList, timetables,
+  periods, rowItems, classList, timetables, sectionIdByLabel,
 }: {
   periods: Period[];
   rowItems: RowItem[];
   classList: string[];
   timetables: Record<string, ClassTimetable>;
+  sectionIdByLabel: Record<string, string>;
 }) {
+  const router = useRouter();
   const [view, setView] = useState<ViewMode>("class");
   const [selClass, setClass] = useState(classList[0] ?? "");
   const [selTeacher, setTeacher] = useState<string>("");
+  const [configuring, setConfiguring] = useState(false);
 
   const summaries = useMemo(() => getTeacherSummaries(timetables), [timetables]);
 
@@ -307,6 +314,11 @@ export default function TimetableClient({
         {view === "teacher" && selTeacher && (
           <button onClick={() => setTeacher("")} className="ml-2 text-xs text-primary-500 hover:text-primary-700 dark:hover:text-primary-300 transition-colors">← All Teachers</button>
         )}
+        {view === "class" && selClass && activeTt && hasAnySlot(activeTt) && (
+          <button onClick={() => setConfiguring(true)} className="ml-auto flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-zinc-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+            <Settings2 className="h-3.5 w-3.5" /> Configure
+          </button>
+        )}
       </div>
 
       {view === "teacher" && !selTeacher ? (
@@ -314,7 +326,17 @@ export default function TimetableClient({
       ) : activeTt && hasAnySlot(activeTt) ? (
         <TimetableGrid tt={activeTt} rowItems={rowItems} />
       ) : (
-        <EmptyState label={label} />
+        <EmptyState label={label} onConfigure={view === "class" && selClass ? () => setConfiguring(true) : undefined} />
+      )}
+
+      {view === "class" && selClass && sectionIdByLabel[selClass] && (
+        <ConfigureTimetableModal
+          open={configuring}
+          onClose={() => setConfiguring(false)}
+          onSaved={() => router.refresh()}
+          sectionId={sectionIdByLabel[selClass]}
+          classLabel={selClass}
+        />
       )}
     </div>
   );

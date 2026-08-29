@@ -132,10 +132,12 @@ async function loadSchoolTimetables(schoolId: string) {
     );
 
   const sectionLabel: Record<string, string> = {};
+  const sectionIdByLabel: Record<string, string> = {};
   const classList: string[] = [];
   for (const s of (sectionRows ?? []) as unknown as TimetableSectionRow[]) {
     const label = `${s.grades?.level ?? "?"}-${s.name ?? ""}`;
     sectionLabel[s.id] = label;
+    sectionIdByLabel[label] = s.id;
     classList.push(label);
   }
 
@@ -160,7 +162,7 @@ async function loadSchoolTimetables(schoolId: string) {
     timetables[label][day] = { ...timetables[label][day], [slot.period_number]: entry };
   }
 
-  return { periods, rowItems, classList, timetables };
+  return { periods, rowItems, classList, timetables, sectionIdByLabel };
 }
 
 async function TeacherTimetable({ userId }: { userId: string }) {
@@ -210,7 +212,7 @@ export default async function TimetablePage() {
     );
   }
 
-  const { periods, rowItems, classList, timetables } = await loadSchoolTimetables(schoolId);
+  const { periods, rowItems, classList, timetables, sectionIdByLabel } = await loadSchoolTimetables(schoolId);
 
   return (
     <TimetableClient
@@ -218,6 +220,7 @@ export default async function TimetablePage() {
       rowItems={rowItems}
       classList={classList}
       timetables={timetables}
+      sectionIdByLabel={sectionIdByLabel}
     />
   );
 }
