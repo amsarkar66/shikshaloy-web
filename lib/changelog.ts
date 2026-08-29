@@ -21,6 +21,16 @@ export interface ChangelogRelease {
 // here is all that's needed to keep both in sync.
 export const RELEASES: ChangelogRelease[] = [
   {
+    version: "0.11.0",
+    hash: "0820575",
+    date: "2026-08-29",
+    entries: [
+      { type: "feat", text: "Connected domains now serve a full public website — home, about, admissions, results, faculty, gallery, announcements, and events" },
+      { type: "improve", text: "Custom domain setup is now fully automatic end-to-end, with no manual hosting configuration required" },
+      { type: "improve", text: "Redesigned domain connection flow with live, per-record DNS verification status" },
+    ],
+  },
+  {
     version: "0.10.0",
     hash: "a618b89",
     date: "2026-08-28",
