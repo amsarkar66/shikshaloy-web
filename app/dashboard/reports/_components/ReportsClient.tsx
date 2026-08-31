@@ -676,7 +676,7 @@ export default function ReportsClient({
             </div>
 
             {/* Tabs */}
-            <div className="flex rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-0.5 w-fit overflow-x-auto">
+            <div className="flex h-9 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-0.5 w-fit overflow-x-auto">
               {TABS.map(({ value, label, icon: Icon }) => {
                 const count = value === "all"
                   ? reports.length
@@ -685,7 +685,7 @@ export default function ReportsClient({
                   <button
                     key={value}
                     onClick={() => { setTab(value); }}
-                    className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap ${
+                    className={`flex items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors whitespace-nowrap ${
                       tab === value
                         ? "bg-primary-500 text-white shadow-sm"
                         : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"
@@ -693,7 +693,7 @@ export default function ReportsClient({
                   >
                     <Icon className="h-3.5 w-3.5 shrink-0" />
                     {label}
-                    <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                    <span className={`inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-[8px] ${
                       tab === value
                         ? "bg-white/20 text-white"
                         : "bg-gray-100 dark:bg-zinc-700 text-gray-500 dark:text-zinc-400"
