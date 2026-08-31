@@ -1,5 +1,8 @@
 import { notFound } from "next/navigation";
+import { draftMode } from "next/headers";
 import { getPublicSiteSchools } from "@/lib/domains/public-site-data";
+import { getDraftSiteSettings, getPublishedSiteSettings } from "@/lib/site-settings/public";
+import type { HomepageSectionId } from "@/lib/site-settings/types";
 import { resolveActiveSchool } from "../_lib/resolve-active-school";
 import { Hero } from "../_components/Hero";
 import { StatsStrip } from "../_components/StatsStrip";
@@ -23,32 +26,40 @@ export default async function PublicSiteHomePage({
   if (schools.length === 0) notFound();
   const activeSchool = resolveActiveSchool(schools, requestedSchoolId);
 
-  return (
-    <div>
-      <Hero school={activeSchool} />
-      <StatsStrip school={activeSchool} />
+  const { isEnabled: isPreview } = await draftMode();
+  const settings = isPreview ? await getDraftSiteSettings(ownerId) : await getPublishedSiteSettings(ownerId);
+  const visible = new Set(settings.homepage.sections.filter((s) => s.visible).map((s) => s.id));
+  const order = settings.homepage.sections.map((s) => s.id);
 
-      <div className="mx-auto max-w-5xl px-6 py-16">
+  const sections: Record<HomepageSectionId, React.ReactNode> = {
+    hero: <Hero key="hero" school={activeSchool} />,
+    stats: <StatsStrip key="stats" school={activeSchool} />,
+    announcements: (
+      <div key="announcements" className="mx-auto max-w-5xl px-6 py-16">
         <Announcements school={activeSchool} limit={3} bare />
       </div>
-
-      <section className="bg-gray-50 py-16">
+    ),
+    events: (
+      <section key="events" className="bg-gray-50 py-16">
         <div className="mx-auto max-w-5xl px-6">
           <Events school={activeSchool} limit={4} bare />
         </div>
       </section>
-
-      <div className="mx-auto max-w-5xl px-6 py-16">
+    ),
+    faculty: (
+      <div key="faculty" className="mx-auto max-w-5xl px-6 py-16">
         <FacultyGrid school={activeSchool} limit={4} bare />
       </div>
-
-      <section className="bg-gray-50 py-16">
+    ),
+    gallery: (
+      <section key="gallery" className="bg-gray-50 py-16">
         <div className="mx-auto max-w-5xl px-6">
           <GalleryGrid school={activeSchool} limit={8} bare />
         </div>
       </section>
+    ),
+    whyChooseUs: <WhyChooseUs key="whyChooseUs" />,
+  };
 
-      <WhyChooseUs />
-    </div>
-  );
+  return <div>{order.filter((id) => visible.has(id)).map((id) => sections[id])}</div>;
 }

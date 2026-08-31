@@ -39,7 +39,7 @@ import {
   FolderOpen,
   History,
   MessageSquareWarning,
-  Images,
+  Globe,
   Gauge,
   UserCog,
   LifeBuoy,
@@ -99,6 +99,7 @@ export const NAV: Record<string, NavGroup[]> = {
       items: [
         { label: "Schools",                  href: "/dashboard/schools",   icon: Landmark },
         { label: "Principals & Admins", href: "/dashboard/principals", icon: UserCog },
+        { label: "Website",             href: "/dashboard/website",    icon: Globe },
       ],
     },
     {
@@ -218,7 +219,6 @@ export const NAV: Record<string, NavGroup[]> = {
         { label: "Library",    href: "/dashboard/library",    icon: Library },
         { label: "Hostel",     href: "/dashboard/hostel",     icon: BedDouble },
         { label: "Inventory",  href: "/dashboard/inventory",  icon: Package },
-        { label: "Website Gallery", href: "/dashboard/gallery", icon: Images },
       ],
     },
     {

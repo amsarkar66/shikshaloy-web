@@ -12,7 +12,7 @@ function formatSize(bytes: number): string {
   return `${Math.round(bytes / 1024)} KB`;
 }
 
-export function UploadModal({ onClose, onUploaded }: { onClose: () => void; onUploaded: () => void }) {
+export function GalleryUploadModal({ onClose, onUploaded }: { onClose: () => void; onUploaded: () => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -105,7 +105,6 @@ export function UploadModal({ onClose, onUploaded }: { onClose: () => void; onUp
         className="w-full max-w-md rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-start gap-3 border-b border-gray-100 dark:border-zinc-800 px-5 py-4">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
             <UploadCloud className="h-4.5 w-4.5 text-gray-600 dark:text-zinc-300" />
@@ -120,7 +119,6 @@ export function UploadModal({ onClose, onUploaded }: { onClose: () => void; onUp
         </div>
 
         <div className="p-5 space-y-4">
-          {/* Dropzone */}
           <div
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
@@ -148,7 +146,6 @@ export function UploadModal({ onClose, onUploaded }: { onClose: () => void; onUp
             </button>
           </div>
 
-          {/* Selected file */}
           {file && (
             <div className="rounded-xl border border-gray-200 dark:border-zinc-700 p-3">
               <div className="flex items-center gap-3">
@@ -187,7 +184,6 @@ export function UploadModal({ onClose, onUploaded }: { onClose: () => void; onUp
             </div>
           )}
 
-          {/* Caption */}
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Caption (optional)</label>
             <input
@@ -205,7 +201,6 @@ export function UploadModal({ onClose, onUploaded }: { onClose: () => void; onUp
           )}
         </div>
 
-        {/* Footer */}
         <div className="flex justify-end gap-2 border-t border-gray-100 dark:border-zinc-800 px-5 py-4">
           <button type="button" onClick={onClose} className="h-9 rounded-lg border border-gray-200 dark:border-zinc-700 px-4 text-sm text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800">
             Cancel

@@ -5,7 +5,6 @@ import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getOrSeedRoleTemplates } from "@/lib/settings/role-templates";
 import { listPublishKeys } from "@/lib/publish-keys/actions";
 import { listDomains } from "@/lib/domains/actions";
-import { listSchoolBanners } from "@/lib/schools/banner-actions";
 import { SettingsPageClient, type SettingsData } from "./_components/settings-client";
 
 export default async function SettingsPage() {
@@ -38,7 +37,7 @@ export default async function SettingsPage() {
   // resolve (and require) a school id for roles whose data actually needs one.
   const schoolId = needsSchoolData || needsTemplates ? await getCurrentSchoolIdOrThrow() : "";
 
-  const [schoolResult, academicYearsResult, academicSettingsResult, templates, publishKeys, domains, banners] = await Promise.all([
+  const [schoolResult, academicYearsResult, academicSettingsResult, templates, publishKeys, domains] = await Promise.all([
     needsSchoolData
       ? supabaseAdmin
           .from("schools")
@@ -63,7 +62,6 @@ export default async function SettingsPage() {
     needsTemplates ? getOrSeedRoleTemplates(schoolId) : Promise.resolve([]),
     needsPublishKeys ? listPublishKeys() : Promise.resolve([]),
     needsDomains ? listDomains() : Promise.resolve([]),
-    needsSchoolData ? listSchoolBanners() : Promise.resolve([]),
   ]);
 
   const data: SettingsData = {
@@ -109,7 +107,6 @@ export default async function SettingsPage() {
     publishKeys,
     domains,
     domainCnameTarget: process.env.CLOUDFLARE_FALLBACK_ORIGIN ?? "sites.shikshaloy.com",
-    banners,
   };
 
   return <SettingsPageClient role={role} data={data} />;

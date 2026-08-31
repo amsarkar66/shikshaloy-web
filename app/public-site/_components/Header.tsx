@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Menu, X } from "lucide-react";
 import type { PublicSchool } from "@/lib/domains/public-site-data";
+import type { SiteSettings } from "@/lib/site-settings/types";
 import { resolveActiveSchool } from "../_lib/resolve-active-school";
 
 const NAV_LINKS = [
@@ -19,7 +20,9 @@ const NAV_LINKS = [
   { to: "/contact", label: "Contact" },
 ];
 
-export function Header({ schools }: { schools: PublicSchool[] }) {
+export function Header({ schools, settings }: { schools: PublicSchool[]; settings?: SiteSettings }) {
+  const showApplyCta = settings?.header.showApplyCta ?? true;
+  const ctaLabel = settings?.header.ctaLabel || "Apply Now";
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
@@ -78,13 +81,15 @@ export function Header({ schools }: { schools: PublicSchool[] }) {
               ))}
             </select>
           )}
-          <Link
-            href="/admissions"
-            className="hidden items-center gap-1.5 rounded-full bg-primary-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-800 lg:inline-flex"
-          >
-            Apply Now
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
+          {showApplyCta && (
+            <Link
+              href="/admissions"
+              className="hidden items-center gap-1.5 rounded-full bg-primary-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-800 lg:inline-flex"
+            >
+              {ctaLabel}
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          )}
           <button
             onClick={() => setMenuOpen((v) => !v)}
             className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 xl:hidden"

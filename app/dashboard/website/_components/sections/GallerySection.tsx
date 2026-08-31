@@ -3,9 +3,9 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Images, Upload, Trash2, ChevronUp, ChevronDown, Loader2 } from "lucide-react";
-import { deleteGalleryImage, moveGalleryImage } from "../actions";
+import { deleteGalleryImage, moveGalleryImage } from "@/app/dashboard/gallery/actions";
 import { FancyButton } from "@/components/ui/fancy-button";
-import { UploadModal } from "./UploadModal";
+import { GalleryUploadModal } from "./GalleryUploadModal";
 
 export interface GalleryImage {
   id: string;
@@ -77,29 +77,31 @@ function GalleryTile({ image, isFirst, isLast }: { image: GalleryImage; isFirst:
   );
 }
 
-export default function GalleryClient({ initialData }: { initialData: GalleryImage[] }) {
+export function GallerySection({ initialData }: { initialData: GalleryImage[] }) {
   const router = useRouter();
   const [uploadOpen, setUploadOpen] = useState(false);
 
   return (
-    <div className="w-full px-6 py-6 space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+    <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5">
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Website Gallery</h1>
-          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Manage photos shown on the public site</p>
+          <h2 className="text-sm font-bold text-gray-900 dark:text-zinc-50">Gallery</h2>
+          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">
+            Photos shown on your public site&apos;s gallery page. Changes go live immediately.
+          </p>
         </div>
-        <div className="sm:ml-auto">
-          <FancyButton onClick={() => setUploadOpen(true)} size="sm"><Upload className="h-4 w-4" /> Upload</FancyButton>
-        </div>
+        <FancyButton onClick={() => setUploadOpen(true)} size="sm">
+          <Upload className="h-4 w-4" /> Upload
+        </FancyButton>
       </div>
 
       {initialData.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 py-20">
+        <div className="mt-4 flex flex-col items-center gap-3 rounded-xl border border-dashed border-gray-200 dark:border-zinc-800 py-16">
           <Images className="h-8 w-8 text-gray-300 dark:text-zinc-600" />
           <p className="text-sm font-medium text-gray-500 dark:text-zinc-400">No photos uploaded yet</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           {initialData.map((img, i) => (
             <GalleryTile key={img.id} image={img} isFirst={i === 0} isLast={i === initialData.length - 1} />
           ))}
@@ -107,7 +109,7 @@ export default function GalleryClient({ initialData }: { initialData: GalleryIma
       )}
 
       {uploadOpen && (
-        <UploadModal onClose={() => setUploadOpen(false)} onUploaded={() => router.refresh()} />
+        <GalleryUploadModal onClose={() => setUploadOpen(false)} onUploaded={() => router.refresh()} />
       )}
     </div>
   );

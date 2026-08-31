@@ -29,7 +29,6 @@ import {
 } from "@/lib/settings/role-template-constants";
 import { LogoUpload } from "../../schools/_components/logo-upload";
 import { SignatureUpload } from "../../schools/_components/signature-upload";
-import { BannerManager } from "../../schools/_components/banner-upload";
 import {
   updateSchoolProfile, updateAcademicSettings,
   saveRoleTemplate, createRoleTemplate, deleteRoleTemplate, restoreRoleTemplateDefaults,
@@ -42,7 +41,6 @@ import { GradeBandsPanel } from "./GradeBandsPanel";
 import { ReportCardSettingsPanel } from "./ReportCardSettingsPanel";
 import type { PublishKeyRow } from "@/lib/publish-keys/actions";
 import type { DomainRow } from "@/lib/domains/actions";
-import type { SchoolBanner } from "@/lib/schools/banner-actions";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -73,7 +71,6 @@ export interface SettingsData {
   publishKeys: PublishKeyRow[];
   domains: DomainRow[];
   domainCnameTarget: string;
-  banners: SchoolBanner[];
 }
 
 // ── Tab config by role ────────────────────────────────────────────────────────
@@ -337,7 +334,7 @@ const BOARD_OPTIONS = [
   { value: "other", label: "Other"        },
 ];
 
-function SchoolTab({ school, academicYears, banners }: { school: NonNullable<SettingsData["school"]>; academicYears: SettingsData["academicYears"]; banners: SettingsData["banners"] }) {
+function SchoolTab({ school, academicYears }: { school: NonNullable<SettingsData["school"]>; academicYears: SettingsData["academicYears"] }) {
   const router = useRouter();
   const [name,     setName]     = useState(school.name);
   const [tagline,  setTagline]  = useState(school.tagline);
@@ -408,10 +405,6 @@ function SchoolTab({ school, academicYears, banners }: { school: NonNullable<Set
 
       <SectionCard title="Principal's Signature" description="Stamped onto certificates and admit cards in place of a blank signature line.">
         <SignatureUpload value={signatureUrl} onChange={setSignatureUrl} />
-      </SectionCard>
-
-      <SectionCard title="Website Banners" description="Rotates as a slideshow on your public website homepage.">
-        <BannerManager initialBanners={banners} />
       </SectionCard>
 
       <SectionCard title="Basic Information">
@@ -1271,7 +1264,7 @@ export function SettingsPageClient({ role, data }: { role: string; data: Setting
         ))}
       </div>
 
-      {activeTab === "school" && data.school && <SchoolTab school={data.school} academicYears={data.academicYears} banners={data.banners} />}
+      {activeTab === "school" && data.school && <SchoolTab school={data.school} academicYears={data.academicYears} />}
       {activeTab === "institution" && role === "kernel" && (
         <div className="space-y-1">
           <h2 className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Publish API keys</h2>

@@ -51,7 +51,7 @@ export async function addSchoolBanner(formData: FormData): Promise<SchoolBanner>
 
   if (error || !data) throw new Error(error?.message ?? "Failed to save banner");
 
-  revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard/website");
   return { id: data.id, imageUrl: data.image_url, displayOrder: data.display_order };
 }
 
@@ -59,7 +59,7 @@ export async function removeSchoolBanner(id: string): Promise<void> {
   const schoolId = await getCurrentSchoolIdOrThrow();
   const { error } = await supabaseAdmin.from("school_banners").delete().eq("id", id).eq("school_id", schoolId);
   if (error) throw new Error(`Failed to remove banner: ${error.message}`);
-  revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard/website");
 }
 
 export async function moveSchoolBanner(id: string, direction: "up" | "down"): Promise<void> {
@@ -83,5 +83,5 @@ export async function moveSchoolBanner(id: string, direction: "up" | "down"): Pr
     supabaseAdmin.from("school_banners").update({ display_order: a.display_order }).eq("id", b.id),
   ]);
 
-  revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard/website");
 }

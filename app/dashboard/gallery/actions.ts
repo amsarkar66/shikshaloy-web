@@ -38,6 +38,7 @@ export async function uploadGalleryImage(formData: FormData): Promise<void> {
   if (insertError) throw new Error(`Image uploaded, but failed to save: ${insertError.message}`);
 
   revalidatePath("/dashboard/gallery");
+  revalidatePath("/dashboard/website");
 }
 
 export async function deleteGalleryImage(id: string, imageUrl: string): Promise<void> {
@@ -52,6 +53,7 @@ export async function deleteGalleryImage(id: string, imageUrl: string): Promise<
   if (error) throw new Error(error.message);
 
   revalidatePath("/dashboard/gallery");
+  revalidatePath("/dashboard/website");
 }
 
 export async function moveGalleryImage(id: string, direction: "up" | "down"): Promise<void> {
@@ -79,4 +81,5 @@ export async function moveGalleryImage(id: string, direction: "up" | "down"): Pr
   ]);
 
   revalidatePath("/dashboard/gallery");
+  revalidatePath("/dashboard/website");
 }
