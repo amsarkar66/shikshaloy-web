@@ -46,7 +46,7 @@ export async function addParent(input: AddParentInput): Promise<AddParentResult>
     if (existingParent) throw new Error("A parent with this email already exists.");
 
     const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    const SERVICE_KEY = process.env.SUPABASE_SECRET_KEY!;
     const lookupRes = await fetch(
       `${SUPABASE_URL}/auth/v1/admin/users?email=${encodeURIComponent(email)}`,
       { headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` } }

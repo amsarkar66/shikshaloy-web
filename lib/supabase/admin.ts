@@ -44,8 +44,8 @@ export interface PendingInstitution {
 
 const adminHeaders = () => ({
   "Content-Type": "application/json",
-  apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+  apikey: process.env.SUPABASE_SECRET_KEY!,
+  Authorization: `Bearer ${process.env.SUPABASE_SECRET_KEY}`,
 });
 
 const SCHOOL_ACADEMIC_COLUMNS =

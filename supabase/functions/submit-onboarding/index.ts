@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const serviceRoleKey = Deno.env.get("SUPABASE_SECRET_KEY")!;
 
   // Scoped to the caller — used only to identify who's asking, same as the
   // web action's getUser().

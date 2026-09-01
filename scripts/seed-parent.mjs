@@ -11,13 +11,13 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 config({ path: resolve(__dirname, "../.env.local") });
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SECRET_KEY;
 
 if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
   console.error(
     "\n❌  Missing env vars. Make sure .env.local has:\n" +
     "      NEXT_PUBLIC_SUPABASE_URL\n" +
-    "      SUPABASE_SERVICE_ROLE_KEY\n"
+    "      SUPABASE_SECRET_KEY\n"
   );
   process.exit(1);
 }
