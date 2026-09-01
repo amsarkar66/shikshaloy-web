@@ -1,0 +1,2516 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shikshaloy â€” Codebase Sanity Report</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --bg-elev:#ffffff; --bg-elev2:#f0f1f4;
+    --text:#161a1f; --text-dim:#5b6472; --border:#e2e5eb;
+    --accent:#4f5bd5;
+    --crit:#c62828; --crit-bg:#fdecea; --crit-bd:#f3b9b4;
+    --high:#c9660a; --high-bg:#fef3e6; --high-bd:#f4c98c;
+    --med:#9a7d00; --med-bg:#fdf7dd; --med-bd:#e9d986;
+    --low:#2f6fb0; --low-bg:#eaf2fb; --low-bd:#b7d3ee;
+    --bug:#c62828; --gap:#7a3ec9; --imp:#0f8a6f;
+    --shadow: 0 1px 2px rgba(20,22,30,.04), 0 4px 14px rgba(20,22,30,.05);
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0f1115; --bg-elev:#171a20; --bg-elev2:#1e222a;
+      --text:#e7e9ee; --text-dim:#9aa2b1; --border:#2a2f3a;
+      --accent:#8b93f0;
+      --crit:#ff8a80; --crit-bg:#3a1615; --crit-bd:#6b2320;
+      --high:#ffb04d; --high-bg:#3a2810; --high-bd:#6b4a1a;
+      --med:#e8cf4d; --med-bg:#332c0c; --med-bd:#5c4f16;
+      --low:#7fb4ea; --low-bg:#101f30; --low-bd:#1e3a57;
+      --bug:#ff8a80; --gap:#c3a0ff; --imp:#5fd6b8;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 20px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0f1115; --bg-elev:#171a20; --bg-elev2:#1e222a;
+    --text:#e7e9ee; --text-dim:#9aa2b1; --border:#2a2f3a;
+    --accent:#8b93f0;
+    --crit:#ff8a80; --crit-bg:#3a1615; --crit-bd:#6b2320;
+    --high:#ffb04d; --high-bg:#3a2810; --high-bd:#6b4a1a;
+    --med:#e8cf4d; --med-bg:#332c0c; --med-bd:#5c4f16;
+    --low:#7fb4ea; --low-bg:#101f30; --low-bd:#1e3a57;
+    --bug:#ff8a80; --gap:#c3a0ff; --imp:#5fd6b8;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 20px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;line-height:1.5;}
+  a{color:var(--accent);}
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 20px 80px;}
+
+  header.top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:22px;flex-wrap:wrap;}
+  header.top h1{font-size:1.5rem;margin:0 0 4px;letter-spacing:-.01em;}
+  header.top .sub{color:var(--text-dim);font-size:.92rem;}
+  .theme-toggle{border:1px solid var(--border);background:var(--bg-elev);color:var(--text);border-radius:8px;padding:6px 10px;font-size:.8rem;cursor:pointer;}
+
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:22px;}
+  .stat{background:var(--bg-elev);border:1px solid var(--border);border-radius:12px;padding:12px 14px;box-shadow:var(--shadow);}
+  .stat .n{font-size:1.5rem;font-weight:700;line-height:1.1;}
+  .stat .l{font-size:.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;margin-top:2px;}
+  .stat.crit .n{color:var(--crit);} .stat.high .n{color:var(--high);} .stat.med .n{color:var(--med);} .stat.low .n{color:var(--low);}
+
+  section{margin-bottom:30px;}
+  h2{font-size:1.1rem;margin:0 0 12px;letter-spacing:-.01em;}
+  .card{background:var(--bg-elev);border:1px solid var(--border);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow);}
+
+  .narrative p{margin:0 0 12px;}
+  .narrative p:last-child{margin-bottom:0;}
+  .narrative code{background:var(--bg-elev2);padding:1px 5px;border-radius:5px;font-size:.85em;}
+
+  .top-issues{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;}
+  .top-issues li{border:1px solid var(--border);border-left:4px solid var(--crit);border-radius:10px;padding:12px 14px;background:var(--bg-elev2);cursor:pointer;}
+  .top-issues li:hover{border-left-color:var(--accent);}
+  .top-issues .ti-title{font-weight:600;font-size:.92rem;}
+  .top-issues .ti-meta{color:var(--text-dim);font-size:.78rem;margin-top:3px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+
+  .domain-bars{display:flex;flex-direction:column;gap:8px;}
+  .dbar-row{display:grid;grid-template-columns:160px 1fr 40px;align-items:center;gap:10px;font-size:.82rem;}
+  .dbar-track{background:var(--bg-elev2);border-radius:6px;overflow:hidden;height:10px;display:flex;}
+  .dbar-seg{height:100%;}
+
+  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px;position:sticky;top:0;background:var(--bg);padding:10px 0;z-index:5;}
+  .controls input[type="search"]{flex:1 1 220px;min-width:180px;padding:9px 12px;border-radius:9px;border:1px solid var(--border);background:var(--bg-elev);color:var(--text);font-size:.85rem;}
+  .chip-group{display:flex;flex-wrap:wrap;gap:6px;}
+  .chip{border:1px solid var(--border);background:var(--bg-elev);color:var(--text-dim);border-radius:999px;padding:5px 11px;font-size:.76rem;cursor:pointer;user-select:none;white-space:nowrap;}
+  .chip[data-active="true"]{color:#fff;border-color:transparent;}
+  .chip[data-sev="critical"][data-active="true"]{background:var(--crit);}
+  .chip[data-sev="high"][data-active="true"]{background:var(--high);}
+  .chip[data-sev="medium"][data-active="true"]{background:var(--med);color:#2a2205;}
+  .chip[data-sev="low"][data-active="true"]{background:var(--low);}
+  .chip[data-cat="bug"][data-active="true"]{background:var(--bug);}
+  .chip[data-cat="gap"][data-active="true"]{background:var(--gap);}
+  .chip[data-cat="improvement"][data-active="true"]{background:var(--imp);}
+  select#domainFilter{padding:8px 10px;border-radius:9px;border:1px solid var(--border);background:var(--bg-elev);color:var(--text);font-size:.8rem;}
+  .result-count{color:var(--text-dim);font-size:.8rem;margin-left:auto;}
+
+  .findings{display:flex;flex-direction:column;gap:8px;}
+  .finding{border:1px solid var(--border);border-radius:12px;background:var(--bg-elev);overflow:hidden;}
+  .f-head{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;cursor:pointer;}
+  .f-head:hover{background:var(--bg-elev2);}
+  .badge{flex:0 0 auto;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:3px 8px;border-radius:6px;border:1px solid;}
+  .badge.sev-critical{color:var(--crit);background:var(--crit-bg);border-color:var(--crit-bd);}
+  .badge.sev-high{color:var(--high);background:var(--high-bg);border-color:var(--high-bd);}
+  .badge.sev-medium{color:var(--med);background:var(--med-bg);border-color:var(--med-bd);}
+  .badge.sev-low{color:var(--low);background:var(--low-bg);border-color:var(--low-bd);}
+  .badge.cat{background:transparent;}
+  .badge.cat-bug{color:var(--bug);border-color:var(--bug);}
+  .badge.cat-gap{color:var(--gap);border-color:var(--gap);}
+  .badge.cat-improvement{color:var(--imp);border-color:var(--imp);}
+  .f-main{flex:1;min-width:0;}
+  .f-title{font-size:.9rem;font-weight:600;}
+  .f-meta{font-size:.76rem;color:var(--text-dim);margin-top:3px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow-wrap:anywhere;}
+  .f-domain{font-size:.72rem;color:var(--text-dim);background:var(--bg-elev2);border-radius:6px;padding:2px 7px;flex:0 0 auto;white-space:nowrap;}
+  .f-chevron{flex:0 0 auto;color:var(--text-dim);transition:transform .15s;font-size:.8rem;margin-top:2px;}
+  .finding[data-open="true"] .f-chevron{transform:rotate(90deg);}
+  .f-body{display:none;padding:0 14px 16px 14px;border-top:1px solid var(--border);}
+  .finding[data-open="true"] .f-body{display:block;padding-top:12px;}
+  .f-body .lbl{font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;color:var(--text-dim);margin:10px 0 3px;}
+  .f-body .lbl:first-child{margin-top:0;}
+  .f-body p{margin:0;font-size:.86rem;}
+
+  .empty-state{text-align:center;padding:40px 20px;color:var(--text-dim);font-size:.9rem;}
+
+  footer{color:var(--text-dim);font-size:.78rem;text-align:center;margin-top:40px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div>
+    <h1>Shikshaloy â€” Codebase Sanity Report</h1>
+    <div class="sub">Full-project static audit Â· generated 2026-08-31 Â· read-only code review, no live/demo environment touched</div>
+  </div>
+  <button class="theme-toggle" id="themeToggle" type="button">Toggle theme</button>
+</header>
+
+<div class="stat-grid" id="statGrid"></div>
+
+<section>
+  <h2>Executive summary</h2>
+  <div class="card narrative">
+    <p><strong>The headline finding is architectural, not a single bug.</strong> Across nearly every feature domain (billing, admissions, students, homework, library, gallery, documents, messages, grievances, settings, and platform administration), Next.js Server Actions are gated only by <em>page-level</em> UI checks (â€œonly show this button to adminsâ€). Server Actions are independently callable HTTP endpoints, and most of them never repeat that check server-side â€” they call a helper like <code>getCurrentSchoolIdOrThrow()</code> that only proves the caller is <em>signed in</em>, not that they hold the right role, and in dozens of cases never even verify the record being read/written belongs to the caller's own school. The fix pattern already exists in this codebase (<code>requireSchoolAdmin()</code>, <code>requireFrontDeskAccess()</code>, <code>requireKernelOwner()</code>) â€” it just wasn't applied consistently everywhere.</p>
+    <p><strong>The single most severe issue undermines every other check:</strong> the <code>profiles</code> table's row-level-security UPDATE policy (<code>supabase/migrations/20260628000000_initial_schema.sql:818</code>) has no <code>WITH CHECK</code> clause, so any signed-in user can run <code>update profiles set role = 'kernel'</code> against their own row directly via the Supabase client and grant themselves platform-owner access. Compounding this, ~130 files across the app authorize using <code>user.user_metadata.role</code>, a JWT field the user can self-edit client-side â€” so even independent of the RLS gap, self-escalation to any role is one <code>supabase.auth.updateUser()</code> call away.</p>
+    <p>On the money side, Razorpay payment verification trusts a client-supplied <code>planId</code> rather than the actual paid-for plan on the order, letting an institution pay for a cheap plan and get upgraded to a pricier one for free. Several storage buckets holding admission documents, student photos, and school documents are fully public and listable â€” exposing children's birth certificates and photos to anyone with the URL pattern, no login required.</p>
+    <p>TypeScript compiles clean (zero errors) and ESLint is nearly clean (16 cosmetic warnings, mostly <code>&lt;img&gt;</code> tags that should use <code>next/image</code>) â€” this audit focuses on what static analysis can't catch: authorization, tenant isolation, data integrity, and incomplete features. <strong>178 findings</strong> in total: <strong>29 critical</strong>, <strong>29 high</strong>, 56 medium, 64 low.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Top critical issues</h2>
+  <ul class="top-issues" id="topIssues"></ul>
+</section>
+
+<section>
+  <h2>Findings by domain</h2>
+  <div class="card">
+    <div class="domain-bars" id="domainBars"></div>
+  </div>
+</section>
+
+<section>
+  <h2>All findings</h2>
+  <div class="controls">
+    <input type="search" id="searchBox" placeholder="Search title, file, descriptionâ€¦">
+    <div class="chip-group" id="sevChips"></div>
+    <div class="chip-group" id="catChips"></div>
+    <select id="domainFilter"></select>
+    <span class="result-count" id="resultCount"></span>
+  </div>
+  <div class="findings" id="findingsList"></div>
+  <div class="empty-state" id="emptyState" style="display:none;">No findings match the current filters.</div>
+</section>
+
+<footer>Generated by Claude Code Â· static, read-only review Â· verify exploitability before relying on any finding in a security decision.</footer>
+</div>
+
+<script>
+const FINDINGS = [
+    {
+        "id":  1,
+        "domain":  "Financial",
+        "category":  "bug",
+        "severity":  "critical",
+        "area":  "Billing",
+        "file":  "app/dashboard/billing/actions.ts",
+        "line":  44,
+        "title":  "Razorpay payment verification trusts client-supplied planId, enabling plan upgrade fraud",
+        "description":  "verifyRazorpayPayment only checks the Razorpay signature (which is valid for any orderId|paymentId pair the payer legitimately completed) and then calls fulfillRazorpayPayment with the client-supplied `planId` from the request body â€” it never fetches the actual Razorpay order to confirm what plan/amount that order was created for. An institution owner can start checkout for the cheapest paid plan (e.g. Standard, â‚¹999), pay it, then replay verifyRazorpayPayment with planId set to Premium (â‚¹1999) and get upgraded while only having paid the cheaper price. The webhook handler (app/api/webhooks/razorpay/route.ts) does this correctly by deriving institutionId/planId from `fetchRazorpayOrder(payment.order_id).notes`, proving the safe pattern already exists in the codebase but isn\u0027t used here.",
+        "recommendation":  "In verifyRazorpayPayment, call fetchRazorpayOrder(input.orderId) and derive planId/institutionId from the order\u0027s notes (like the webhook does) instead of trusting the client-supplied planId, or at minimum verify the fetched payment\u0027s amount equals PLANS.find(selectedPlanId).price*100 before fulfilling."
+    },
+    {
+        "id":  2,
+        "domain":  "Financial",
+        "category":  "bug",
+        "severity":  "high",
+        "area":  "Fees",
+        "file":  "app/dashboard/fees/actions.ts",
+        "line":  26,
+        "title":  "recordFeePayment has no server-side validation on payment amount",
+        "description":  "The server action only validates `amount` via the client UI (FeeCollectClient checks `amt \u003e 0` before calling it). The server action itself never checks that `amount` is a positive finite number. Since this is a callable server action, it can be invoked directly (bypassing the UI) with a negative, zero, NaN, or absurdly large amount â€” a negative amount would actually decrease `amount_paid` on a fee_payments row (since `applied = Math.min(balance, remaining)` picks the negative `remaining` when it\u0027s smaller), silently un-paying a student\u0027s fees and flipping their status back to overdue.",
+        "recommendation":  "Add a server-side guard at the top of recordFeePayment: `if (!Number.isFinite(amount) || amount \u003c= 0) throw new Error(\"Invalid amount\")`."
+    },
+    {
+        "id":  3,
+        "domain":  "Financial",
+        "category":  "bug",
+        "severity":  "high",
+        "area":  "Fees",
+        "file":  "app/dashboard/fees/actions.ts",
+        "line":  52,
+        "title":  "Overpayment beyond a month\u0027s total due is silently discarded",
+        "description":  "recordFeePayment allocates `amount` across the month\u0027s fee_payments rows, stopping once every row\u0027s balance is filled; any `remaining` left over (e.g. front-desk staff mistypes a higher amount, or a parent pays extra) is never applied anywhere, never refunded, and never recorded as a credit â€” it just vanishes from the ledger. The audit log and notification, however, report the full `amount` as \"received\", so the money collected (cash/reference) no longer reconciles with what\u0027s recorded against the student\u0027s fees.",
+        "recommendation":  "Either reject the payment when amount exceeds the outstanding balance for the month, or carry the leftover forward as a credit against the student\u0027s next due month / a dedicated credit balance field."
+    },
+    {
+        "id":  4,
+        "domain":  "Financial",
+        "category":  "bug",
+        "severity":  "high",
+        "area":  "Fees",
+        "file":  "app/dashboard/fees/actions.ts",
+        "line":  119,
+        "title":  "createFeeStructure/updateFeeStructure never validate the fee amount",
+        "description":  "Neither action checks that `input.amount` is a positive number (the UI\u0027s Save button is only disabled when the amount field is empty â€” `!form.amount` â€” so a negative value like \"-500\" passes since it\u0027s a truthy string). A negative or zero fee structure amount silently corrupts generateMonthlyFees, which inserts `amount_due` rows directly from `structure.amount`, producing negative dues that reduce a student\u0027s total_due and can misreport their fee status as paid/partial.",
+        "recommendation":  "Validate `input.amount \u003e 0` (and category non-empty) server-side in both createFeeStructure and updateFeeStructure before writing to fee_structures."
+    },
+    {
+        "id":  5,
+        "domain":  "Financial",
+        "category":  "bug",
+        "severity":  "high",
+        "area":  "Payroll",
+        "file":  "app/dashboard/payroll/actions.ts",
+        "line":  14,
+        "title":  "Payroll processing actions allow any staff role, bypassing the page\u0027s accountant/HR-manager gate",
+        "description":  "Both payroll page.tsx and the new [staffId]/page.tsx restrict access to `role === \"admin\"` or a staff member whose `staff_template_id` is \"accountant\" or \"hr_manager\" â€” but assertAuthorized() in payroll/actions.ts accepts any user with `role` in [\"admin\",\"super_admin\",\"staff\"], with no staff_template_id check. Any staff member (e.g. a librarian or front-desk staff whose role is generically \"staff\") can call processSalary/processAllPending directly (server actions are callable independent of which page rendered them) and mark other staff\u0027s salaries as paid, even though the UI would never show them the button.",
+        "recommendation":  "Mirror the page\u0027s staffAllowed check inside assertAuthorized(): require role === \"admin\"/\"super_admin\", or role === \"staff\" with staff_template_id in [\"accountant\",\"hr_manager\"]."
+    },
+    {
+        "id":  6,
+        "domain":  "Financial",
+        "category":  "bug",
+        "severity":  "medium",
+        "area":  "Expenses",
+        "file":  "app/dashboard/expenses/actions.ts",
+        "line":  8,
+        "title":  "addExpense allows any staff role, bypassing the page\u0027s accountant-only gate",
+        "description":  "expenses/page.tsx only allows admin or staff with `staff_template_id === \"accountant\"` to view/use the Expenses feature, but addExpense\u0027s role check accepts any role in [\"admin\",\"super_admin\",\"staff\"] with no staff_template_id filter. Any staff member can call the server action directly to log arbitrary expenses against the school\u0027s budget, circumventing the intended accountant-only restriction.",
+        "recommendation":  "Require staff_template_id === \"accountant\" (or admin/super_admin) inside addExpense, matching the page-level gate."
+    },
+    {
+        "id":  7,
+        "domain":  "Financial",
+        "category":  "bug",
+        "severity":  "medium",
+        "area":  "Fees",
+        "file":  "app/dashboard/fees/actions.ts",
+        "line":  14,
+        "title":  "requireFeeManagerRole allows any staff role, bypassing the page\u0027s accountant-only gate",
+        "description":  "fees/page.tsx, fees/structure/page.tsx and fee-collection restrict fee management to admin or staff with `staff_template_id === \"accountant\"`, but requireFeeManagerRole() in fees/actions.ts accepts any role in [\"admin\",\"super_admin\",\"staff\"]. Any staff member can call recordFeePayment, createFeeStructure, generateMonthlyFees, etc. directly, bypassing the accountant-only restriction the UI enforces.",
+        "recommendation":  "Tighten requireFeeManagerRole to check staff_template_id === \"accountant\" for role \"staff\", consistent with the page gates."
+    },
+    {
+        "id":  8,
+        "domain":  "Financial",
+        "category":  "gap",
+        "severity":  "medium",
+        "area":  "Payroll",
+        "file":  "app/dashboard/payroll/_components/PayrollClient.tsx",
+        "line":  197,
+        "title":  "\"Process All\" bulk payroll action has no confirmation dialog and no error handling",
+        "description":  "handleProcessAll calls processAllPending(monthStr) directly from the button\u0027s onClick with no confirmation step, even though it can mark every pending staff member\u0027s salary as processed/paid for the month in one irreversible click. It also has no try/catch â€” if the server action throws (e.g. an authorization or DB error), the promise rejection is unhandled, the button silently stops showing \"Processingâ€¦\", and the admin gets no error message at all, unlike the equivalent single-record flow in PayrollDetailClient which does have a try/catch and error display.",
+        "recommendation":  "Add a confirmation dialog before calling processAllPending (it affects potentially dozens of staff at once), and wrap the call in try/catch to surface failures to the user."
+    },
+    {
+        "id":  9,
+        "domain":  "Financial",
+        "category":  "gap",
+        "severity":  "medium",
+        "area":  "Subscriptions",
+        "file":  "app/dashboard/subscriptions/[id]/_components/SubscriptionDetailClient.tsx",
+        "line":  169,
+        "title":  "Kernel billing actions (verify/reject payment, change plan, change status) have no error handling",
+        "description":  "handleVerify, handleReject, handleUpdate, and handleConfirmChange all call their server actions inside startTransition with no try/catch. If verifyOfflinePayment, rejectOfflinePayment, updateSubscriptionStatus, or updateSubscriptionPlan throws, the promise rejection is unhandled: `setActingId(null)`/`onUpdated()` never run, so the button stays stuck in its loading state indefinitely and the kernel operator sees no error message explaining what happened to a real money-verification action.",
+        "recommendation":  "Wrap each handler\u0027s server-action call in try/catch, reset the pending/acting state in a finally block, and surface the error message to the operator."
+    },
+    {
+        "id":  10,
+        "domain":  "Financial",
+        "category":  "bug",
+        "severity":  "medium",
+        "area":  "Billing",
+        "file":  "app/dashboard/billing/actions.ts",
+        "line":  86,
+        "title":  "submitOfflinePayment\u0027s duplicate-pending check is a read-then-write race",
+        "description":  "The check for an existing pending offline payment (`existingPending`) is a separate SELECT before the INSERT, with no unique constraint or transaction wrapping the two. Two near-simultaneous submissions (e.g. a double form-submit, or two browser tabs) can both pass the SELECT before either INSERT completes, creating two pending subscription_invoices rows for the same institution and uploading two receipts â€” one of which the verifier will process without realizing a duplicate exists.",
+        "recommendation":  "Add a partial unique index on subscription_invoices (institution_id) WHERE status=\u0027pending\u0027 AND payment_method=\u0027offline\u0027, and handle the resulting constraint-violation error gracefully in this action."
+    },
+    {
+        "id":  11,
+        "domain":  "Financial",
+        "category":  "bug",
+        "severity":  "medium",
+        "area":  "Fees",
+        "file":  "app/dashboard/fees/actions.ts",
+        "line":  36,
+        "title":  "recordFeePayment is not race-safe against concurrent payments for the same student/month",
+        "description":  "The function reads each fee_payments row\u0027s `amount_paid`/`amount_due` and then writes back a new `amount_paid` computed in application code, with no optimistic-concurrency check (no `.eq(\"amount_paid\", paidSoFar)` guard) or DB-side atomic increment. If two operators (or a double-click that races past the disabled-button guard on a slow network) record a payment for the same student/month concurrently, the second write can overwrite the first\u0027s update, silently losing one of the two payments from amount_paid while both were logged as \"received\" in notifications/audit.",
+        "recommendation":  "Use an atomic UPDATE ... SET amount_paid = amount_paid + applied (e.g. via a Postgres RPC/function) instead of read-then-write, or add an optimistic-lock condition on the update."
+    },
+    {
+        "id":  12,
+        "domain":  "Financial",
+        "category":  "gap",
+        "severity":  "low",
+        "area":  "Expenses",
+        "file":  "app/dashboard/expenses/actions.ts",
+        "line":  46,
+        "title":  "updateExpenseStatus has no guard against re-transitioning an already-decided expense",
+        "description":  "updateExpenseStatus updates status unconditionally (only scoped by id/school_id) with no `.eq(\"status\", \"pending\")` precondition, so a replayed or direct call can flip an already-approved expense to rejected (or vice versa) after the fact, with no record of the prior decision or who reversed it â€” the UI only prevents this by hiding the buttons once status isn\u0027t \"pending\", which a direct action call bypasses.",
+        "recommendation":  "Add `.eq(\"status\", \"pending\")` to the update and throw a clear error when 0 rows are affected, so an expense\u0027s approve/reject decision is final."
+    },
+    {
+        "id":  13,
+        "domain":  "Financial",
+        "category":  "gap",
+        "severity":  "low",
+        "area":  "Billing",
+        "file":  "lib/billing/fulfill-razorpay-payment.ts",
+        "line":  5,
+        "title":  "fulfillRazorpayPayment never checks the payment\u0027s captured status",
+        "description":  "The function activates the subscription and marks the invoice \"paid\" purely because a payment record was fetched from Razorpay and its signature validated â€” it never checks `payment.status === \"captured\"` (a payment can exist in Razorpay as authorized/failed/refunded). RazorpayPayment\u0027s type in lib/razorpay.ts doesn\u0027t even carry a `status` field, so there\u0027s no way to distinguish a captured payment from one that later failed capture or was refunded before this ran.",
+        "recommendation":  "Include `status` in the RazorpayPayment type/response and require `payment.status === \"captured\"` before fulfilling."
+    },
+    {
+        "id":  14,
+        "domain":  "Financial",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "Billing",
+        "file":  "lib/razorpay.ts",
+        "line":  52,
+        "title":  "verifyRazorpaySignature uses non-constant-time comparison",
+        "description":  "verifyRazorpaySignature compares the expected and provided HMAC hex strings with `===`, while the sibling verifyRazorpayWebhookSignature correctly uses `crypto.timingSafeEqual`. The inconsistency leaves the client-facing signature check exposed to a (low-practicality but real) timing side-channel that the webhook path already defends against.",
+        "recommendation":  "Use crypto.timingSafeEqual (with equal-length buffers, as done in verifyRazorpayWebhookSignature) for verifyRazorpaySignature too."
+    },
+    {
+        "id":  15,
+        "domain":  "Financial",
+        "category":  "gap",
+        "severity":  "medium",
+        "area":  "Fees",
+        "file":  "lib/fees/recompute-status.ts",
+        "line":  9,
+        "title":  "Student fee status rollup is not scoped to the current academic year",
+        "description":  "recomputeStudentFeeStatus queries `fee_payments` filtered only by `student_id`, spanning every academic year the student has ever had records in. A student who is fully paid for the current year but has one old, never-cleared \"overdue\" row from a prior year (e.g. a stale/uncleared record, or a promoted student) will have their `fee_status` badge permanently stuck at \"overdue\" even though nothing is currently due â€” the \"worst status wins\" rule has no time bound.",
+        "recommendation":  "Scope the query to the current academic year (or the most recent N months) when recomputing the rollup, or add a separate \"has historical arrears\" indicator instead of conflating it with current-year status."
+    },
+    {
+        "id":  16,
+        "domain":  "Financial",
+        "category":  "gap",
+        "severity":  "low",
+        "area":  "Payroll",
+        "file":  "app/dashboard/payroll/actions.ts",
+        "line":  23,
+        "title":  "processSalary silently no-ops when no matching pending payroll record exists",
+        "description":  "processSalary\u0027s update is scoped by school_id/staff_id/month_str/`slip_no IS NULL` but the code never checks how many rows were actually affected. If no payroll_records row exists for that staff/month (or it was already processed and slip_no is already set), the Supabase update returns success with 0 rows changed, no error is thrown, and the UI (PayrollDetailClient) treats it as a successful \"Process Salary\" click even though nothing changed.",
+        "recommendation":  "Request `{ count: \"exact\" }` on the update and throw an explicit error (e.g. \"Nothing to process\") when the affected row count is 0."
+    },
+    {
+        "id":  17,
+        "domain":  "Financial",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "Payroll",
+        "file":  "app/dashboard/payroll/[staffId]/_components/PayrollDetailClient.tsx",
+        "line":  91,
+        "title":  "\"Process Salary\" has no confirmation before marking a salary as paid",
+        "description":  "Clicking \"Process Salary\" immediately calls processSalary with no confirmation step, for an action that represents an actual salary disbursement being recorded (and generates a slip number that can\u0027t easily be undone via the UI). A single misclick marks the payroll record as processed with no way to revert from this screen.",
+        "recommendation":  "Add a brief confirm step (inline confirm or modal) before calling processSalary, consistent with how destructive/financial actions are confirmed elsewhere (e.g. offline-payment rejection)."
+    },
+    {
+        "id":  18,
+        "domain":  "Financial",
+        "category":  "gap",
+        "severity":  "low",
+        "area":  "Fees",
+        "file":  "app/dashboard/fees/actions.ts",
+        "line":  268,
+        "title":  "generateMonthlyFees has no server-side sanity check on monthStr format",
+        "description":  "generateMonthlyFees takes `monthStr` directly from the client with no validation of its \"YYYY-MM\" shape before using it in monthOffset()\u0027s `.split(\"-\").map(Number)` and in DB writes. A malformed value (e.g. empty string, wrong format) produces `NaN` offsets that silently fail the `frequencyAppliesToMonth` checks (offset \u003c 0 branch) rather than raising a clear error, and could insert fee_payments rows with a garbage month_str.",
+        "recommendation":  "Validate `monthStr` matches /^\\d{4}-\\d{2}$/ at the top of generateMonthlyFees and throw a clear error otherwise."
+    },
+    {
+        "id":  19,
+        "domain":  "Financial",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "Billing",
+        "file":  "app/dashboard/billing/_data/billing.ts",
+        "line":  108,
+        "title":  "formatCurrency truncates to whole rupees, hiding paise on any non-integer amount",
+        "description":  "formatCurrency uses `n.toLocaleString(\"en-IN\")` with no fraction-digit options, so any amount with paise (e.g. 999.50) renders as \"â‚¹1,000\" or \"â‚¹999\" depending on rounding, silently misrepresenting the actual charged amount anywhere this shared helper is reused (billing, payroll, fees, expenses all define near-identical copies).",
+        "recommendation":  "Pass `{ maximumFractionDigits: 2 }` (or 0 if amounts are guaranteed integral rupees by design) explicitly so the rounding behavior is intentional rather than accidental, and consider consolidating the four near-duplicate formatCurrency implementations (billing, fees, payroll, expenses) into one shared helper."
+    },
+    {
+        "id":  20,
+        "domain":  "Financial",
+        "category":  "gap",
+        "severity":  "low",
+        "area":  "Expenses",
+        "file":  "app/dashboard/expenses/actions.ts",
+        "line":  8,
+        "title":  "addExpense does not cap or sanity-check very large amounts",
+        "description":  "The only numeric guard is `input.amount \u003c= 0`; there\u0027s no upper bound or reasonableness check, so a typo (e.g. an extra zero) creates a wildly incorrect expense that immediately affects the budget-vs-spent dashboard and category breakdowns with no server-side backstop, relying entirely on a human to catch it in the approve/reject review.",
+        "recommendation":  "Consider a soft upper-bound sanity check (e.g. flag/require secondary approval for amounts above a configurable threshold) though this is a minor hardening, not a blocker."
+    },
+    {
+        "id":  21,
+        "domain":  "Financial",
+        "category":  "gap",
+        "severity":  "low",
+        "area":  "Billing",
+        "file":  "app/dashboard/billing/actions.ts",
+        "line":  140,
+        "title":  "cancelOfflinePayment deletes the receipt file even if the DB row delete were to partially fail on retry",
+        "description":  "The function deletes the subscription_invoices row first, then deletes the storage object. If the action is retried after a transient failure between these two steps (e.g. network blip right after the DB delete succeeded), the second call re-derives `invoice` as not found (already deleted) and throws \"Invoice not found\" â€” leaving the orphaned receipt file in storage forever with no cleanup path, since the row that referenced it is already gone.",
+        "recommendation":  "Delete the storage object before (or in the same transaction/RPC as) the DB row, or add a periodic cleanup job for storage objects with no referencing invoice."
+    },
+    {
+        "id":  22,
+        "domain":  "Academic",
+        "category":  "bug",
+        "severity":  "critical",
+        "area":  "Admissions",
+        "file":  "app/dashboard/admissions/actions.ts",
+        "line":  306,
+        "title":  "enrollApplication enrolls a foreign application under the caller\u0027s school",
+        "description":  "enrollApplication fetches the admission_applications row by id with no school_id filter (line 307-311), then builds the new student using `schoolId = await getCurrentSchoolIdOrThrow()` â€” the CALLER\u0027s school, not the application\u0027s own school_id. If applicationId belongs to a different school (e.g. guessed/incremented UUID, or a stale link), a student is created and enrolled into the wrong tenant using another school\u0027s applicant PII.",
+        "recommendation":  "Add `.eq(\"school_id\", schoolId)` to the initial application fetch (fetch schoolId first) and throw/404 if it doesn\u0027t match, instead of trusting a separately-resolved schoolId."
+    },
+    {
+        "id":  23,
+        "domain":  "Academic",
+        "category":  "bug",
+        "severity":  "critical",
+        "area":  "Admissions",
+        "file":  "app/dashboard/admissions/actions.ts",
+        "line":  158,
+        "title":  "updateApplicationStatus has no auth check and no tenant scoping",
+        "description":  "updateApplicationStatus updates admission_applications by id alone â€” no getUser()/role check and no `.eq(\"school_id\", ...)` filter â€” unlike the read path in _lib/get-application.ts which does scope by school_id. Any authenticated user (any role, any school) can approve/reject/enroll any other school\u0027s admission application.",
+        "recommendation":  "Require admin/staff role via getUser(), resolve the caller\u0027s schoolId, and scope the update with `.eq(\"school_id\", schoolId)`."
+    },
+    {
+        "id":  24,
+        "domain":  "Academic",
+        "category":  "bug",
+        "severity":  "critical",
+        "area":  "Admissions",
+        "file":  "app/dashboard/admissions/actions.ts",
+        "line":  218,
+        "title":  "updateApplicationDetails has no auth check and no tenant scoping",
+        "description":  "updateApplicationDetails writes arbitrary PII fields (name, DOB, parent phone/email, address, emergency contacts) to admission_applications filtered only by `.eq(\"id\", applicationId)` â€” no role check and no school_id scoping. Any authenticated user can rewrite another school\u0027s applicant PII.",
+        "recommendation":  "Require admin/staff role and add `.eq(\"school_id\", schoolId)` to the update, matching the pattern used elsewhere (e.g. classes/subjects actions)."
+    },
+    {
+        "id":  25,
+        "domain":  "Academic",
+        "category":  "bug",
+        "severity":  "high",
+        "area":  "Admissions",
+        "file":  "app/dashboard/admissions/actions.ts",
+        "line":  270,
+        "title":  "deleteAdmissionDocument has no auth check or tenant scoping",
+        "description":  "deleteAdmissionDocument deletes a row from admission_documents and removes the underlying file from storage using only the raw documentId â€” no user/role check and no verification the document\u0027s application belongs to the caller\u0027s school. Any authenticated user can permanently delete another school\u0027s uploaded admission documents (birth certificates, etc.).",
+        "recommendation":  "Verify the document\u0027s application_id resolves to the caller\u0027s school_id (join through admission_applications) before deleting the row or the storage object."
+    },
+    {
+        "id":  26,
+        "domain":  "Academic",
+        "category":  "bug",
+        "severity":  "critical",
+        "area":  "Homework",
+        "file":  "app/dashboard/homework/actions.ts",
+        "line":  55,
+        "title":  "setHomeworkStatus has no auth check and no tenant scoping",
+        "description":  "setHomeworkStatus updates `homework` by id alone (`.eq(\"id\", homeworkId)`), with no getUser()/role check and no `.eq(\"school_id\", ...)`. Since this is a Next.js Server Action reachable directly (not gated by the page\u0027s role check), any authenticated user in any school can close/reopen any homework assignment across the entire platform.",
+        "recommendation":  "Require admin/teacher-of-that-homework role (mirroring the check already done in app/dashboard/homework/[id]/page.tsx) and scope the update by school_id."
+    },
+    {
+        "id":  27,
+        "domain":  "Academic",
+        "category":  "bug",
+        "severity":  "critical",
+        "area":  "Homework",
+        "file":  "app/dashboard/homework/actions.ts",
+        "line":  33,
+        "title":  "submitHomework/unsubmitHomework have no auth or ownership checks",
+        "description":  "Both actions accept an arbitrary `studentId` and `homeworkId` with zero auth check and no verification that the caller is that student (or a teacher/admin of that homework). Any authenticated user can submit or delete another student\u0027s homework submission for any homework in any school, and can submit to homework that has been closed (no status check).",
+        "recommendation":  "Verify the session user is the student in question (for self-submission) or has admin/teacher rights over the homework, and reject submission when homework.status === \"closed\"."
+    },
+    {
+        "id":  28,
+        "domain":  "Academic",
+        "category":  "bug",
+        "severity":  "high",
+        "area":  "Classes",
+        "file":  "app/dashboard/classes/[id]/page.tsx",
+        "line":  93,
+        "title":  "Class roster page lets any teacher view any section\u0027s roster, not just their own",
+        "description":  "The role gate only checks `role === \"admin\" || role === \"teacher\"` (line 101) â€” it never verifies the signed-in teacher is actually assigned to section `id`. Unlike classes/page.tsx (TeacherClasses restricts to teacher.sectionIds) and homework/[id]/page.tsx (checks teacher.staffId === hw.teacher_id), this route lets any teacher browse any other class\u0027s full roster including student phone numbers and fee status just by knowing/guessing the section id.",
+        "recommendation":  "After resolving the teacher\u0027s context, verify `id` is in teacher.sectionIds (or that the teacher is the class teacher / teaches a subject there) before rendering the roster; return Unauthorized/notFound otherwise."
+    },
+    {
+        "id":  29,
+        "domain":  "Academic",
+        "category":  "bug",
+        "severity":  "high",
+        "area":  "Classes",
+        "file":  "app/dashboard/classes/actions.ts",
+        "line":  61,
+        "title":  "Class/section server actions have no role check â€” only tenant scoping",
+        "description":  "createSection, createClass, updateSection, deleteSection, createStream, renameStream, and deleteStream only call getCurrentSchoolIdOrThrow() (which verifies a session exists) but never check the caller\u0027s role. The classes/page.tsx UI restricts the Add/Edit/Manage-Streams controls to admins, but the underlying Server Actions are directly invocable â€” any authenticated user with a school (student, parent, driver) can create, edit, or delete classes/sections/streams.",
+        "recommendation":  "Add a role check (mirroring requireSchoolAdmin() in app/dashboard/exams/actions.ts) at the top of every mutating export in this file."
+    },
+    {
+        "id":  30,
+        "domain":  "Academic",
+        "category":  "bug",
+        "severity":  "high",
+        "area":  "Subjects",
+        "file":  "app/dashboard/subjects/actions.ts",
+        "line":  15,
+        "title":  "Subject server actions have no role check â€” only tenant scoping",
+        "description":  "createSubject, updateSubject, deleteSubject, assignSubjectToSection, updateSubjectAssignment, and removeSubjectAssignment only resolve schoolId; none verify the caller is an admin, even though subjects/page.tsx restricts the UI to admins. Any authenticated user in the school can call these Server Actions directly to create/delete subjects or reassign teachers to sections.",
+        "recommendation":  "Add the same requireSchoolAdmin() pattern used in app/dashboard/exams/actions.ts to every export here."
+    },
+    {
+        "id":  31,
+        "domain":  "Academic",
+        "category":  "bug",
+        "severity":  "high",
+        "area":  "Timetable",
+        "file":  "app/dashboard/timetable/actions.ts",
+        "line":  123,
+        "title":  "Timetable server actions have no role check",
+        "description":  "createDefaultPeriods and saveSectionTimetable only resolve schoolId â€” no admin/teacher role check at all. Any authenticated user with a school (including students/parents) can call saveSectionTimetable directly to overwrite a class\u0027s entire weekly schedule, or createDefaultPeriods to (re)configure the school\u0027s period structure.",
+        "recommendation":  "Require admin (or admin/class-teacher) role before allowing period/timetable mutations, consistent with other mutating actions in the codebase."
+    },
+    {
+        "id":  32,
+        "domain":  "Academic",
+        "category":  "bug",
+        "severity":  "high",
+        "area":  "Timetable",
+        "file":  "app/dashboard/timetable/actions.ts",
+        "line":  164,
+        "title":  "saveSectionTimetable never checks for teacher double-booking across sections",
+        "description":  "When saving a section\u0027s grid, the action resolves `teacher_id` per subject and inserts timetable_slots scoped only to `section_id` â€” it never checks whether that teacher already has a slot in a different section at the same `day_of_week`/`period_number`. A teacher can silently end up scheduled to teach two different classes in the same period, since nothing validates or surfaces the conflict.",
+        "recommendation":  "Before inserting, query existing timetable_slots for the same teacher_id/day/period across other sections in the academic year and reject (or warn about) overlaps."
+    },
+    {
+        "id":  33,
+        "domain":  "Academic",
+        "category":  "bug",
+        "severity":  "medium",
+        "area":  "Timetable",
+        "file":  "app/dashboard/timetable/actions.ts",
+        "line":  185,
+        "title":  "saveSectionTimetable deletes then reinserts slots without a transaction",
+        "description":  "The action first deletes all of a section\u0027s timetable_slots for the academic year, then inserts the new rows in a separate call. If the insert fails (network error, validation error, etc.) after the delete succeeds, the class is left with an empty timetable until the admin retries â€” a real data-loss window since these are two independent round-trips, not one transaction.",
+        "recommendation":  "Wrap the delete+insert in a single Postgres function/RPC (or use upsert-and-prune) so the operation is atomic."
+    },
+    {
+        "id":  34,
+        "domain":  "Academic",
+        "category":  "bug",
+        "severity":  "medium",
+        "area":  "Homework",
+        "file":  "app/dashboard/homework/actions.ts",
+        "line":  8,
+        "title":  "assignHomework does not verify teacherId/sectionId/subjectId belong to the caller\u0027s school",
+        "description":  "assignHomework inserts a homework row scoped by the caller\u0027s schoolId, but sectionId, subjectId, and teacherId are taken from client input without verifying they reference records in that same school (or that the given teacher actually teaches that subject/section). A crafted request could create homework referencing another school\u0027s section/subject/teacher IDs.",
+        "recommendation":  "Verify section_id/subject_id/teacher_id all resolve to rows with the caller\u0027s school_id before inserting, and (for teacher-role callers) that teacherId matches the caller\u0027s own staffId."
+    },
+    {
+        "id":  35,
+        "domain":  "Academic",
+        "category":  "bug",
+        "severity":  "medium",
+        "area":  "Grades",
+        "file":  "app/dashboard/grades/actions.ts",
+        "line":  47,
+        "title":  "saveExamResults trusts client-supplied marks with no server-side range check",
+        "description":  "saveExamResults writes `marks_obtained: r.marks` directly into exam_results with no validation that marks fall within [0, MAX_MARKS]. The client (GradebookClient.tsx) clamps values before calling the action, but since this is a Server Action it\u0027s reachable directly â€” a caller could submit negative marks or marks far above MAX_MARKS, corrupting percentages, grades, ranks, and report cards.",
+        "recommendation":  "Clamp or reject `r.marks` outside [0, MAX_MARKS] inside saveExamResults itself, not only in the client."
+    },
+    {
+        "id":  36,
+        "domain":  "Academic",
+        "category":  "bug",
+        "severity":  "medium",
+        "area":  "Grades",
+        "file":  "app/dashboard/grades/_components/GradebookClient.tsx",
+        "line":  59,
+        "title":  "Gradebook \"Passed\" stat uses a hardcoded 35% pass mark instead of the school\u0027s configured value",
+        "description":  "`stats.passed` computes `scores.filter((s) =\u003e s \u003e= 35).length`, hardcoding 35 as the pass threshold. Elsewhere (ExamResultsClient, report cards) the pass mark is read per-school via lib/exams/grading-data.ts `getSchoolPassMarks` (defaults to 35 but is configurable). A school that configures a different pass mark will see a \"Passed\" count during marks entry that disagrees with the officially published results.",
+        "recommendation":  "Pass the school\u0027s configured passMarks into GradebookClient (same as ExamResultsClient/ExamDetailClient already receive) and use it here instead of the literal 35."
+    },
+    {
+        "id":  37,
+        "domain":  "Academic",
+        "category":  "gap",
+        "severity":  "high",
+        "area":  "Academic Calendar",
+        "file":  "app/dashboard/academic-calendar/_components/AcademicCalendarClient.tsx",
+        "line":  1,
+        "title":  "Academic Calendar has no way to create, edit, or delete events",
+        "description":  "academic-calendar/page.tsx reads from a real `academic_calendar` table and its Unauthorized copy says \"Only school admins ... can manage the academic calendar,\" but there is no actions.ts anywhere under app/dashboard/academic-calendar and no add/edit/delete form or modal in AcademicCalendarClient.tsx â€” the whole feature is view/export/print only. Admins have no in-app way to populate holidays, exam windows, PTMs, or terms.",
+        "recommendation":  "Add a Server Actions file (create/update/delete calendar events, scoped by school_id + admin role) and wire an Add/Edit Event modal into AcademicCalendarClient."
+    },
+    {
+        "id":  38,
+        "domain":  "Academic",
+        "category":  "bug",
+        "severity":  "low",
+        "area":  "Academic Calendar",
+        "file":  "app/dashboard/academic-calendar/_data/academic-calendar.ts",
+        "line":  14,
+        "title":  "MONTHS/MONTH_KEYS are hardcoded to April 2026 â€“ March 2027",
+        "description":  "The month picker and CSV/ICS export logic are driven by a hardcoded 12-month array spanning 2026-04 through 2027-03. Once the current academic year ends, the calendar UI will keep showing the 2026-27 months regardless of the school\u0027s actual current academic year, silently breaking after this year.",
+        "recommendation":  "Derive the 12 displayed months from the school\u0027s current academic_years row (start_date/end_date) instead of a hardcoded literal array."
+    },
+    {
+        "id":  39,
+        "domain":  "Academic",
+        "category":  "bug",
+        "severity":  "medium",
+        "area":  "Classes",
+        "file":  "app/dashboard/classes/actions.ts",
+        "line":  163,
+        "title":  "deleteSection only checks for enrolled students, not timetable/subject/exam data",
+        "description":  "deleteSection blocks deletion when students are still enrolled, but does not check for existing timetable_slots, section_subjects assignments, homework, or exam_results referencing the section. Deleting an otherwise-empty section still orphans or cascades away this related data with no warning, since none of it is checked before the delete.",
+        "recommendation":  "Either check for and block on other dependent rows (timetable_slots, section_subjects, homework, exam_results) the same way student enrollment is checked, or clearly warn the admin what else will be removed."
+    },
+    {
+        "id":  40,
+        "domain":  "Academic",
+        "category":  "bug",
+        "severity":  "medium",
+        "area":  "Classes",
+        "file":  "app/dashboard/classes/actions.ts",
+        "line":  238,
+        "title":  "deleteStream has no usage check, and its UI has no delete confirmation",
+        "description":  "deleteStream deletes a stream row scoped only by school_id with no check for `sectionCount \u003e 0` â€” unlike deleteSection/deleteSubject, which explicitly block deletion when in-use. StreamsPanel.tsx\u0027s trash-icon handler (handleDelete) also fires immediately with no confirm step, unlike EditSectionModal/EditSubjectModal which both require a \"Confirm Delete\" click. A stream actively used by sections can be deleted in one accidental click, silently clearing `stream_id` on every section that referenced it.",
+        "recommendation":  "Block deleteStream server-side when `sectionCount \u003e 0` (as is already computed for display), and add the same two-step confirm UI used elsewhere for destructive actions."
+    },
+    {
+        "id":  41,
+        "domain":  "Academic",
+        "category":  "bug",
+        "severity":  "medium",
+        "area":  "Attendance",
+        "file":  "app/dashboard/attendance/actions.ts",
+        "line":  151,
+        "title":  "markTransportAttendance has no auth check, unlike every other action in this file",
+        "description":  "Every other mutating export in this file calls requireAttendanceMarker()/assertCanMarkSection or assertCanMarkStaff first. markTransportAttendance skips this entirely â€” it only resolves schoolId â€” so any authenticated user (student, parent, driver) can mark any student\u0027s transport (bus) attendance for any route/date.",
+        "recommendation":  "Call requireAttendanceMarker() and assertCanMarkSection() (resolving the student\u0027s section) before writing to transport_attendance, matching the pattern used by markStudentAttendance."
+    },
+    {
+        "id":  42,
+        "domain":  "Academic",
+        "category":  "bug",
+        "severity":  "low",
+        "area":  "Homework",
+        "file":  "app/dashboard/homework/_data/homework.ts",
+        "line":  21,
+        "title":  "isOverdue compares a date-only due_date against a UTC timestamp, misfiring near midnight IST",
+        "description":  "`isOverdue` does `new Date(hw.dueDate).getTime() \u003c Date.now()`, and dueDate is a plain \"YYYY-MM-DD\" string, which JS parses as UTC midnight. For an India-based school (UTC+5:30), homework flips to \"Overdue\" at 5:30am local time on the due date itself â€” students still have the rest of the day to submit, but the UI already shows it red/overdue.",
+        "recommendation":  "Compare against end-of-day in the school\u0027s local timezone (e.g. `dueDate + \"T23:59:59\"` or a timezone-aware comparison) rather than raw UTC midnight."
+    },
+    {
+        "id":  43,
+        "domain":  "Academic",
+        "category":  "improvement",
+        "severity":  "medium",
+        "area":  "Homework",
+        "file":  "app/dashboard/homework/actions.ts",
+        "line":  55,
+        "title":  "Closing a homework assignment doesn\u0027t stop new submissions",
+        "description":  "setHomeworkStatus can mark homework \"closed\", and StudentHomeworkList/page.tsx only queries `status = \"active\"` homework for the student\u0027s list â€” but submitHomework itself never checks the homework\u0027s status. A student who already has the assignment link/id (or calls the action directly) can still submit after the teacher closes it.",
+        "recommendation":  "Have submitHomework fetch the homework row and reject with an error when status !== \"active\"."
+    },
+    {
+        "id":  44,
+        "domain":  "Academic",
+        "category":  "gap",
+        "severity":  "low",
+        "area":  "Homework",
+        "file":  "app/dashboard/homework/_components/StudentHomeworkList.tsx",
+        "line":  1,
+        "title":  "Homework submission is a self-reported checkbox with no actual submitted work",
+        "description":  "submitHomework only inserts `{homework_id, student_id}` â€” there\u0027s no file upload, text answer, or attachment captured anywhere in the flow. \"Submitted\" therefore just means the student clicked a button, with nothing for the teacher to actually grade or review beyond a checkmark. There\u0027s also no grading/score/feedback field anywhere in the homework schema or UI, despite Submitted/Pending being tracked like a workflow.",
+        "recommendation":  "If homework is meant to collect actual work, add a file/text submission field; otherwise consider relabeling this as an attendance-style acknowledgement to set correct teacher expectations."
+    },
+    {
+        "id":  45,
+        "domain":  "Academic",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "Classes",
+        "file":  "app/dashboard/classes/actions.ts",
+        "line":  129,
+        "title":  "updateSection allows shrinking capacity below current enrollment with no warning",
+        "description":  "updateSection accepts any positive `capacity` value and writes it straight through â€” there\u0027s no check comparing the new capacity against the number of students currently enrolled in the section. An admin can set capacity to e.g. 10 on a section that already has 45 students, producing a nonsensical \"45/10\" enrollment display elsewhere in the UI (SectionCard/SectionRow \"Full\" badge logic).",
+        "recommendation":  "When capacity is reduced below the current enrolled count, surface a warning (or block the change) rather than silently accepting it."
+    },
+    {
+        "id":  46,
+        "domain":  "Academic",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "Exams",
+        "file":  "app/dashboard/exams/actions.ts",
+        "line":  336,
+        "title":  "grantMarksEntryAccess/revokeMarksEntryAccess don\u0027t verify the section_subject or staff belong to the exam\u0027s school",
+        "description":  "Both actions scope the write by the caller\u0027s school_id when inserting/deleting marks_entry_grants, but never verify that `sectionSubjectId` or `staffProfileId` actually belong to that school â€” a crafted call could create a grant referencing another school\u0027s section_subject or staff profile id, which would then silently fail to match in assertCanEditMarks\u0027s join rather than being rejected up front.",
+        "recommendation":  "Verify section_subjects.id and profiles.id belong to schoolId before upserting the grant, and return a clear error otherwise."
+    },
+    {
+        "id":  47,
+        "domain":  "Academic",
+        "category":  "bug",
+        "severity":  "low",
+        "area":  "Classes",
+        "file":  "app/dashboard/classes/[id]/page.tsx",
+        "line":  117,
+        "title":  "Sibling-section count query ignores rows with a null grade_id/academic_year_id",
+        "description":  "`siblingSectionCount` filters `.eq(\"grade_id\", section.grade_id ?? \"\")` and `.eq(\"academic_year_id\", section.academic_year_id ?? \"\")`; if either is actually null on the section row, the fallback empty string will never match any real grade_id/academic_year_id (UUID columns), silently making `solo` always true (hides the \"â€“A\"/\"â€“B\" section suffix) instead of surfacing the real sibling count.",
+        "recommendation":  "Guard with an explicit null check (e.g. skip the count query and default solo=true) rather than coercing null to an empty-string UUID comparison."
+    },
+    {
+        "id":  48,
+        "domain":  "Academic",
+        "category":  "gap",
+        "severity":  "low",
+        "area":  "Subjects",
+        "file":  "app/dashboard/subjects/actions.ts",
+        "line":  106,
+        "title":  "assignSubjectToSection doesn\u0027t verify sectionId/subjectId/teacherId belong to the caller\u0027s school",
+        "description":  "assignSubjectToSection upserts section_subjects with the caller\u0027s schoolId, but sectionId, subjectId, and teacherId are taken from client input with no check that they reference rows owned by that school â€” the FK relationships alone don\u0027t prevent cross-tenant IDs from being wired together under this school\u0027s academic year.",
+        "recommendation":  "Verify section_id/subject_id/teacher_id each resolve to the caller\u0027s school_id before the upsert."
+    },
+    {
+        "id":  49,
+        "domain":  "People Management",
+        "category":  "bug",
+        "severity":  "critical",
+        "area":  "Students",
+        "file":  "app/dashboard/students/actions.ts",
+        "line":  288,
+        "title":  "Any authenticated user can reset any student\u0027s password",
+        "description":  "resetStudentPassword, createStudentLogin and getStudentLoginEmail only call getCurrentSchoolIdOrThrow() â€” which succeeds for ANY signed-in user with a school_id (parent, student, driver, teacher), not just admins. Because Next.js Server Actions are directly POST-callable independent of the page\u0027s admin-only UI gate, any authenticated non-admin user in the school can reset another student\u0027s password and read the returned credentials, giving them full account takeover of any student.",
+        "recommendation":  "Add a requireSchoolAdmin()-style role check (as already used in staff/actions.ts and drivers/actions.ts) to every mutating/PII-reading function in this file, not just relying on the page-level UI gate."
+    },
+    {
+        "id":  50,
+        "domain":  "People Management",
+        "category":  "bug",
+        "severity":  "critical",
+        "area":  "Students",
+        "file":  "app/dashboard/students/actions.ts",
+        "line":  146,
+        "title":  "updateStudent can overwrite any parent record in any school",
+        "description":  "Inside updateStudent, the linked parent\u0027s full_name/phone/email are updated with `.eq(\"id\", input.parentId)` only â€” no `.eq(\"school_id\", schoolId)` filter and no verification that parentId actually belongs to this student. Combined with the missing role check on this action (see other finding), an authenticated user in any school can pass an arbitrary parent UUID and overwrite that parent\u0027s contact details cross-tenant.",
+        "recommendation":  "Scope the parents update by school_id and verify parentId is actually linked to studentId via student_parents before writing."
+    },
+    {
+        "id":  51,
+        "domain":  "People Management",
+        "category":  "bug",
+        "severity":  "critical",
+        "area":  "Students",
+        "file":  "app/dashboard/students/actions.ts",
+        "line":  114,
+        "title":  "Student CRUD actions have no role/permission check, only tenant scoping",
+        "description":  "updateStudent, setStudentActive, uploadStudentDocument, deleteStudentDocument, addStudentNote, bulkImportStudents, promoteStudents and addStudentManual never verify the caller\u0027s role â€” they rely entirely on the /dashboard/students page\u0027s client-side admin gate, which a direct server-action call bypasses. Any authenticated parent, student, driver or teacher account in the school can edit/deactivate any student, delete another student\u0027s uploaded documents, or add internal notes.",
+        "recommendation":  "Add a shared requireSchoolAdmin() (or equivalent role) check at the top of every mutating export in this file, mirroring the pattern already used in staff/actions.ts and drivers/actions.ts."
+    },
+    {
+        "id":  52,
+        "domain":  "People Management",
+        "category":  "bug",
+        "severity":  "critical",
+        "area":  "Parents",
+        "file":  "app/dashboard/parents/actions.ts",
+        "line":  25,
+        "title":  "Parent CRUD/PII actions have no role check",
+        "description":  "addParent, getParentForEdit, updateParent and deleteParent only call getCurrentSchoolIdOrThrow(), which succeeds for any signed-in account with a school_id. Any authenticated student, driver, teacher, or another parent in the school can view another parent\u0027s full PII (phone, email, address, occupation, all linked children) or delete/edit that parent\u0027s record outright, since the /dashboard/parents page\u0027s admin-only gate is not enforced server-side.",
+        "recommendation":  "Add a requireSchoolAdmin() check to every export in this file, consistent with staff/actions.ts and drivers/actions.ts."
+    },
+    {
+        "id":  53,
+        "domain":  "People Management",
+        "category":  "bug",
+        "severity":  "critical",
+        "area":  "Students",
+        "file":  "lib/students/photo-actions.ts",
+        "line":  5,
+        "title":  "uploadStudentPhoto has no authentication, tenant scoping, or file validation",
+        "description":  "uploadStudentPhoto takes a FormData file and writes it straight to the public student-photos storage bucket. It never calls getUser()/getCurrentSchoolIdOrThrow(), so the server action can be invoked by anyone, even without a session. There is also no content-type/size validation and no per-school folder scoping â€” the random UUID path is globally public.",
+        "recommendation":  "Require an authenticated admin session, validate MIME type/size before upload, and scope the storage path by school_id/student_id."
+    },
+    {
+        "id":  54,
+        "domain":  "People Management",
+        "category":  "bug",
+        "severity":  "high",
+        "area":  "Staff",
+        "file":  "app/dashboard/staff/actions.ts",
+        "line":  148,
+        "title":  "getStaffForEdit exposes emergency contact and license PII with no role check",
+        "description":  "updateStaff correctly calls requireSchoolAdmin(), but the read-side getStaffForEdit does not â€” it only checks getCurrentSchoolIdOrThrow(). Since Server Actions are independently callable, any authenticated non-admin account (parent, student, driver, non-HR staff) in the school can fetch any staff member\u0027s phone, address, blood group, emergency contact name/phone, and driving license number/expiry.",
+        "recommendation":  "Add the same requireSchoolAdmin() (or HR-manager-template) check used in updateStaff to getStaffForEdit before returning PII fields."
+    },
+    {
+        "id":  55,
+        "domain":  "People Management",
+        "category":  "bug",
+        "severity":  "high",
+        "area":  "Leaves",
+        "file":  "app/dashboard/leaves/actions.ts",
+        "line":  11,
+        "title":  "applyLeave trusts client-supplied staffId with no ownership check",
+        "description":  "applyLeave takes `staffId` directly from the client and inserts a leave request for that id after only resolving the caller\u0027s schoolId. The self-service UI (MyLeavesClient) always passes the caller\u0027s own staffId, but the server action itself never verifies that staffId belongs to the authenticated user, so any teacher/staff/driver could submit a fraudulent leave request attributed to a different staff member.",
+        "recommendation":  "Resolve the caller\u0027s own staffId server-side from their profile (as getAffectedPeriods-style helpers already do) instead of trusting the client-supplied staffId, or verify it matches the caller before insert."
+    },
+    {
+        "id":  56,
+        "domain":  "People Management",
+        "category":  "gap",
+        "severity":  "high",
+        "area":  "Students",
+        "file":  "app/dashboard/students/page.tsx",
+        "line":  48,
+        "title":  "Institution owners (super_admin) locked out of student/parent/driver pages",
+        "description":  "students/page.tsx, students/[id]/page.tsx, students/[id]/edit/page.tsx, drivers/page.tsx and parents/page.tsx / parents/[id]/page.tsx all gate access with `role !== \"admin\"`, excluding \"super_admin\" â€” unlike staff/[id]/page.tsx which explicitly allows both admin and super_admin. A school\u0027s institution owner (super_admin role) cannot view or manage students, parents, or drivers in schools they own.",
+        "recommendation":  "Update the role check in all listed pages to also allow role === \"super_admin\", matching the pattern already used in app/dashboard/staff/[id]/page.tsx."
+    },
+    {
+        "id":  57,
+        "domain":  "People Management",
+        "category":  "bug",
+        "severity":  "medium",
+        "area":  "Parents",
+        "file":  "app/dashboard/parents/actions.ts",
+        "line":  245,
+        "title":  "updateParent\u0027s child-link replace is non-atomic",
+        "description":  "updateParent deletes all existing student_parents rows for the parent, then re-inserts the new set. If the delete succeeds but the subsequent insert fails (e.g. transient error, invalid studentId), the parent is left with zero linked children and the error surfaces only as a generic failure â€” there is no rollback.",
+        "recommendation":  "Wrap the delete+insert in a single RPC/transaction, or diff the existing vs. desired links and apply only the changes instead of delete-then-reinsert."
+    },
+    {
+        "id":  58,
+        "domain":  "People Management",
+        "category":  "bug",
+        "severity":  "medium",
+        "area":  "Parents",
+        "file":  "app/dashboard/parents/actions.ts",
+        "line":  93,
+        "title":  "is_primary flag set by array position, ignoring other guardians of the same child",
+        "description":  "In addParent and updateParent, `is_primary: i === 0` is computed purely from this parent\u0027s own position in the newly submitted children list. It never checks whether another parent is already marked primary for that same student, so saving a second guardian can create two primary_relationship rows for one student, or silently flip an existing primary guardian to non-primary.",
+        "recommendation":  "Before inserting, check existing student_parents rows for each student_id and only mark is_primary true if no other primary guardian already exists for that student (or let the admin choose explicitly per child)."
+    },
+    {
+        "id":  59,
+        "domain":  "People Management",
+        "category":  "gap",
+        "severity":  "medium",
+        "area":  "Students",
+        "file":  "app/dashboard/students/_components/StudentDetailTabs.tsx",
+        "line":  452,
+        "title":  "Deleting a student document has no confirmation and no error handling",
+        "description":  "DocumentItem.handleDelete calls deleteStudentDocument immediately on click with no confirmation dialog, and the call isn\u0027t wrapped in try/catch â€” if the server action throws, the promise rejection is unhandled, the busy spinner never clears, and the user sees no error message.",
+        "recommendation":  "Add a confirm step (or a small inline confirm popover, consistent with delete-parent-modal.tsx) before deleting, and wrap the call in try/catch to surface errors and reset the busy state."
+    },
+    {
+        "id":  60,
+        "domain":  "People Management",
+        "category":  "gap",
+        "severity":  "medium",
+        "area":  "Students",
+        "file":  "app/dashboard/students/_components/StudentsClient.tsx",
+        "line":  153,
+        "title":  "Deactivating a student has no confirmation prompt",
+        "description":  "handleToggleActive calls setStudentActive immediately from the dropdown menu item with no confirmation, unlike the parent module which has a dedicated DeleteParentModal confirmation step for its destructive action.",
+        "recommendation":  "Add a confirmation step before deactivating a student, especially since deactivation affects fee/attendance reporting elsewhere in the app."
+    },
+    {
+        "id":  61,
+        "domain":  "People Management",
+        "category":  "bug",
+        "severity":  "medium",
+        "area":  "Staff",
+        "file":  "app/dashboard/staff/[id]/_components/edit-staff-modal.tsx",
+        "line":  90,
+        "title":  "Changing designation away from \"Driver\" silently discards license data",
+        "description":  "isDriver is derived client-side from `form.designation.trim().toLowerCase() === \"driver\"`, and handleSubmit passes `licenseNumber: isDriver ? form.licenseNumber || null : null` (same for licenseExpiry). If an admin edits a driver\u0027s designation (e.g. fixes a typo, or temporarily reassigns them) and saves, the previously stored license number/expiry are nulled out with no warning, even though the field values are still sitting in the form.",
+        "recommendation":  "Only clear license fields on an explicit user action, or warn the admin before discarding existing license data when designation no longer matches \"Driver\"."
+    },
+    {
+        "id":  62,
+        "domain":  "People Management",
+        "category":  "gap",
+        "severity":  "medium",
+        "area":  "Parents",
+        "file":  "app/dashboard/parents/actions.ts",
+        "line":  273,
+        "title":  "deleteParent leaves an orphaned Supabase Auth account behind",
+        "description":  "deleteParent removes the `parents` row but never calls supabaseAdmin.auth.admin.deleteUser on the associated profile_id. The parent\u0027s login account (with role: \"parent\" metadata) keeps working after the record is deleted, but now has no parent row and no linked children â€” a dangling, unmanageable account.",
+        "recommendation":  "When deleting a parent that has a profile_id and no other parent record references it, also delete or deactivate the associated auth user."
+    },
+    {
+        "id":  63,
+        "domain":  "People Management",
+        "category":  "bug",
+        "severity":  "medium",
+        "area":  "Students",
+        "file":  "lib/students/enroll.ts",
+        "line":  289,
+        "title":  "Roll number auto-generation is racy under concurrent enrollment",
+        "description":  "When rollNo isn\u0027t supplied, it\u0027s derived from a read-then-compute `count` query on students in the section followed by a later insert, with no uniqueness constraint enforcement visible in this code path. Two concurrent enrollments into the same section (e.g. via bulkImportStudents run twice, or manual add racing with bulk import) can compute the same sequence number and produce duplicate roll numbers.",
+        "recommendation":  "Enforce a unique constraint on (section_id, roll_no) at the DB level and handle the resulting conflict by retrying with the next sequence number, rather than trusting a plain count query."
+    },
+    {
+        "id":  64,
+        "domain":  "People Management",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "Students",
+        "file":  "app/dashboard/students/actions.ts",
+        "line":  203,
+        "title":  "applyStudentLeave does not verify studentId ownership",
+        "description":  "applyStudentLeave inserts a student_leave_requests row for whatever studentId the client supplies, with no check that the caller is that student\u0027s parent or an admin. It\u0027s currently only invoked from the admin-gated StudentDetailTabs UI, but the server action itself provides no defense if called directly.",
+        "recommendation":  "Verify the caller is either a school admin or a parent linked to the given studentId before inserting the leave request."
+    },
+    {
+        "id":  65,
+        "domain":  "People Management",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "Staff/Students/Drivers",
+        "file":  "app/dashboard/staff/[id]/_components/edit-staff-modal.tsx",
+        "line":  31,
+        "title":  "Edit-modal load/submit boilerplate is duplicated across modules",
+        "description":  "EditStaffModal, EditParentModal, and similar edit modals each hand-roll an identical load-on-mount (useEffect + getXForEdit + setForm/setError/setLoading) and submit (busy/error state, try/catch, onSaved) pattern with no shared abstraction, making it easy for one module (e.g. students) to end up with weaker validation or missing checks than another.",
+        "recommendation":  "Extract a small shared `useEditEntity(fetchFn, updateFn)` hook to unify the load/submit/error lifecycle across staff, parents, and similar edit modals."
+    },
+    {
+        "id":  66,
+        "domain":  "People Management",
+        "category":  "gap",
+        "severity":  "low",
+        "area":  "Staff",
+        "file":  "app/dashboard/staff/actions.ts",
+        "line":  250,
+        "title":  "bulkImportStaff skips license/emergency-contact and permission-template fields",
+        "description":  "bulkImportStaff inserts staff rows without permission_template_id/name, license_number/expiry, address, or emergency contact fields (unlike inviteStaffMember and updateStaff which handle a subset of these), so bulk-imported staff always start with no permission template and no emergency-contact/license data even when the import source has it, and there is no follow-up prompt to fill it in.",
+        "recommendation":  "Either extend BulkImportStaffRow to carry these fields or explicitly document that bulk-imported staff should be edited afterward, and consider surfacing that as a post-import checklist in the UI."
+    },
+    {
+        "id":  67,
+        "domain":  "People Management",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "Parents",
+        "file":  "app/dashboard/parents/actions.ts",
+        "line":  37,
+        "title":  "Parent lookup-by-email uses a raw admin REST fetch instead of the SDK",
+        "description":  "addParent (and ensureParentAccount in lib/students/enroll.ts) manually constructs a fetch to `${SUPABASE_URL}/auth/v1/admin/users?email=...` with the service key in headers, duplicated in two places, instead of using supabaseAdmin.auth.admin.listUsers/getUserByEmail from the SDK. This duplicates auth-lookup logic and bypasses whatever request handling (retries, typed errors) the SDK provides.",
+        "recommendation":  "Factor the email-based Supabase Auth admin lookup into a single shared helper used by both addParent and enrollStudent\u0027s ensureParentAccount."
+    },
+    {
+        "id":  68,
+        "domain":  "People Management",
+        "category":  "gap",
+        "severity":  "low",
+        "area":  "Leaves",
+        "file":  "app/dashboard/leaves/actions.ts",
+        "line":  41,
+        "title":  "applyLeave does not check for overlapping leave requests",
+        "description":  "applyLeave inserts a new leave request for any from/to date range without checking for existing pending/approved leave requests that overlap for the same staff member, allowing duplicate or conflicting leave submissions to pile up.",
+        "recommendation":  "Check for overlapping date ranges on the same staff_id before insert and warn/block duplicate submissions."
+    },
+    {
+        "id":  69,
+        "domain":  "People Management",
+        "category":  "gap",
+        "severity":  "low",
+        "area":  "Drivers",
+        "file":  "app/dashboard/drivers/actions.ts",
+        "line":  105,
+        "title":  "updateDriver silently no-ops the staff_members update if staffId is missing",
+        "description":  "updateDriver only updates staff_members fields (status, employee_id) `if (input.staffId)`. If a driver profile somehow lacks a linked staff_members row, the admin\u0027s status/employee-ID changes are silently dropped with no error surfaced to the caller, only the profiles table gets updated.",
+        "recommendation":  "Surface an explicit error (or warning) to the caller when staffId is missing so the admin knows the driver\u0027s employment-status fields weren\u0027t updated."
+    },
+    {
+        "id":  70,
+        "domain":  "People Management",
+        "category":  "bug",
+        "severity":  "low",
+        "area":  "Students",
+        "file":  "app/dashboard/students/actions.ts",
+        "line":  41,
+        "title":  "addStudentManual checks capacity before resolving schoolId, wasting the check on institution mismatch",
+        "description":  "addStudentManual calls getStudentCapacity(await getCurrentInstitutionIdOrThrow()) before getCurrentSchoolIdOrThrow(); if the institution lookup and school lookup ever diverge (e.g. multi-school super_admin context not yet resolved), the capacity check could run against the wrong institution before failing later, giving a confusing capacity error instead of the real auth/context error.",
+        "recommendation":  "Resolve schoolId first (which validates the user\u0027s context) before running the plan-capacity check, matching the order used elsewhere in the file."
+    },
+    {
+        "id":  71,
+        "domain":  "People Management",
+        "category":  "gap",
+        "severity":  "low",
+        "area":  "Staff",
+        "file":  "app/dashboard/staff/[id]/_components/StaffDetailClient.tsx",
+        "line":  244,
+        "title":  "Address and emergency-contact PII shown to any viewer of the staff detail card with no masking",
+        "description":  "The left info card unconditionally renders full home address and emergency contact name+phone once loaded (staff.address !== \"â€”\", etc.). Given the page allows HR-manager-templated staff (not just admins) to view this page, the same sensitive fields (home address, emergency contact) are shown in full to that broader audience with no redaction/reveal step, unlike the deliberate reveal-to-view pattern used for login passwords elsewhere in the app.",
+        "recommendation":  "Consider whether HR-manager viewers need the full home address by default, or gate very sensitive fields (home address) behind an explicit reveal action similar to the credentials dialog pattern."
+    },
+    {
+        "id":  72,
+        "domain":  "Operations",
+        "category":  "bug",
+        "severity":  "critical",
+        "area":  "Library",
+        "file":  "app/dashboard/library/actions.ts",
+        "line":  37,
+        "title":  "updateBook has no tenant scoping â€” any school can edit any book",
+        "description":  "updateBook fetches no school_id and filters the update by `.eq(\"id\", id)` only, with no `.eq(\"school_id\", ...)`. Any authenticated user of any school can overwrite another school\u0027s library_books row by guessing/enumerating a UUID.",
+        "recommendation":  "Call getCurrentSchoolIdOrThrow() and add `.eq(\"school_id\", schoolId)` to the update filter, as createItem-style actions elsewhere do."
+    },
+    {
+        "id":  73,
+        "domain":  "Operations",
+        "category":  "bug",
+        "severity":  "critical",
+        "area":  "Library",
+        "file":  "app/dashboard/library/actions.ts",
+        "line":  61,
+        "title":  "deleteBook has no tenant scoping â€” cross-school deletion",
+        "description":  "deleteBook deletes `.eq(\"id\", id)` with no school_id filter and no auth check, so any authenticated user from any school can delete any other school\u0027s book record.",
+        "recommendation":  "Require getCurrentSchoolIdOrThrow() and scope the delete to that school_id."
+    },
+    {
+        "id":  74,
+        "domain":  "Operations",
+        "category":  "bug",
+        "severity":  "critical",
+        "area":  "Library",
+        "file":  "app/dashboard/library/actions.ts",
+        "line":  107,
+        "title":  "returnBook has no tenant scoping â€” cross-school issue tampering",
+        "description":  "returnBook updates `book_issues` by `.eq(\"id\", issueId)` alone. Anyone signed in to any school can mark any other school\u0027s book issue as returned, corrupting their availability counts.",
+        "recommendation":  "Resolve the caller\u0027s school_id and add it to the filter (or join through book_id/school_id) before allowing the update."
+    },
+    {
+        "id":  75,
+        "domain":  "Operations",
+        "category":  "bug",
+        "severity":  "high",
+        "area":  "Library",
+        "file":  "app/dashboard/library/actions.ts",
+        "line":  83,
+        "title":  "issueBook doesn\u0027t verify the book belongs to the caller\u0027s school",
+        "description":  "The availability check (`library_books.select(...).eq(\"id\", input.bookId).single()`) and the issued-count query are not scoped by school_id, so a user could pass another school\u0027s bookId and create a book_issues row referencing it while stamping the caller\u0027s own school_id â€” corrupting the other school\u0027s availability count and leaking its book existence.",
+        "recommendation":  "Scope both the book lookup and the issued-count query with `.eq(\"school_id\", schoolId)`, and reject if the book isn\u0027t found in that school."
+    },
+    {
+        "id":  76,
+        "domain":  "Operations",
+        "category":  "bug",
+        "severity":  "critical",
+        "area":  "Documents",
+        "file":  "app/dashboard/documents/actions.ts",
+        "line":  40,
+        "title":  "deleteDocument has no auth or tenant check",
+        "description":  "deleteDocument deletes `.eq(\"id\", id)` with no call to getUser/getCurrentSchoolIdOrThrow and no school_id filter â€” any authenticated user from any school can delete any document row in the system by id.",
+        "recommendation":  "Require an authenticated session, resolve the caller\u0027s school_id, and scope the delete with `.eq(\"school_id\", schoolId)`."
+    },
+    {
+        "id":  77,
+        "domain":  "Operations",
+        "category":  "gap",
+        "severity":  "medium",
+        "area":  "Documents",
+        "file":  "app/dashboard/documents/actions.ts",
+        "line":  40,
+        "title":  "deleteDocument never removes the underlying storage file",
+        "description":  "Unlike gallery\u0027s deleteGalleryImage (which calls storage.remove before deleting the row), deleteDocument only deletes the `documents` table row â€” the file left in the `school-documents` bucket is never cleaned up, so storage usage grows indefinitely with orphaned files.",
+        "recommendation":  "Parse the file_url/path before deleting the row and call supabaseAdmin.storage.from(\"school-documents\").remove([path])."
+    },
+    {
+        "id":  78,
+        "domain":  "Operations",
+        "category":  "bug",
+        "severity":  "critical",
+        "area":  "Gallery",
+        "file":  "app/dashboard/gallery/actions.ts",
+        "line":  44,
+        "title":  "deleteGalleryImage has no tenant scoping and trusts a client-supplied URL for storage deletion",
+        "description":  "deleteGalleryImage never calls getCurrentSchoolIdOrThrow and deletes `.eq(\"id\", id)` with no school_id filter, so any authenticated user can delete any school\u0027s gallery row. Worse, the storage object path is derived by slicing the caller-supplied `imageUrl` string after \"/school-gallery/\" with no validation that it belongs to the caller\u0027s school (or even to this bucket\u0027s expected prefix), letting a malicious client delete an arbitrary object in the shared school-gallery bucket by crafting the imageUrl argument.",
+        "recommendation":  "Fetch the image row scoped by id AND school_id first, derive the storage path from the trusted DB value (not the client argument), and 404/throw if it doesn\u0027t belong to the caller\u0027s school."
+    },
+    {
+        "id":  79,
+        "domain":  "Operations",
+        "category":  "bug",
+        "severity":  "high",
+        "area":  "Certificates",
+        "file":  "app/dashboard/certificates/actions.ts",
+        "line":  87,
+        "title":  "rejectCertificateRequest and markCertificateReady have zero auth/tenant checks",
+        "description":  "Both functions update `certificate_requests` by `.eq(\"id\", id)` alone â€” no getUser(), no role check, no school_id scoping. Any signed-in user of any role (student, parent, driver) from any school can reject or fast-track any certificate request in the system.",
+        "recommendation":  "Require an admin/staff session and scope the update to the caller\u0027s school_id, mirroring the pattern already used by front-desk\u0027s requireFrontDeskAccess()."
+    },
+    {
+        "id":  80,
+        "domain":  "Operations",
+        "category":  "bug",
+        "severity":  "medium",
+        "area":  "Certificates",
+        "file":  "app/dashboard/certificates/actions.ts",
+        "line":  107,
+        "title":  "markCertificateIssued resolves the acting staff member but never checks role or school ownership",
+        "description":  "markCertificateIssued fetches the caller\u0027s staffRow but doesn\u0027t verify the request\u0027s school_id matches the caller\u0027s school, nor that the caller has an admin/staff role â€” any authenticated user can mark any school\u0027s certificate as issued.",
+        "recommendation":  "Add a role check and filter the update by `.eq(\"school_id\", callerSchoolId)` in addition to the id."
+    },
+    {
+        "id":  81,
+        "domain":  "Operations",
+        "category":  "bug",
+        "severity":  "medium",
+        "area":  "Certificates",
+        "file":  "app/dashboard/certificates/actions.ts",
+        "line":  55,
+        "title":  "requestCertificate doesn\u0027t verify studentId belongs to caller\u0027s school for staff/admin",
+        "description":  "The cross-tenant guard only runs for role === \"parent\" (checking student_parents linkage). An admin or staff caller can submit `studentId` for a student in a completely different school; the insert still succeeds, stamping the caller\u0027s own school_id onto a request that references another school\u0027s student.",
+        "recommendation":  "Regardless of role, verify the student row exists with `.eq(\"id\", studentId).eq(\"school_id\", schoolId)` before inserting."
+    },
+    {
+        "id":  82,
+        "domain":  "Operations",
+        "category":  "gap",
+        "severity":  "high",
+        "area":  "Operations Domain (systemic)",
+        "file":  "app/dashboard/inventory/actions.ts",
+        "line":  null,
+        "title":  "Server actions across inventory/transport/hostel skip role checks entirely",
+        "description":  "createItem/updateItem/deleteItem/renameCategory/deleteCategory (inventory), createRoute/createVehicle/assignStudentTransport (transport), and createRoom/allotStudent/vacateStudent (hostel) only call getCurrentSchoolIdOrThrow() â€” they never verify the caller\u0027s role. Since Next.js server actions are directly invokable by any signed-in user regardless of which dashboard page renders their trigger button, a student/parent/driver account (which still resolves a valid school_id) can call these mutations directly. Contrast with app/dashboard/front-desk/actions.ts, which wraps every mutation in requireFrontDeskAccess() checking role in {admin, super_admin, staff} â€” the intended pattern already exists in this codebase but wasn\u0027t applied here.",
+        "recommendation":  "Add a shared role-check helper (like requireFrontDeskAccess) and call it at the top of every mutating action in inventory, transport, and hostel actions.ts files."
+    },
+    {
+        "id":  83,
+        "domain":  "Operations",
+        "category":  "bug",
+        "severity":  "medium",
+        "area":  "Hostel",
+        "file":  "app/dashboard/hostel/actions.ts",
+        "line":  101,
+        "title":  "allotStudent\u0027s room-capacity check is a check-then-insert race (TOCTOU)",
+        "description":  "Capacity is enforced by reading the room\u0027s capacity and current occupied count, then inserting â€” with no transaction or unique constraint tying the two together. Two concurrent allotment requests for the last free bed can both pass the capacity check and both insert, overfilling the room.",
+        "recommendation":  "Enforce capacity at the database level (e.g. a trigger or a partial unique/check constraint on hostel_allotments per room) or wrap the check+insert in a serializable transaction / RPC."
+    },
+    {
+        "id":  84,
+        "domain":  "Operations",
+        "category":  "bug",
+        "severity":  "medium",
+        "area":  "Hostel",
+        "file":  "app/dashboard/hostel/actions.ts",
+        "line":  138,
+        "title":  "updateAllotment has the same room-capacity TOCTOU when switching rooms",
+        "description":  "When `current.room_id !== input.roomId`, the new room\u0027s capacity is checked and then the row is updated with no transactional guarantee, so two concurrent room-transfer requests targeting the same last free bed can both succeed.",
+        "recommendation":  "Same fix as allotStudent â€” move the capacity guarantee into the database rather than app-level check-then-write."
+    },
+    {
+        "id":  85,
+        "domain":  "Operations",
+        "category":  "gap",
+        "severity":  "medium",
+        "area":  "Transport",
+        "file":  "app/dashboard/transport/actions.ts",
+        "line":  256,
+        "title":  "assignStudentTransport never validates against the route\u0027s capacity",
+        "description":  "RouteInput/routes carry a `capacity` field and the UI displays roster fill %, but assignStudentTransport (and updateStudentTransport) never checks the number of already-assigned students against that capacity before inserting â€” routes can be overbooked without limit, unlike hostel rooms which at least attempt a capacity check.",
+        "recommendation":  "Before inserting/updating student_transport, count existing assignments for the route and reject (or warn) once capacity is reached."
+    },
+    {
+        "id":  86,
+        "domain":  "Operations",
+        "category":  "gap",
+        "severity":  "medium",
+        "area":  "iClock Integration",
+        "file":  "app/iclock/cdata/route.ts",
+        "line":  31,
+        "title":  "Device identity relies solely on a non-secret serial number",
+        "description":  "findDevice() authenticates purely on the `SN` query parameter, which is not a secret (device serials are often sequential/predictable and printed on the hardware). Anyone who learns or guesses a registered school\u0027s device serial can POST fabricated ATTLOG lines to /iclock/cdata and inject fake check-in/check-out events for any enrolled PIN at that school, since resolveCredential only checks (school_id, method, external_id).",
+        "recommendation":  "Where the device firmware allows it, layer an additional shared secret (e.g. IP allowlist per device, or a signed query param) on top of SN; at minimum, rate-limit and alert on ATTLOG traffic from unexpected source IPs for a given device."
+    },
+    {
+        "id":  87,
+        "domain":  "Operations",
+        "category":  "gap",
+        "severity":  "medium",
+        "area":  "Gallery",
+        "file":  "app/dashboard/gallery/actions.ts",
+        "line":  7,
+        "title":  "uploadGalleryImage has no file-type or size validation",
+        "description":  "The upload accepts any `file.type`/extension and stores it with `contentType: file.type` taken verbatim from the client, then serves it from a public URL. A malicious upload of an .svg or .html file with a spoofed content-type could be used for stored XSS against anyone who opens the public gallery URL directly. There\u0027s also no size cap, so a single request can push an arbitrarily large blob into storage.",
+        "recommendation":  "Allowlist image MIME types/extensions server-side, verify against actual file bytes (not just the client-reported type), and enforce a max upload size before calling storage.upload."
+    },
+    {
+        "id":  88,
+        "domain":  "Operations",
+        "category":  "gap",
+        "severity":  "medium",
+        "area":  "Documents",
+        "file":  "lib/documents/document-actions.ts",
+        "line":  10,
+        "title":  "uploadSchoolDocumentFile has no server-side file-type or size validation",
+        "description":  "The `accept` attribute on the file input in DocumentsClient.tsx is client-side only and trivially bypassed (e.g. via devtools or a direct call to the server action). The server action stores whatever `file.type`/extension is sent and serves it from a public URL, with no size limit enforced.",
+        "recommendation":  "Validate extension/MIME against an allowlist and cap file size server-side before uploading to the `school-documents` bucket."
+    },
+    {
+        "id":  89,
+        "domain":  "Operations",
+        "category":  "gap",
+        "severity":  "medium",
+        "area":  "Documents",
+        "file":  "app/dashboard/documents/_components/DocumentsClient.tsx",
+        "line":  378,
+        "title":  "Delete document has no confirmation step",
+        "description":  "The trash icon in the document list calls `remove(id)` -\u003e `deleteDocument(id)` immediately on click with no confirmation modal, unlike inventory (DeleteConfirmModal) and library (DeleteConfirmModal) which both gate deletion behind an explicit confirm dialog.",
+        "recommendation":  "Add a confirmation modal before calling deleteDocument, matching the pattern used elsewhere in the app."
+    },
+    {
+        "id":  90,
+        "domain":  "Operations",
+        "category":  "gap",
+        "severity":  "low",
+        "area":  "Gallery",
+        "file":  "app/dashboard/website/_components/sections/GallerySection.tsx",
+        "line":  31,
+        "title":  "Delete gallery image has no confirmation step",
+        "description":  "handleDelete() calls deleteGalleryImage immediately on click with no confirm dialog, so a single mis-click permanently removes a photo (and its storage object) from the public site with no way to undo.",
+        "recommendation":  "Add a confirmation modal/step before calling deleteGalleryImage, consistent with the delete-confirmation pattern used in inventory and library."
+    },
+    {
+        "id":  91,
+        "domain":  "Operations",
+        "category":  "gap",
+        "severity":  "low",
+        "area":  "Hostel",
+        "file":  "app/dashboard/hostel/_components/EditAllotmentModal.tsx",
+        "line":  126,
+        "title":  "\"Vacate\" action has no confirmation step",
+        "description":  "The Vacate button calls handleVacate() -\u003e vacateStudent(student.id) directly on click with no confirmation, unlike destructive delete flows elsewhere in the app (inventory, library) that use an explicit confirm modal.",
+        "recommendation":  "Require a confirmation step before vacating a student, since it immediately frees the bed and changes the student\u0027s residency record."
+    },
+    {
+        "id":  92,
+        "domain":  "Operations",
+        "category":  "bug",
+        "severity":  "low",
+        "area":  "Library",
+        "file":  "app/dashboard/library/_components/LibraryClient.tsx",
+        "line":  294,
+        "title":  "handleReturn has no error handling around returnBook",
+        "description":  "handleReturn\u0027s startTransition callback calls `await returnBook(issueId)` with no try/catch; if the server action throws (e.g. a stale/invalid issueId), the rejection is unhandled and the staff member sees no error message â€” only the `finally` clears the spinner, silently leaving the item marked as not returned.",
+        "recommendation":  "Wrap the call in try/catch and surface the error, matching the pattern already used by handleDelete in the same file."
+    },
+    {
+        "id":  93,
+        "domain":  "Operations",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "Transport",
+        "file":  "app/dashboard/transport/actions.ts",
+        "line":  227,
+        "title":  "Unescaped search query interpolated into a PostgREST `.or()` filter",
+        "description":  "searchUnassignedStudents builds `.or(`full_name.ilike.%${q}%,roll_no.ilike.%${q}%`)` by directly interpolating the raw user-typed query. Characters like `,`, `(`, `)`, or `%` in `q` can alter the filter\u0027s structure (e.g. injecting extra OR clauses or breaking the query with a PostgREST parse error) since PostgREST\u0027s `or` syntax treats those characters specially and they aren\u0027t escaped.",
+        "recommendation":  "Escape/strip PostgREST special characters (`,()%*`) from the search term, or use parameterized `.filter()`/`.textSearch()` calls instead of building the filter string by hand."
+    },
+    {
+        "id":  94,
+        "domain":  "Operations",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "Certificates",
+        "file":  "app/dashboard/certificates/actions.ts",
+        "line":  34,
+        "title":  "Same unescaped `.or()` filter-injection pattern in searchActiveStudents",
+        "description":  "searchActiveStudents has the identical issue as transport\u0027s searchUnassignedStudents â€” the raw query string is spliced into an `.or()` filter without escaping PostgREST special characters.",
+        "recommendation":  "Apply the same escaping/parameterization fix as recommended for transport\u0027s searchUnassignedStudents."
+    },
+    {
+        "id":  95,
+        "domain":  "Operations",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "Inventory",
+        "file":  "app/dashboard/inventory/_components/InventoryClient.tsx",
+        "line":  186,
+        "title":  "CSV export doesn\u0027t neutralize formula-leading characters (CSV/formula injection)",
+        "description":  "exportCsv wraps every cell in quotes and escapes embedded quotes, but doesn\u0027t prefix cells that start with `=`, `+`, `-`, or `@`. An item name or notes field crafted to start with one of those characters would be interpreted as a formula by Excel/Sheets when the exported file is opened, a classic CSV-injection vector. The same pattern exists in hostel\u0027s downloadCsv (app/dashboard/hostel/_components/HostelClient.tsx).",
+        "recommendation":  "Prefix any cell value beginning with =, +, -, or @ with a leading apostrophe (or tab) before quoting, in both InventoryClient\u0027s exportCsv and HostelClient\u0027s downloadCsv."
+    },
+    {
+        "id":  96,
+        "domain":  "Operations",
+        "category":  "gap",
+        "severity":  "medium",
+        "area":  "Inventory",
+        "file":  "app/dashboard/inventory/actions.ts",
+        "line":  121,
+        "title":  "deleteCategory\u0027s reassignTo target is never validated as an existing category",
+        "description":  "deleteCategory only checks that `to !== category` and is non-empty; it never verifies `reassignTo` matches an existing category for this school. The UI always passes a value from the known category list, but since this is a plain server action, a caller could pass an arbitrary string, silently creating a new category via a \"delete\" operation with no indication that\u0027s what happened.",
+        "recommendation":  "Validate that reassignTo exists among the school\u0027s current categories (or explicitly document/support creating a new one during delete) before performing the update."
+    },
+    {
+        "id":  97,
+        "domain":  "Operations",
+        "category":  "bug",
+        "severity":  "low",
+        "area":  "Inventory",
+        "file":  "app/dashboard/inventory/actions.ts",
+        "line":  103,
+        "title":  "renameCategory/deleteCategory have no role check, unlike the item-level UI gate",
+        "description":  "Same systemic issue as the broader inventory/transport/hostel finding, called out specifically here because these two functions can rewrite every item\u0027s category for the whole school in one call with only a resolved school_id and no role verification.",
+        "recommendation":  "Add the same role-check helper recommended for the rest of inventory/actions.ts."
+    },
+    {
+        "id":  98,
+        "domain":  "Communication",
+        "category":  "bug",
+        "severity":  "critical",
+        "area":  "Grievances",
+        "file":  "app/dashboard/grievances/actions.ts",
+        "line":  24,
+        "title":  "updateGrievanceStatus has no tenant (school_id) scoping",
+        "description":  "The update to `grievances` only filters `.eq(\"id\", id)` after checking the caller\u0027s role is admin/super_admin/kernel â€” it never checks the grievance\u0027s `school_id` against the caller\u0027s own school. A school-level admin from School A can call this server action with a grievance ID belonging to School B and change its status/resolution notes/resolved_by. Every sibling actions.ts in this codebase (announcements, events create) chains `.eq(\"school_id\", schoolId)` on the mutation â€” this is the one write missing it.",
+        "recommendation":  "Resolve the caller\u0027s school_id (getCurrentSchoolIdOrThrow, or skip the check only for role === \"kernel\") and add `.eq(\"school_id\", schoolId)` to the update, mirroring app/dashboard/announcements/actions.ts."
+    },
+    {
+        "id":  99,
+        "domain":  "Communication",
+        "category":  "bug",
+        "severity":  "critical",
+        "area":  "Messages",
+        "file":  "app/dashboard/messages/actions.ts",
+        "line":  17,
+        "title":  "sendMessage never verifies the caller is a participant of the conversation",
+        "description":  "sendMessage(conversationId, text) only authenticates the caller and inserts a message with `sender_id: myId` plus updates the conversation\u0027s last_message â€” it never checks that `myId` is participant1/participant2 of that conversation, nor that the conversation belongs to the caller\u0027s school. Any authenticated user on the platform can call this server action directly with an arbitrary conversationId (from any school) and inject a message into a stranger\u0027s conversation, impersonating themselves to that thread\u0027s other participant.",
+        "recommendation":  "Before inserting, fetch the conversation and verify `myId` is participant1 or participant2 (and optionally that conversation.school_id matches the caller\u0027s school); throw \"Unauthorized\" otherwise."
+    },
+    {
+        "id":  100,
+        "domain":  "Communication",
+        "category":  "bug",
+        "severity":  "high",
+        "area":  "Messages",
+        "file":  "app/dashboard/messages/actions.ts",
+        "line":  72,
+        "title":  "markConversationRead lacks a participant check",
+        "description":  "markConversationRead(conversationId) marks all unread messages in the given conversation as read for any caller, without checking the caller is participant1/participant2. Any authenticated user can silently mark another pair\u0027s conversation as read, making the real recipient\u0027s unread badge disappear even though they never saw the message.",
+        "recommendation":  "Verify the caller is a participant of the conversation (same check as recommended for sendMessage) before running the update."
+    },
+    {
+        "id":  101,
+        "domain":  "Communication",
+        "category":  "bug",
+        "severity":  "high",
+        "area":  "Events",
+        "file":  "app/dashboard/events/actions.ts",
+        "line":  83,
+        "title":  "toggleEventPublic updates by id only â€” no school_id scoping",
+        "description":  "Unlike createEvent (which scopes the insert to `schoolId`), toggleEventPublic does `.update({ is_public }).eq(\"id\", id)` with no `.eq(\"school_id\", schoolId)`. An admin from School A can pass any `school_events.id` belonging to a different school and toggle whether that other school\u0027s event is exposed on (or removed from) its public website.",
+        "recommendation":  "Resolve `schoolId` via getCurrentSchoolIdOrThrow() and add `.eq(\"school_id\", schoolId)` to the update, matching the pattern used in announcements/actions.ts."
+    },
+    {
+        "id":  102,
+        "domain":  "Communication",
+        "category":  "bug",
+        "severity":  "medium",
+        "area":  "Messages",
+        "file":  "app/dashboard/messages/actions.ts",
+        "line":  38,
+        "title":  "startConversation doesn\u0027t verify otherProfileId belongs to the caller\u0027s school",
+        "description":  "startConversation checks for an existing conversation scoped to `schoolId`, but when creating a new one it never confirms that `otherProfileId` is actually a profile in the caller\u0027s school. Combined with sendMessage\u0027s missing membership check, a crafted call could create a conversation record whose `school_id` is the caller\u0027s school but whose participant2 is a profile from an entirely different school.",
+        "recommendation":  "Look up `otherProfileId` in `profiles` and require `.eq(\"school_id\", schoolId)` before creating the conversation; throw if not found."
+    },
+    {
+        "id":  103,
+        "domain":  "Communication",
+        "category":  "bug",
+        "severity":  "medium",
+        "area":  "PTM",
+        "file":  "app/dashboard/ptm/actions.ts",
+        "line":  24,
+        "title":  "schedulePtmSession has no role check â€” any authenticated user can create sessions",
+        "description":  "schedulePtmSession only calls getCurrentSchoolIdOrThrow() (which just requires being signed in) before inserting a new ptm_sessions row. Unlike createAnnouncement/createEvent, which gate on role === admin/super_admin/kernel, this action can be invoked by a parent or student account to create arbitrary PTM sessions in their own school.",
+        "recommendation":  "Add a role check (admin/super_admin/teacher as appropriate) before the insert, consistent with the other creation actions in this domain."
+    },
+    {
+        "id":  104,
+        "domain":  "Communication",
+        "category":  "bug",
+        "severity":  "medium",
+        "area":  "PTM",
+        "file":  "app/dashboard/ptm/actions.ts",
+        "line":  50,
+        "title":  "bookPtmSlot has a TOCTOU race allowing double-booking the same slot",
+        "description":  "bookPtmSlot validates the student/session/eligibility but never checks whether `slotTime` is already taken before inserting into ptm_bookings â€” the `ptm_bookings` table (supabase/migrations/20260707030000_add_ptm_tables.sql) also has no unique constraint on (session_id, slot_time). Two parents booking the same displayed-as-available slot concurrently (or a parent replaying a stale page) can both successfully book the identical time with the same teacher.",
+        "recommendation":  "Add a unique constraint on (session_id, slot_time) in ptm_bookings and/or re-check for an existing booking at that slot_time inside bookPtmSlot before inserting, surfacing a friendly \"slot just got taken\" error."
+    },
+    {
+        "id":  105,
+        "domain":  "Communication",
+        "category":  "gap",
+        "severity":  "medium",
+        "area":  "PTM",
+        "file":  "app/dashboard/ptm/_components/MyPtmClient.tsx",
+        "line":  null,
+        "title":  "No way to mark a PTM session completed or cancelled",
+        "description":  "The `ptm_status` enum defines \u0027scheduled\u0027, \u0027completed\u0027, and \u0027cancelled\u0027, and ParentPtmClient/EventsClient already branch on `status !== \"cancelled\"`, but there is no action or UI anywhere (MyPtmClient, PtmModals, ptm/actions.ts) that ever transitions a session out of \u0027scheduled\u0027. Sessions accumulate indefinitely as \u0027scheduled\u0027 even after the meeting date has passed.",
+        "recommendation":  "Add a teacher-facing action (e.g. completeSession/cancelSession) and corresponding UI control, scoped to the owning teacher/school, to update ptm_sessions.status."
+    },
+    {
+        "id":  106,
+        "domain":  "Communication",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "Grievances",
+        "file":  "app/api/public/v1/grievances/route.ts",
+        "line":  40,
+        "title":  "Public grievance API doesn\u0027t validate the category enum",
+        "description":  "`category?.trim() || \"other\"` accepts any client-supplied string and stores it verbatim. The dashboard UI\u0027s CATEGORY_LABEL map (in GrievancesClient.tsx and SupportClient.tsx) only has friendly labels for the known set (academic, facilities, transport, fees, staff, other); anything else falls back to displaying the raw, unvalidated string in the UI.",
+        "recommendation":  "Validate `category` against the known enum server-side and coerce unknown values to \"other\" before inserting."
+    },
+    {
+        "id":  107,
+        "domain":  "Communication",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "Grievances",
+        "file":  "app/api/public/v1/grievances/route.ts",
+        "line":  13,
+        "title":  "Public grievance submission endpoint has no rate limiting beyond a honeypot field",
+        "description":  "The endpoint only guards against bots via a hidden `website` honeypot field; there\u0027s no per-IP/per-key rate limiting or CAPTCHA, so it could be scripted to flood a school\u0027s grievance inbox with junk submissions (each one triggers an insert with no server-side throttle).",
+        "recommendation":  "Add basic rate limiting (per publish key and/or per IP) to the POST handler, e.g. via an existing rate-limit utility if one exists elsewhere in the codebase."
+    },
+    {
+        "id":  108,
+        "domain":  "Communication",
+        "category":  "gap",
+        "severity":  "low",
+        "area":  "Grievances (seed data)",
+        "file":  "supabase/migrations/20260831140000_seed_grievances_demo_data.sql",
+        "line":  10,
+        "title":  "One-time demo seed block isn\u0027t idempotent if re-run outside normal migration tracking",
+        "description":  "Section 1 (`do $$ ... end $$`) unconditionally inserts 6 grievance rows for the public demo school (00000000-0000-0000-0000-000000000001) with no existence check or ON CONFLICT guard. Under Supabase\u0027s normal tracked-migration flow this runs exactly once, but there\u0027s no defense-in-depth if the file is ever manually re-executed (e.g. copy/pasted into a SQL console, or replayed outside the migration history), which would duplicate the six seed grievances until the next nightly reset_demo_school() wipes them. Note: targeting 00000000-...-001 here is intentional and consistent with the pre-existing reset_demo_school() demo-reset architecture (this is the designated public demo tenant, not an accidental write to a live customer school), so this is a minor robustness gap rather than a tenant-isolation bug.",
+        "recommendation":  "Wrap the one-time insert in a `where not exists (select 1 from grievances where school_id = v_school_id)` guard, or delete-then-insert like reset_demo_school() does, so re-running the file is safe."
+    },
+    {
+        "id":  109,
+        "domain":  "Communication",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "Grievances (seed script)",
+        "file":  "scripts/seed-grievances.mjs",
+        "line":  31,
+        "title":  "Seed script trusts an operator-supplied school name with no live-tenant guard",
+        "description":  "The script correctly defaults to \"AMS Test School\" and looks up the school by name via REST, but it has no explicit check preventing someone from passing a real customer school\u0027s name (or the demo school\u0027s name) as argv[2], which would insert the 6 fabricated demo grievances into that school\u0027s live inbox.",
+        "recommendation":  "Add a small denylist/confirmation for known live/demo school names (or require an explicit --force flag) before inserting, matching the project\u0027s \"never use /demo or the live tenant ID for testing\" policy."
+    },
+    {
+        "id":  110,
+        "domain":  "Communication",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "Events",
+        "file":  "app/dashboard/events/actions.ts",
+        "line":  31,
+        "title":  "Inconsistent role checks between createEvent and toggleEventPublic",
+        "description":  "createEvent authorizes only \"admin\"/\"super_admin\", while toggleEventPublic (and the analogous grievance/announcement actions) also allow \"kernel\". This inconsistency looks accidental rather than intentional and could either block a legitimate kernel workflow or signal the role list was copy-pasted without review.",
+        "recommendation":  "Align the allowed-role list across events actions (and ideally factor into a shared requireAdmin() helper like announcements/actions.ts already has)."
+    },
+    {
+        "id":  111,
+        "domain":  "Communication",
+        "category":  "gap",
+        "severity":  "low",
+        "area":  "Events",
+        "file":  "app/dashboard/events/actions.ts",
+        "line":  null,
+        "title":  "No edit or delete action for school events",
+        "description":  "Only createEvent and toggleEventPublic exist â€” once an event is created there is no way to correct a typo, change its date, or remove it (compare to Announcements, which has update/delete/setStatus). A mis-entered event (wrong date, wrong audience) is permanent short of a manual DB edit.",
+        "recommendation":  "Add updateEvent/deleteEvent server actions and corresponding UI, scoped to school_id like the other actions."
+    },
+    {
+        "id":  112,
+        "domain":  "Communication",
+        "category":  "bug",
+        "severity":  "low",
+        "area":  "Messages",
+        "file":  "app/dashboard/messages/_components/MessagesClient.tsx",
+        "line":  115,
+        "title":  "sendMessage errors are silently swallowed in the UI",
+        "description":  "handleSend() in MessageThread calls `await sendMessage(conv.id, text)` inside startTransition with no try/catch â€” if the server action throws (e.g. network error, or the auth check above were added and rejected), the typed message is already cleared from the textarea (`setReply(\"\")` runs before the await) and the user gets no error feedback or way to retry; the message just silently fails to send.",
+        "recommendation":  "Wrap the sendMessage call in try/catch, restore the draft text on failure, and show an inline error like the grievance/announcement modals do."
+    },
+    {
+        "id":  113,
+        "domain":  "Admin/Platform",
+        "category":  "bug",
+        "severity":  "critical",
+        "area":  "Institutions",
+        "file":  "app/dashboard/actions.ts",
+        "line":  35,
+        "title":  "approveInstitution/rejectInstitution have no auth or role check",
+        "description":  "Both exported \u0027use server\u0027 actions read `institutionId` from form data and call `updateInstitutionStatus` directly with zero call to getUser()/getSession() or any role check. Any authenticated user of any role (or a crafted request to the action endpoint) can activate, assign a paid plan to, suspend, or reject any institution platform-wide â€” the kernel-only gate exists only in the UI (institution-ui.tsx renders these forms behind a page-level role check that the action itself does not enforce).",
+        "recommendation":  "Add a requireKernel()-style check (mirroring institutions/actions.ts\u0027s requireKernelOwner) at the top of both approveInstitution and rejectInstitution before calling updateInstitutionStatus."
+    },
+    {
+        "id":  114,
+        "domain":  "Admin/Platform",
+        "category":  "bug",
+        "severity":  "critical",
+        "area":  "Settings / Role Templates",
+        "file":  "app/dashboard/settings/actions.ts",
+        "line":  273,
+        "title":  "saveRoleTemplate has no role check and is not school-scoped",
+        "description":  "saveRoleTemplate updates `role_templates` by `.eq(\"id\", input.id)` alone â€” no `.eq(\"school_id\", schoolId)` filter and no check that the caller is admin/super_admin. Any authenticated user (parent, student, teacher, driver) in any school can call this action directly and overwrite the name/description/permissions JSON of ANY role template in the whole database, including templates belonging to other institutions â€” a direct path to self-granting admin permissions or tampering with another tenant\u0027s access control.",
+        "recommendation":  "Require role === \u0027admin\u0027 || role === \u0027super_admin\u0027 before proceeding, and add `.eq(\"school_id\", schoolId)` to the update query so a template can only be modified by an admin of the school that owns it."
+    },
+    {
+        "id":  115,
+        "domain":  "Admin/Platform",
+        "category":  "bug",
+        "severity":  "critical",
+        "area":  "Settings / Role Templates",
+        "file":  "app/dashboard/settings/actions.ts",
+        "line":  327,
+        "title":  "deleteRoleTemplate has no role check and is not school-scoped",
+        "description":  "deleteRoleTemplate deletes by `.eq(\"id\", id).eq(\"is_builtin\", false)` only â€” `schoolId` is fetched but only used for the audit description, never as a query filter, and no role is checked. Any authenticated user in any school can delete any custom role template belonging to any other institution by id.",
+        "recommendation":  "Check role === \u0027admin\u0027 || role === \u0027super_admin\u0027, and add `.eq(\"school_id\", schoolId)` to the delete query."
+    },
+    {
+        "id":  116,
+        "domain":  "Admin/Platform",
+        "category":  "bug",
+        "severity":  "critical",
+        "area":  "Settings / Role Templates",
+        "file":  "app/dashboard/settings/actions.ts",
+        "line":  350,
+        "title":  "restoreRoleTemplateDefaults has no role check and is not school-scoped",
+        "description":  "restoreRoleTemplateDefaults updates by `.eq(\"id\", id).eq(\"is_builtin\", true)` only, with no school_id filter and no role check. Any authenticated user can silently reset any built-in role template\u0027s permissions in any school/institution.",
+        "recommendation":  "Check role === \u0027admin\u0027 || role === \u0027super_admin\u0027, and add `.eq(\"school_id\", schoolId)` to the update query."
+    },
+    {
+        "id":  117,
+        "domain":  "Admin/Platform",
+        "category":  "bug",
+        "severity":  "critical",
+        "area":  "Settings / File Uploads",
+        "file":  "lib/schools/logo-actions.ts",
+        "line":  5,
+        "title":  "uploadSchoolLogo has no auth check at all",
+        "description":  "uploadSchoolLogo never calls getUser()/getSession() â€” it uploads directly to the `school-logos` storage bucket via the service-role client. Since middleware.ts only checks session existence for /dashboard routes and does no per-action authorization, and this server action is invoked over its own POST endpoint independent of page middleware, this is effectively an unauthenticated (or at best any-logged-in-user) arbitrary file upload primitive using admin credentials, with no tenant scoping, file-type validation, or size limit.",
+        "recommendation":  "Require an authenticated session (getUser()) and scope the upload path/ownership to the caller\u0027s school before writing to storage; add file-type/size validation."
+    },
+    {
+        "id":  118,
+        "domain":  "Admin/Platform",
+        "category":  "bug",
+        "severity":  "critical",
+        "area":  "Settings / File Uploads",
+        "file":  "lib/schools/signature-actions.ts",
+        "line":  5,
+        "title":  "uploadSchoolSignature has no auth check at all",
+        "description":  "Same issue as uploadSchoolLogo: uploadSchoolSignature never verifies the caller is authenticated before uploading to the shared \u0027school-logos\u0027 bucket with the service-role client â€” a principal\u0027s signature image (used on official report cards) can be replaced by anyone who can reach this action.",
+        "recommendation":  "Require getUser() and require role admin/super_admin (matching the \u0027edited by institution owner\u0027 intent stated elsewhere in the codebase) before allowing an upload."
+    },
+    {
+        "id":  119,
+        "domain":  "Admin/Platform",
+        "category":  "gap",
+        "severity":  "high",
+        "area":  "Audit Log",
+        "file":  "app/dashboard/institutions/actions.ts",
+        "line":  96,
+        "title":  "Institution hard-delete is never written to the audit log",
+        "description":  "confirmInstitutionDelete performs the platform\u0027s single most destructive operation (permanent cascade delete of an institution and all its schools) but never calls logAuditEvent â€” it only sends an email to kernel owners. Since audit_log is school-scoped and the institution (and its schools) is deleted in the same call, there is no durable, queryable record of who deleted it or when, undermining exactly the kind of accountability the audit log exists for.",
+        "recommendation":  "Before or immediately after the cascade delete, write an audit event (e.g. to a platform-level log, or against one of the institution\u0027s schools before it\u0027s removed) capturing actor, institution name, and school count."
+    },
+    {
+        "id":  120,
+        "domain":  "Admin/Platform",
+        "category":  "bug",
+        "severity":  "high",
+        "area":  "Audit Log",
+        "file":  "app/dashboard/actions.ts",
+        "line":  28,
+        "title":  "logInstitutionDecision hardcodes actor_role to \u0027kernel\u0027 regardless of caller",
+        "description":  "logInstitutionDecision always writes `actor_role: \"kernel\"` to audit_log instead of deriving it from the authenticated user\u0027s actual role. Combined with the missing auth check on approveInstitution/rejectInstitution (see separate finding), if a non-kernel user manages to invoke these actions, the audit trail would falsely show the action as performed by \u0027kernel\u0027, hiding the real actor and masking the privilege-escalation.",
+        "recommendation":  "Derive actor_role from the caller\u0027s own user_metadata.role (as lib/audit/log.ts\u0027s ROLE_LABEL map does) rather than hardcoding it, and add the missing auth check on the calling actions."
+    },
+    {
+        "id":  121,
+        "domain":  "Admin/Platform",
+        "category":  "bug",
+        "severity":  "high",
+        "area":  "Settings",
+        "file":  "app/dashboard/settings/actions.ts",
+        "line":  64,
+        "title":  "updateSchoolProfile has no role check",
+        "description":  "updateSchoolProfile only resolves the caller\u0027s schoolId (which any authenticated user of the school has, including parent/student/driver roles) and then updates the school\u0027s name, contact info, logo, signature, and current academic year with no admin/super_admin role check. The Settings UI only exposes this to \u0027admin\u0027 role, but the action itself doesn\u0027t enforce it, so it\u0027s reachable by any school member.",
+        "recommendation":  "Add a role check (role === \u0027admin\u0027 || role === \u0027super_admin\u0027) at the top of updateSchoolProfile before touching the schools table."
+    },
+    {
+        "id":  122,
+        "domain":  "Admin/Platform",
+        "category":  "bug",
+        "severity":  "high",
+        "area":  "Settings",
+        "file":  "app/dashboard/settings/actions.ts",
+        "line":  117,
+        "title":  "updateAcademicSettings has no role check",
+        "description":  "updateAcademicSettings (working days, periods/day, attendance threshold, grading scale, pass marks) can be called by any authenticated user with a school context â€” no admin/super_admin check, unlike assignStaffTemplate in the same file which does check role.",
+        "recommendation":  "Add the same role !== \u0027admin\u0027 \u0026\u0026 role !== \u0027super_admin\u0027 guard used elsewhere in this file."
+    },
+    {
+        "id":  123,
+        "domain":  "Admin/Platform",
+        "category":  "bug",
+        "severity":  "medium",
+        "area":  "Settings",
+        "file":  "app/dashboard/settings/actions.ts",
+        "line":  165,
+        "title":  "Grade band CRUD actions have no role check",
+        "description":  "createGradeBand, updateGradeBand, and deleteGradeBand are correctly scoped by school_id, but none verify the caller is admin/super_admin â€” any authenticated user in the school (teacher, parent, student) can create, rename, or delete grading bands that affect report cards school-wide.",
+        "recommendation":  "Add a role check before mutating grade_bands in all three functions."
+    },
+    {
+        "id":  124,
+        "domain":  "Admin/Platform",
+        "category":  "bug",
+        "severity":  "medium",
+        "area":  "Settings",
+        "file":  "app/dashboard/settings/actions.ts",
+        "line":  238,
+        "title":  "saveReportCardSettings has no role check",
+        "description":  "saveReportCardSettings lets any authenticated school member change the report card template, visible fields, and footer note for the whole school â€” no admin/super_admin gate, unlike the pattern used in assignStaffTemplate.",
+        "recommendation":  "Add the same role guard used in assignStaffTemplate before upserting report_card_settings."
+    },
+    {
+        "id":  125,
+        "domain":  "Admin/Platform",
+        "category":  "bug",
+        "severity":  "high",
+        "area":  "Schools",
+        "file":  "app/dashboard/schools/actions.ts",
+        "line":  27,
+        "title":  "updateSchool is missing the super_admin check its sibling actions enforce",
+        "description":  "updateSchool only checks `if (!user) throw new Error(\"Unauthorized\")` and that the school belongs to the caller\u0027s institution â€” it never checks `user.user_metadata?.role === \"super_admin\"`. By contrast, createAdditionalSchool and deleteSchool in the same file both require role === \u0027super_admin\u0027. This is an inconsistency that lets any authenticated staff/teacher/admin (non-owner) member of the institution edit the school\u0027s profile, status, and contact details.",
+        "recommendation":  "Add `if (!user || user.user_metadata?.role !== \"super_admin\") throw new Error(\"Unauthorized\")` to updateSchool, matching the other two actions."
+    },
+    {
+        "id":  126,
+        "domain":  "Admin/Platform",
+        "category":  "gap",
+        "severity":  "medium",
+        "area":  "Audit Log",
+        "file":  "app/dashboard/schools/actions.ts",
+        "line":  null,
+        "title":  "School update/create/delete never write to the audit log",
+        "description":  "updateSchool, createAdditionalSchool, and deleteSchool never import or call logAuditEvent, even though deleteSchool is an irreversible cascading operation on a whole school. Other comparable mutations (settings, website publish, staff type changes) all log via lib/audit/log.ts, so this module is an inconsistent gap in audit coverage for exactly the kind of high-impact institution-admin action the audit log is meant to cover.",
+        "recommendation":  "Call logAuditEvent from all three actions, recording the acting super_admin and the school affected."
+    },
+    {
+        "id":  127,
+        "domain":  "Admin/Platform",
+        "category":  "bug",
+        "severity":  "medium",
+        "area":  "Website / Banners",
+        "file":  "lib/schools/banner-actions.ts",
+        "line":  24,
+        "title":  "Banner upload/reorder/remove actions have no role check",
+        "description":  "addSchoolBanner, removeSchoolBanner, and moveSchoolBanner only require a resolved schoolId (any authenticated school member), while the sibling lib/site-settings/actions.ts explicitly documents \u0027Website branding is edited by the institution owner (super_admin)\u0027 and enforces requireSuperAdmin() for every other website-editing action. This module is the odd one out: a teacher, parent, or student account can add/reorder/delete the public site\u0027s carousel banners.",
+        "recommendation":  "Add the same requireSuperAdmin() check used in lib/site-settings/actions.ts to all three banner actions."
+    },
+    {
+        "id":  128,
+        "domain":  "Admin/Platform",
+        "category":  "gap",
+        "severity":  "medium",
+        "area":  "Audit Log",
+        "file":  "lib/audit/log.ts",
+        "line":  40,
+        "title":  "Audit logging failures are swallowed with no observability",
+        "description":  "logAuditEvent wraps its insert in a try/catch that silently discards any error (network failure, RLS rejection, schema drift, etc.), by design (\u0027failures here must never block the action\u0027). That tradeoff is reasonable for UX, but as written there\u0027s no fallback (e.g. console.error, error-tracking capture) so a systemic failure â€” e.g. a broken column or RLS policy blocking all inserts â€” would leave the platform\u0027s entire audit trail silently empty with no signal to operators.",
+        "recommendation":  "Keep the swallow-on-failure behavior for the caller, but log the error to a monitoring/error-tracking sink (e.g. console.error or Sentry) inside the catch block so silent audit-trail failures are detectable."
+    },
+    {
+        "id":  129,
+        "domain":  "Admin/Platform",
+        "category":  "gap",
+        "severity":  "low",
+        "area":  "Audit Log",
+        "file":  "lib/audit/log.ts",
+        "line":  30,
+        "title":  "actor_role is derived from client-controlled user_metadata, not a role table",
+        "description":  "The audit log\u0027s actor_role field is read from `user.user_metadata?.role`, which (depending on how user_metadata is set) can potentially be influenced by client-side auth.updateUser calls in some Supabase configurations. If user_metadata.role isn\u0027t strictly server-controlled elsewhere in this codebase, an actor could cause the audit log to misattribute their role.",
+        "recommendation":  "Confirm user_metadata.role is only ever set via service-role/admin calls (never client-writable), and consider cross-checking against the profiles.role column when logging sensitive actions."
+    },
+    {
+        "id":  130,
+        "domain":  "Admin/Platform",
+        "category":  "gap",
+        "severity":  "medium",
+        "area":  "Institutions",
+        "file":  "app/dashboard/institutions/actions.ts",
+        "line":  39,
+        "title":  "OTP delete flow doesn\u0027t rate-limit requestInstitutionDeleteOtp itself",
+        "description":  "requestInstitutionDeleteOtp can be called repeatedly with no cooldown â€” each call deletes any outstanding OTP and issues a new one plus a new email. While confirmInstitutionDelete correctly rate-limits guesses via MAX_ATTEMPTS, an attacker who already compromises a kernel-owner session could spam OTP requests, and there\u0027s no cooldown/backoff on requestInstitutionDeleteOtp to slow down automated abuse or email-bombing the owner\u0027s inbox.",
+        "recommendation":  "Add a short cooldown (e.g. one request per institution per 60s) before issuing a fresh OTP and sending another email."
+    },
+    {
+        "id":  131,
+        "domain":  "Admin/Platform",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "Schools",
+        "file":  "app/dashboard/schools/page.tsx",
+        "line":  29,
+        "title":  "Dashboard aggregation duplicated between schools list and school detail pages",
+        "description":  "SchoolsPage and app/dashboard/schools/[id]/page.tsx both independently re-implement the same student/staff/admin/fee aggregation logic (attendance averages, latest-month fee percentage, etc.) against supabaseAdmin queries, rather than sharing a helper. This N+1-prone pattern (multiple full-table queries per school, joined in JS) will scale worse as institutions grow, and the duplicated logic risks drifting out of sync (e.g. a bug fix in one place not applied to the other).",
+        "recommendation":  "Extract the shared aggregation (students/staff/admins/fees by school) into a lib/schools helper used by both pages."
+    },
+    {
+        "id":  132,
+        "domain":  "Admin/Platform",
+        "category":  "gap",
+        "severity":  "medium",
+        "area":  "Usage",
+        "file":  "app/dashboard/usage/page.tsx",
+        "line":  25,
+        "title":  "Usage page shows plan-capacity data but has no enforcement action or alerting",
+        "description":  "UsagePage computes `nearCapacity` (institutions at â‰¥80% of their school-plan limit) purely for on-screen display; there is no automated notification (email/in-app) to the institution when it approaches or exceeds its plan limit outside of this manually-viewed kernel dashboard page, and no link from a near-capacity row to any remediation action (e.g. contact institution, force-downgrade).",
+        "recommendation":  "Consider adding an actionable link per row (e.g. \u0027notify institution\u0027 or a direct link to their subscription) rather than a read-only stat, or wiring near-capacity institutions into an automated alert."
+    },
+    {
+        "id":  133,
+        "domain":  "Admin/Platform",
+        "category":  "gap",
+        "severity":  "low",
+        "area":  "Settings",
+        "file":  "app/dashboard/settings/actions.ts",
+        "line":  379,
+        "title":  "updateNotificationPreferences never validates the caller owns profileId",
+        "description":  "updateNotificationPreferences takes an arbitrary `profileId` from the caller and upserts notification_preferences for it with no check that `profileId` matches the authenticated user (no getUser()/session check at all in this function). Any authenticated user could overwrite another user\u0027s notification preferences by passing their profile id.",
+        "recommendation":  "Resolve profileId from the authenticated session server-side instead of trusting the client-supplied value, or verify it matches auth.uid()."
+    },
+    {
+        "id":  134,
+        "domain":  "Admin/Platform",
+        "category":  "bug",
+        "severity":  "medium",
+        "area":  "Settings",
+        "file":  "app/dashboard/settings/actions.ts",
+        "line":  400,
+        "title":  "updateProfileBasic never validates the caller owns profileId",
+        "description":  "Like updateNotificationPreferences, updateProfileBasic accepts an arbitrary profileId and updates `profiles.full_name`/`phone` for that id without checking it belongs to the current session\u0027s user â€” no getUser() call in this function at all.",
+        "recommendation":  "Derive the profile id from the authenticated session server-side rather than accepting it as a parameter from the client."
+    },
+    {
+        "id":  135,
+        "domain":  "Admin/Platform",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "Platform Analytics",
+        "file":  "app/dashboard/platform-analytics/page.tsx",
+        "line":  136,
+        "title":  "Institution-signup chart buckets by school creation, not institution creation",
+        "description":  "The \u0027Institution signups â€” last 6 months\u0027 chart and \u0027Institution types\u0027 breakdown both query the `schools` table (not `institutions`), so an institution that adds a second/third school later in the same 6-month window will inflate the signup trend and skew the type breakdown relative to what the chart title implies.",
+        "recommendation":  "Either rename the chart to reflect it counts schools, or query the institutions table (deduping by institution) if the intent is genuinely institution-level signups."
+    },
+    {
+        "id":  136,
+        "domain":  "Auth \u0026 Infrastructure",
+        "category":  "bug",
+        "severity":  "critical",
+        "area":  "RLS Policies",
+        "file":  "supabase/migrations/20260628000000_initial_schema.sql",
+        "line":  818,
+        "title":  "profiles UPDATE policy lets any user self-escalate to kernel/super_admin",
+        "description":  "The \"profiles: update own\" policy is `for update using (id = auth.uid())` with no `with check` clause and no column restriction. Since Postgres reuses USING as the implicit CHECK when none is given, and `id` doesn\u0027t change, any authenticated user can run `update profiles set role = \u0027kernel\u0027 where id = auth.uid()` directly via the Supabase client (anon key + their own session) and grant themselves any role. `auth_role()` (used as the tenant-isolation gate in nearly every other RLS policy in the schema, e.g. `auth_role() = \u0027kernel\u0027`) reads straight from `profiles.role`, so this single gap defeats tenant isolation database-wide, not just app-level checks.",
+        "recommendation":  "Add a `with check` clause (or a BEFORE UPDATE trigger) that pins `role`, `status`, and `school_id` to their pre-update values for non-kernel callers, or split those columns into a separate table only the service role can write."
+    },
+    {
+        "id":  137,
+        "domain":  "Auth \u0026 Infrastructure",
+        "category":  "bug",
+        "severity":  "critical",
+        "area":  "Auth",
+        "file":  "app/dashboard/layout.tsx",
+        "line":  20,
+        "title":  "Every role/permission check in the app trusts client-writable user_metadata",
+        "description":  "Across ~130 files (app/dashboard/layout.tsx:20, app/dashboard/page.tsx:22, lib/publish-keys/actions.ts:23, lib/domains/actions.ts:29, app/dashboard/institutions/actions.ts:17-21, lib/supabase/school-context.ts:23, supabase/functions/submit-onboarding/index.ts:64, etc.) authorization is decided by reading `user.user_metadata.role` / `.kernel_permission` off the JWT returned by `getUser()`. Supabase\u0027s `user_metadata` (unlike `app_metadata`) is editable by the user themselves via `supabase.auth.updateUser({ data: {...} })` using nothing but their own session â€” there is no Postgres Auth Hook in this project overriding JWT claims from `profiles`. Any signed-in student/parent/driver can call `updateUser({ data: { role: \u0027kernel\u0027, kernel_permission: \u0027owner\u0027 } })` from the browser console and immediately pass every one of these checks, gaining platform-owner access (institution list, user directory, publish keys, custom domains, hard-delete).",
+        "recommendation":  "Never trust `user_metadata` for authorization. Look up the authoritative role from the `profiles` table (or `app_metadata`, settable only via the Admin API) on every privileged server action/page, or configure a Postgres Auth Hook that stamps `role`/`kernel_permission` into the JWT from `profiles` server-side and ignores the client-supplied copy."
+    },
+    {
+        "id":  138,
+        "domain":  "Auth \u0026 Infrastructure",
+        "category":  "bug",
+        "severity":  "critical",
+        "area":  "Auth",
+        "file":  "app/dashboard/actions.ts",
+        "line":  35,
+        "title":  "approveInstitution/rejectInstitution server actions have no authorization check",
+        "description":  "`approveInstitution` (line 35) and `rejectInstitution` (line 69) call `updateInstitutionStatus` (which writes via `supabaseAdmin`, bypassing RLS) with zero role/kernel check â€” unlike every sibling kernel action in this codebase (e.g. `app/dashboard/institutions/actions.ts` wraps every mutation in `requireKernelOwner()`). Next.js Server Actions are invokable directly via a POST to the page route with the action\u0027s reference id (discoverable in the client bundle), so any authenticated user â€” including a freshly self-registered, still-`pending` super_admin â€” can activate or reject any institution on the platform, including granting themselves a paid plan for free.",
+        "recommendation":  "Add the same `requireKernelOwner()` (or equivalent server-verified kernel check) at the top of both functions before calling `updateInstitutionStatus`."
+    },
+    {
+        "id":  139,
+        "domain":  "Auth \u0026 Infrastructure",
+        "category":  "bug",
+        "severity":  "critical",
+        "area":  "Storage/RLS",
+        "file":  "supabase/migrations/20260707150000_add_admission_documents_table_and_bucket.sql",
+        "line":  24,
+        "title":  "admission-documents storage bucket is fully public and listable, exposing children\u0027s birth certificates",
+        "description":  "The bucket is created with `public: true` and the storage policy `create policy \"admission-documents: public read\" on storage.objects for select using (bucket_id = \u0027admission-documents\u0027)` â€” this grants anyone, unauthenticated, both `getPublicUrl` download AND folder listing across every school\u0027s admission documents (birth certificates, applicant photos) for every institution on the platform, with no ownership or key scoping at the storage layer (the app-layer `admission_documents` table RLS is correctly scoped, but the actual file bytes are not). This is a serious PII exposure for minors\u0027 identity documents.",
+        "recommendation":  "Make the bucket private and serve files via short-lived signed URLs generated server-side (scoped to the requesting school/kernel), instead of `getPublicUrl`."
+    },
+    {
+        "id":  140,
+        "domain":  "Auth \u0026 Infrastructure",
+        "category":  "gap",
+        "severity":  "high",
+        "area":  "Public API",
+        "file":  "app/api/public/v1/results/route.ts",
+        "line":  39,
+        "title":  "Exam-results lookup has no rate limiting and only two low-entropy factors",
+        "description":  "This unauthenticated (well, publish-key-authenticated only â€” the key is embedded in the public site\u0027s client JS, effectively public) endpoint returns a student\u0027s full name and published exam results keyed on `admissionNo` + `dob` alone, with no rate limiting or lockout. Admission numbers are often sequential/predictable per school and date-of-birth has under 40,000 practical values for a K-12 age range, so an attacker can script a brute-force sweep to enumerate every student\u0027s exam results at a school.",
+        "recommendation":  "Add rate limiting (per key/IP) and a lockout after repeated failed lookups, and consider requiring an additional non-guessable factor (e.g. a per-application access code) instead of DOB alone."
+    },
+    {
+        "id":  141,
+        "domain":  "Auth \u0026 Infrastructure",
+        "category":  "bug",
+        "severity":  "high",
+        "area":  "Auth",
+        "file":  "lib/auth/random-password.ts",
+        "line":  1,
+        "title":  "Initial account passwords are generated with Math.random(), not a CSPRNG",
+        "description":  "`randomPassword()` builds a 10-character password using `Math.random()`, which is used to set the initial login password for newly created staff, students, parents, drivers, and principals (referenced from app/dashboard/staff/actions.ts, students/actions.ts, parents/actions.ts, drivers/actions.ts, team/actions.ts, principals/actions.ts, lib/students/enroll.ts). `Math.random()` is not cryptographically secure â€” its internal state can be recovered from a handful of observed outputs, making generated passwords predictable in principle.",
+        "recommendation":  "Generate initial passwords with `crypto.getRandomValues` (the project already has this pattern in lib/publish-keys/crypto.ts) instead of `Math.random()`."
+    },
+    {
+        "id":  142,
+        "domain":  "Auth \u0026 Infrastructure",
+        "category":  "gap",
+        "severity":  "medium",
+        "area":  "Storage/RLS",
+        "file":  "supabase/migrations/20260707090000_create_student_photos_bucket.sql",
+        "line":  5,
+        "title":  "student-photos and school-documents buckets are also fully public and listable",
+        "description":  "Same pattern as the admission-documents bucket: `student-photos` (supabase/migrations/20260707090000_create_student_photos_bucket.sql) and `school-documents` (supabase/migrations/20260818010000_add_documents_file_and_bucket.sql) are created `public: true` with a blanket `using (bucket_id = \u0027...\u0027)` select policy â€” anyone can list and download every student\u0027s photo, or every school\u0027s uploaded circulars/policy documents, across every tenant, with no scoping.",
+        "recommendation":  "Scope these buckets the same way as recommended for admission-documents where the content isn\u0027t meant to be public (school-documents in particular may include non-public compliance paperwork); keep public access only for assets genuinely intended for public display."
+    },
+    {
+        "id":  143,
+        "domain":  "Auth \u0026 Infrastructure",
+        "category":  "gap",
+        "severity":  "medium",
+        "area":  "Public API",
+        "file":  "app/api/public/v1/admissions/route.ts",
+        "line":  22,
+        "title":  "Public admission/grievance submission endpoints have no rate limiting beyond a honeypot field",
+        "description":  "app/api/public/v1/admissions/route.ts and app/api/public/v1/grievances/route.ts accept unauthenticated public submissions gated only by a publish key (which is embedded in the site\u0027s own client-side JS/fetch calls and therefore not really secret) plus a honeypot field. There\u0027s no IP/key-based rate limiting, so either endpoint can be scripted to flood a school\u0027s admissions or grievances inbox.",
+        "recommendation":  "Add rate limiting per publish key / IP (e.g. via a shared counter table or edge middleware) on both public submission endpoints."
+    },
+    {
+        "id":  144,
+        "domain":  "Auth \u0026 Infrastructure",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "Middleware",
+        "file":  "middleware.ts",
+        "line":  53,
+        "title":  "Middleware route protection relies on locally-decoded, unverified session",
+        "description":  "`middleware.ts` gates `/dashboard`, `/onboarding`, and `/verify-phone` using `supabase.auth.getSession()`, which decodes the JWT locally without verifying it against the Supabase auth server (the code comment acknowledges this). Every actual page does call the verified `getUser()` afterward, so this isn\u0027t independently exploitable today, but it means the middleware gate itself offers no real security guarantee â€” a tampered/stale cookie will pass the middleware check and only get caught deeper in the render tree, which also means any *new* route added under one of these prefixes that forgets to call `getUser()` itself would have no real protection.",
+        "recommendation":  "Either accept this as an acceptable performance trade-off (documented) and make sure every downstream page explicitly calls `getUser()`, or switch middleware to `getUser()` for the routes it\u0027s actually meant to protect."
+    },
+    {
+        "id":  145,
+        "domain":  "Auth \u0026 Infrastructure",
+        "category":  "gap",
+        "severity":  "low",
+        "area":  "Auth",
+        "file":  "app/login/page.tsx",
+        "line":  179,
+        "title":  "\"Forgot password?\" links to a route that doesn\u0027t exist",
+        "description":  "The login page links to `/forgot-password` (app/login/page.tsx:179), but there is no `app/forgot-password` or `app/reset-password` route anywhere in the app â€” clicking it 404s. There is no password-reset flow implemented at all.",
+        "recommendation":  "Implement a `/forgot-password` page using `supabase.auth.resetPasswordForEmail()` plus a `/reset-password` callback page, or remove the link until it\u0027s built."
+    },
+    {
+        "id":  146,
+        "domain":  "Auth \u0026 Infrastructure",
+        "category":  "gap",
+        "severity":  "low",
+        "area":  "Dead Code",
+        "file":  "app/cmdk-preview-tmp/page.tsx",
+        "line":  1,
+        "title":  "Leftover, unauthenticated command-menu preview route ships to production",
+        "description":  "`app/cmdk-preview-tmp/page.tsx` is a dev-only harness for previewing the `CommandMenu` component with a fake user and a role switcher. Its path doesn\u0027t start with `/dashboard`, `/onboarding`, or `/verify-phone`, so middleware never gates it â€” it\u0027s reachable by anyone, unauthenticated, in production, and reveals the full command-menu/navigation structure for every role.",
+        "recommendation":  "Delete this route (or gate it behind a dev-only check) before it ships to production."
+    },
+    {
+        "id":  147,
+        "domain":  "Auth \u0026 Infrastructure",
+        "category":  "gap",
+        "severity":  "low",
+        "area":  "Migrations",
+        "file":  "supabase/migrations/20260831140000_seed_grievances_demo_data.sql",
+        "line":  10,
+        "title":  "One-time grievance seed block has no duplicate guard",
+        "description":  "Section 1 of this migration (`do $$ ... insert into grievances (...) values (...) ...`) is a one-time seed with no `on conflict` / existence check. If this migration were ever re-applied (e.g. a migration-history repair, or manually re-run against the same database), it would insert a second copy of the same six demo grievance rows. Low risk in practice since Supabase tracks applied migrations, but the seed logic itself isn\u0027t idempotent, unlike `reset_demo_school()` which fully deletes-then-reinserts.",
+        "recommendation":  "Guard the one-time insert with a `where not exists (select 1 from grievances where school_id = v_school_id)` check, or rely solely on the nightly `reset_demo_school()` regeneration instead of shipping a separate one-time seed block."
+    },
+    {
+        "id":  148,
+        "domain":  "Auth \u0026 Infrastructure",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "Supabase Clients",
+        "file":  "lib/supabase/admin.ts",
+        "line":  45,
+        "title":  "Admin user lookups reimplement the Auth Admin REST API by hand instead of using the SDK",
+        "description":  "`lib/supabase/admin.ts` builds raw `fetch` calls with hand-rolled `apikey`/`Authorization` headers to `${SUPABASE_URL}/auth/v1/admin/users...` (see `adminHeaders()`, `listInstitutions`, `fetchAllAuthUsersById`, `listStaffUsers`, `listKernelUsers`, `updateStaffType`) even though `supabaseAdmin` (lib/supabase/service.ts) already exposes the equivalent, maintained `supabase.auth.admin.listUsers()` / `getUserById()` / `updateUserById()` methods from `@supabase/supabase-js`. The hand-rolled version duplicates pagination/error-handling logic that the SDK already gets right and can silently drift from the SDK\u0027s behavior across version bumps.",
+        "recommendation":  "Replace the raw `fetch` calls with `supabaseAdmin.auth.admin.listUsers({ page, perPage })` / `getUserById()` / `updateUserById()`."
+    },
+    {
+        "id":  149,
+        "domain":  "Auth \u0026 Infrastructure",
+        "category":  "gap",
+        "severity":  "medium",
+        "area":  "Auth",
+        "file":  "app/dashboard/institutions/actions.ts",
+        "line":  20,
+        "title":  "Kernel permission tier is also read from client-writable user_metadata",
+        "description":  "`requireKernelOwner()` reads `user.user_metadata?.kernel_permission` to decide whether the caller is an \"owner\"-tier kernel account (allowed to hard-delete an institution) versus a lesser tier. Since `user_metadata` is user-editable (see the broader user_metadata.role finding), any account that has already escalated `role` to `kernel` via `updateUser()` can just as easily set `kernel_permission: \u0027owner\u0027` in the same call, defeating the permission-tier check as well as the role check.",
+        "recommendation":  "Same fix as the broader user_metadata finding: source `kernel_permission` from a server-controlled table, not the JWT\u0027s user-editable metadata."
+    },
+    {
+        "id":  150,
+        "domain":  "Auth \u0026 Infrastructure",
+        "category":  "gap",
+        "severity":  "medium",
+        "area":  "Auth",
+        "file":  "app/signup/page.tsx",
+        "line":  243,
+        "title":  "Self-signup lets the client choose its own initial role via signUp options.data",
+        "description":  "`app/signup/page.tsx` calls `supabase.auth.signUp({ email, password, options: { data: { role: \"super_admin\", status: \"pending\", ... } } })` directly from client code. `raw_user_meta_data` set at signUp becomes both `profiles.role` (via the `handle_new_user` trigger) and the JWT\u0027s `user_metadata.role`. While the current form hardcodes `\"super_admin\"`, this call shape means any client (not just this form) could POST an arbitrary `role` value (e.g. `\"kernel\"`) to Supabase\u0027s public signUp endpoint directly and have it accepted as their initial role/status, since nothing server-side validates or overrides the metadata payload at insert time.",
+        "recommendation":  "Have `handle_new_user()` (or a follow-up server-side step) ignore/whitelist the incoming `role` for public self-signup â€” e.g. always force `role = \u0027super_admin\u0027, status = \u0027pending\u0027` server-side for the public signup path regardless of what the client sent, rather than trusting the payload verbatim."
+    },
+    {
+        "id":  151,
+        "domain":  "Auth \u0026 Infrastructure",
+        "category":  "improvement",
+        "severity":  "medium",
+        "area":  "Public API",
+        "file":  "lib/domains/public-site-actions.ts",
+        "line":  15,
+        "title":  "Admission/results/grievance logic is duplicated verbatim between the publish-key API and the public-site server actions",
+        "description":  "`lib/domains/public-site-actions.ts` (`submitPublicSiteAdmission`, `checkPublicSiteResults`, `submitPublicSiteGrievance`) reimplements the exact same validation, storage-upload, and query logic already in `app/api/public/v1/admissions/route.ts`, `app/api/public/v1/results/route.ts`, and `app/api/public/v1/grievances/route.ts` (same honeypot check, same `ALLOWED_DOC_TYPES`/`MAX_DOC_SIZE` constants, same field validation, same document-upload loop) â€” one path is used by the same-origin public-site pages, the other by external embedders using a publish key. Any future fix (e.g. the rate-limiting or storage-privacy issues flagged elsewhere in this review) has to be applied twice and can easily drift out of sync, as the two copies already have already-duplicated logic.",
+        "recommendation":  "Extract the shared validation/upload/query logic into one function that both the `/api/public/v1/*` route handlers and the public-site server actions call, so a fix only needs to be made once."
+    },
+    {
+        "id":  152,
+        "domain":  "Public Site \u0026 Marketing",
+        "category":  "bug",
+        "severity":  "critical",
+        "area":  "Website / Gallery",
+        "file":  "app/dashboard/gallery/actions.ts",
+        "line":  44,
+        "title":  "deleteGalleryImage has no tenant scoping â€” cross-tenant photo deletion",
+        "description":  "deleteGalleryImage(id, imageUrl) deletes the storage object (path parsed directly out of the client-supplied imageUrl) and the school_gallery row using supabaseAdmin (service role, bypasses RLS) filtered only by `.eq(\"id\", id)` â€” it never calls getCurrentSchoolIdOrThrow() or checks the row\u0027s school_id. Any authenticated user of any school can delete another institution\u0027s public gallery photo (and, since the storage path is taken verbatim from the client, potentially any object under the school-gallery bucket) just by supplying its id/URL.",
+        "recommendation":  "Resolve the row\u0027s school_id server-side, compare it to getCurrentSchoolIdOrThrow(), and reject the delete (and derive the storage path from the fetched row, not the client-supplied imageUrl) if it doesn\u0027t match."
+    },
+    {
+        "id":  153,
+        "domain":  "Public Site \u0026 Marketing",
+        "category":  "bug",
+        "severity":  "high",
+        "area":  "Website / Gallery",
+        "file":  "app/dashboard/gallery/actions.ts",
+        "line":  7,
+        "title":  "Gallery mutation actions have no role check â€” any staff/parent/student account can publish to the public site",
+        "description":  "uploadGalleryImage, moveGalleryImage and deleteGalleryImage are only gated by the /dashboard/website page\u0027s UI, which requires role === \u0027super_admin\u0027 â€” but the server actions themselves never verify role, only (for upload/move) that the caller belongs to the school. Any logged-in account for that school (teacher, parent, student, driver) can call these actions directly to add, reorder, or (per the critical finding above) delete photos on the school\u0027s live public website.",
+        "recommendation":  "Add a requireAdmin()/requireSuperAdmin() check (matching the pattern already used in lib/site-settings/actions.ts) to uploadGalleryImage, moveGalleryImage and deleteGalleryImage before performing any mutation."
+    },
+    {
+        "id":  154,
+        "domain":  "Public Site \u0026 Marketing",
+        "category":  "gap",
+        "severity":  "high",
+        "area":  "Public Site / Draft Preview",
+        "file":  "app/public-site/[ownerId]/layout.tsx",
+        "line":  22,
+        "title":  "Draft-mode cookie is not scoped to the owner who enabled it â€” cross-tenant draft leakage",
+        "description":  "app/api/website/preview/route.ts enables Next.js draftMode() (a single app-wide cookie) for a super_admin previewing their own institution, then redirects to /public-site/{their-own-id}. But layout.tsx only checks `draftMode().isEnabled` â€” it never verifies ownerId matches the user who enabled preview. Once that cookie is set in a browser, navigating to /public-site/\u003cany-other-owner-id\u003e renders that OTHER institution\u0027s unpublished draft site settings (theme, header/footer config, section visibility) instead of the published version, exposing another tenant\u0027s in-progress changes.",
+        "recommendation":  "Store which ownerId the preview session is for (e.g. in the draft-mode payload or a separate signed cookie) and only serve draft settings for that ownerId; fall back to published settings for any other ownerId even when draft mode is enabled."
+    },
+    {
+        "id":  155,
+        "domain":  "Public Site \u0026 Marketing",
+        "category":  "gap",
+        "severity":  "high",
+        "area":  "Public Site / Results Lookup",
+        "file":  "lib/domains/public-site-actions.ts",
+        "line":  125,
+        "title":  "checkPublicSiteResults has no rate limiting, enabling brute-force enumeration of exam results",
+        "description":  "This unauthenticated server action looks up a student\u0027s exam results by schoolId + admissionNo + dob. Admission numbers are sequentially generated (\"ADM-{year}-{seq}\", see submit-admission.ts) and dob has limited entropy for a known grade/age cohort, so an attacker can script requests to enumerate valid combinations and pull other students\u0027 grades with no CAPTCHA, throttling, or lockout.",
+        "recommendation":  "Add rate limiting/throttling (e.g. per-IP and per-schoolId) and consider a CAPTCHA or a less-guessable secondary identifier before returning results."
+    },
+    {
+        "id":  156,
+        "domain":  "Public Site \u0026 Marketing",
+        "category":  "gap",
+        "severity":  "medium",
+        "area":  "Onboarding",
+        "file":  "app/onboarding/actions.ts",
+        "line":  12,
+        "title":  "submitOnboarding performs no server-side field validation",
+        "description":  "The server action trusts `input` entirely â€” name, institutionType, city, state, phone, etc. are inserted into institutions/schools with no non-empty/format checks. All validation (validateStep in _institution-form.tsx) is client-side only, so a request crafted directly against the server action (bypassing the form) can create an institution/school with blank required fields, producing a broken record that downstream dashboard and public-site code assumes is well-formed.",
+        "recommendation":  "Re-validate required fields (name, institutionType, city, state, phone) server-side in submitOnboarding before insert/update, mirroring the client-side rules."
+    },
+    {
+        "id":  157,
+        "domain":  "Public Site \u0026 Marketing",
+        "category":  "gap",
+        "severity":  "medium",
+        "area":  "Website / Gallery Upload",
+        "file":  "app/dashboard/gallery/actions.ts",
+        "line":  9,
+        "title":  "uploadGalleryImage has no server-side file type or size validation",
+        "description":  "The client (GalleryUploadModal.tsx) restricts uploads to JPEG/PNG/WEBP under 5MB, but /api/gallery/upload â†’ uploadGalleryImage never re-checks file.type or file.size server-side, and stores whatever contentType the client claims. A crafted request can upload arbitrarily large or arbitrarily typed files (including SVG with embedded script, or non-image files) to the public school-gallery storage bucket.",
+        "recommendation":  "Validate file.type against an allow-list and enforce a max size in uploadGalleryImage itself, not just in the client component."
+    },
+    {
+        "id":  158,
+        "domain":  "Public Site \u0026 Marketing",
+        "category":  "gap",
+        "severity":  "medium",
+        "area":  "Public Site / SEO",
+        "file":  "app/public-site/[ownerId]/page.tsx",
+        "line":  1,
+        "title":  "No page ever defines metadata â€” every institution\u0027s public site shows Shikshaloy\u0027s own SEO tags",
+        "description":  "None of the app/public-site/[ownerId]/** pages (home, about, admissions, announcements, events, faculty, gallery, results, contact, faculty/[facultyId]) export generateMetadata or metadata. They all inherit the root app/layout.tsx\u0027s Shikshaloy marketing metadata (title, description, Open Graph image), so every school\u0027s public website â€” the core deliverable of this feature â€” shows the wrong title/description in browser tabs, search results, and social share previews instead of the school\u0027s own name, tagline, and logo.",
+        "recommendation":  "Add generateMetadata to each public-site page/layout, deriving title/description/OG image from the resolved school (name, tagline, logoUrl)."
+    },
+    {
+        "id":  159,
+        "domain":  "Public Site \u0026 Marketing",
+        "category":  "bug",
+        "severity":  "medium",
+        "area":  "Public Site / Announcements",
+        "file":  "app/public-site/_components/Announcements.tsx",
+        "line":  67,
+        "title":  "Sanitized rich-text announcement content is rendered as literal escaped text, not HTML",
+        "description":  "Announcement content is saved via DOMPurify.sanitize(input.content, { ALLOWED_TAGS: [\"p\",\"br\",\"strong\",\"em\",\"ul\",\"ol\",\"li\",\"blockquote\"] }) in app/dashboard/announcements/actions.ts, i.e. it\u0027s stored as sanitized HTML. But the public site renders it with plain JSX interpolation (`{a.content}`), not dangerouslySetInnerHTML, so any formatting an admin applies (bold, lists, paragraphs) shows up to visitors as literal `\u003cp\u003e`, `\u003cstrong\u003e`, `\u003cul\u003e` tag text instead of being rendered.",
+        "recommendation":  "Render the already-sanitized content with dangerouslySetInnerHTML={{ __html: a.content }} on the public site (safe here since it was sanitized on write with a strict allow-list)."
+    },
+    {
+        "id":  160,
+        "domain":  "Public Site \u0026 Marketing",
+        "category":  "bug",
+        "severity":  "medium",
+        "area":  "Public Site / Admissions",
+        "file":  "lib/public-site/submit-admission.ts",
+        "line":  60,
+        "title":  "Race condition in admission application-number generation",
+        "description":  "submitPublicAdmission computes the next application_no via a separate `select count` query and then inserts, with no transaction or advisory lock. Two applicants submitting concurrently for the same school/academic year (common during an admission-window rush) can compute the same sequence number; the second insert then fails against the `unique(school_id, application_no)` constraint, surfacing a generic \"Failed to submit application\" error to a legitimate applicant.",
+        "recommendation":  "Generate the sequence atomically, e.g. via a DB sequence/serial column or an upsert-with-retry loop instead of count-then-insert."
+    },
+    {
+        "id":  161,
+        "domain":  "Public Site \u0026 Marketing",
+        "category":  "gap",
+        "severity":  "medium",
+        "area":  "Public Site / Student Safety Card",
+        "file":  "app/s/[id]/page.tsx",
+        "line":  35,
+        "title":  "Student safety-card page doesn\u0027t check student status, exposing withdrawn students\u0027 PII indefinitely",
+        "description":  "The public, no-login safety page (linked from the student\u0027s ID-card QR) queries `students` by id only, with no `.eq(\"status\", \"active\")` filter (students.status defaults to \u0027active\u0027 per the schema and is used elsewhere, e.g. staff_members.status in getPublicSiteSchools). A withdrawn, transferred, or graduated student\u0027s old ID card QR will keep exposing their photo, blood group, and guardians\u0027 names/phone numbers publicly forever, even after they\u0027ve left the school.",
+        "recommendation":  "Filter the query to active students (or otherwise expire the safety page once a student\u0027s status changes), and consider notFound() for inactive students."
+    },
+    {
+        "id":  162,
+        "domain":  "Public Site \u0026 Marketing",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "Website Editor",
+        "file":  "lib/site-settings/actions.ts",
+        "line":  151,
+        "title":  "Theme color, carousel and gallery-selection settings are saved but never rendered anywhere",
+        "description":  "SiteSettings.theme.primaryColor (ThemeSection.tsx), SiteSettings.carousel (updateCarouselSlides, CarouselSlide caption/ctaLabel/ctaHref) and SiteSettings.gallery (updateGallerySelection) are all persisted to institution_site_settings, but nothing in app/public-site reads settings.theme, settings.carousel, or settings.gallery â€” the public site\u0027s colors are fixed Tailwind classes and the actual carousel/gallery come from separate school_banners/school_gallery tables via CarouselSection/GallerySection instead. Admins who use the color picker or (if it were wired up) a carousel-caption/CTA field would see no effect on their live site.",
+        "recommendation":  "Either wire these settings into the public-site rendering (apply primaryColor as a CSS variable, use draft.carousel/gallery for section content) or remove the dead UI/schema to avoid a feature that silently does nothing."
+    },
+    {
+        "id":  163,
+        "domain":  "Static Analysis",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "ESLint",
+        "file":  "app/dashboard/_components/sidebar.tsx",
+        "line":  116,
+        "title":  "@next/next/no-img-element: Using `\u003cimg\u003e` could result in slower LCP and higher b",
+        "description":  "Using `\u003cimg\u003e` could result in slower LCP and higher bandwidth. Consider using `\u003cImage /\u003e` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element",
+        "recommendation":  "Resolve per ESLint rule \u0027@next/next/no-img-element\u0027."
+    },
+    {
+        "id":  164,
+        "domain":  "Static Analysis",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "ESLint",
+        "file":  "app/dashboard/_components/sidebar.tsx",
+        "line":  187,
+        "title":  "@next/next/no-img-element: Using `\u003cimg\u003e` could result in slower LCP and higher b",
+        "description":  "Using `\u003cimg\u003e` could result in slower LCP and higher bandwidth. Consider using `\u003cImage /\u003e` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element",
+        "recommendation":  "Resolve per ESLint rule \u0027@next/next/no-img-element\u0027."
+    },
+    {
+        "id":  165,
+        "domain":  "Static Analysis",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "ESLint",
+        "file":  "app/dashboard/attendance/_components/AttendanceClient.tsx",
+        "line":  527,
+        "title":  "@next/next/no-img-element: Using `\u003cimg\u003e` could result in slower LCP and higher b",
+        "description":  "Using `\u003cimg\u003e` could result in slower LCP and higher bandwidth. Consider using `\u003cImage /\u003e` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element",
+        "recommendation":  "Resolve per ESLint rule \u0027@next/next/no-img-element\u0027."
+    },
+    {
+        "id":  166,
+        "domain":  "Static Analysis",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "ESLint",
+        "file":  "app/dashboard/billing/_components/InvoiceDetailClient.tsx",
+        "line":  153,
+        "title":  "@next/next/no-img-element: Using `\u003cimg\u003e` could result in slower LCP and higher b",
+        "description":  "Using `\u003cimg\u003e` could result in slower LCP and higher bandwidth. Consider using `\u003cImage /\u003e` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element",
+        "recommendation":  "Resolve per ESLint rule \u0027@next/next/no-img-element\u0027."
+    },
+    {
+        "id":  167,
+        "domain":  "Static Analysis",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "ESLint",
+        "file":  "app/dashboard/drivers/_components/DriversClient.tsx",
+        "line":  52,
+        "title":  "@typescript-eslint/no-unused-vars: \u0027field\u0027 is defined but never used.",
+        "description":  "\u0027field\u0027 is defined but never used.",
+        "recommendation":  "Resolve per ESLint rule \u0027@typescript-eslint/no-unused-vars\u0027."
+    },
+    {
+        "id":  168,
+        "domain":  "Static Analysis",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "ESLint",
+        "file":  "app/dashboard/schools/[id]/_components/SchoolDetailClient.tsx",
+        "line":  227,
+        "title":  "@next/next/no-img-element: Using `\u003cimg\u003e` could result in slower LCP and higher b",
+        "description":  "Using `\u003cimg\u003e` could result in slower LCP and higher bandwidth. Consider using `\u003cImage /\u003e` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element",
+        "recommendation":  "Resolve per ESLint rule \u0027@next/next/no-img-element\u0027."
+    },
+    {
+        "id":  169,
+        "domain":  "Static Analysis",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "ESLint",
+        "file":  "app/dashboard/staff/_components/StaffClient.tsx",
+        "line":  107,
+        "title":  "@typescript-eslint/no-unused-vars: \u0027field\u0027 is defined but never used.",
+        "description":  "\u0027field\u0027 is defined but never used.",
+        "recommendation":  "Resolve per ESLint rule \u0027@typescript-eslint/no-unused-vars\u0027."
+    },
+    {
+        "id":  170,
+        "domain":  "Static Analysis",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "ESLint",
+        "file":  "app/dashboard/students/_components/StudentsClient.tsx",
+        "line":  125,
+        "title":  "@typescript-eslint/no-unused-vars: \u0027field\u0027 is defined but never used.",
+        "description":  "\u0027field\u0027 is defined but never used.",
+        "recommendation":  "Resolve per ESLint rule \u0027@typescript-eslint/no-unused-vars\u0027."
+    },
+    {
+        "id":  171,
+        "domain":  "Static Analysis",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "ESLint",
+        "file":  "app/dashboard/website/_components/sections/GallerySection.tsx",
+        "line":  44,
+        "title":  "@next/next/no-img-element: Using `\u003cimg\u003e` could result in slower LCP and higher b",
+        "description":  "Using `\u003cimg\u003e` could result in slower LCP and higher bandwidth. Consider using `\u003cImage /\u003e` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element",
+        "recommendation":  "Resolve per ESLint rule \u0027@next/next/no-img-element\u0027."
+    },
+    {
+        "id":  172,
+        "domain":  "Static Analysis",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "ESLint",
+        "file":  "app/dashboard/website/_components/sections/GalleryUploadModal.tsx",
+        "line":  154,
+        "title":  "@next/next/no-img-element: Using `\u003cimg\u003e` could result in slower LCP and higher b",
+        "description":  "Using `\u003cimg\u003e` could result in slower LCP and higher bandwidth. Consider using `\u003cImage /\u003e` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element",
+        "recommendation":  "Resolve per ESLint rule \u0027@next/next/no-img-element\u0027."
+    },
+    {
+        "id":  173,
+        "domain":  "Static Analysis",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "ESLint",
+        "file":  "app/layout.tsx",
+        "line":  53,
+        "title":  "@next/next/no-page-custom-font: Custom fonts not added in `pages/_document.js` w",
+        "description":  "Custom fonts not added in `pages/_document.js` will only load for a single page. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font",
+        "recommendation":  "Resolve per ESLint rule \u0027@next/next/no-page-custom-font\u0027."
+    },
+    {
+        "id":  174,
+        "domain":  "Static Analysis",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "ESLint",
+        "file":  "app/login/page.tsx",
+        "line":  104,
+        "title":  "@next/next/no-img-element: Using `\u003cimg\u003e` could result in slower LCP and higher b",
+        "description":  "Using `\u003cimg\u003e` could result in slower LCP and higher bandwidth. Consider using `\u003cImage /\u003e` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element",
+        "recommendation":  "Resolve per ESLint rule \u0027@next/next/no-img-element\u0027."
+    },
+    {
+        "id":  175,
+        "domain":  "Static Analysis",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "ESLint",
+        "file":  "app/onboarding/_institution-form.tsx",
+        "line":  528,
+        "title":  "@next/next/no-img-element: Using `\u003cimg\u003e` could result in slower LCP and higher b",
+        "description":  "Using `\u003cimg\u003e` could result in slower LCP and higher bandwidth. Consider using `\u003cImage /\u003e` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element",
+        "recommendation":  "Resolve per ESLint rule \u0027@next/next/no-img-element\u0027."
+    },
+    {
+        "id":  176,
+        "domain":  "Static Analysis",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "ESLint",
+        "file":  "app/onboarding/_institution-form.tsx",
+        "line":  566,
+        "title":  "@next/next/no-img-element: Using `\u003cimg\u003e` could result in slower LCP and higher b",
+        "description":  "Using `\u003cimg\u003e` could result in slower LCP and higher bandwidth. Consider using `\u003cImage /\u003e` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element",
+        "recommendation":  "Resolve per ESLint rule \u0027@next/next/no-img-element\u0027."
+    },
+    {
+        "id":  177,
+        "domain":  "Static Analysis",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "ESLint",
+        "file":  "app/signup/page.tsx",
+        "line":  285,
+        "title":  "@next/next/no-img-element: Using `\u003cimg\u003e` could result in slower LCP and higher b",
+        "description":  "Using `\u003cimg\u003e` could result in slower LCP and higher bandwidth. Consider using `\u003cImage /\u003e` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element",
+        "recommendation":  "Resolve per ESLint rule \u0027@next/next/no-img-element\u0027."
+    },
+    {
+        "id":  178,
+        "domain":  "Static Analysis",
+        "category":  "improvement",
+        "severity":  "low",
+        "area":  "ESLint",
+        "file":  "components/auth/auth-ui.tsx",
+        "line":  190,
+        "title":  "@next/next/no-img-element: Using `\u003cimg\u003e` could result in slower LCP and higher b",
+        "description":  "Using `\u003cimg\u003e` could result in slower LCP and higher bandwidth. Consider using `\u003cImage /\u003e` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element",
+        "recommendation":  "Resolve per ESLint rule \u0027@next/next/no-img-element\u0027."
+    }
+]
+;
+
+const SEV_ORDER = {critical:0, high:1, medium:2, low:3};
+const SEV_LABEL = {critical:"Critical", high:"High", medium:"Medium", low:"Low"};
+const CAT_LABEL = {bug:"Bug", gap:"Gap", improvement:"Improvement"};
+
+function esc(s){
+  if(s===null||s===undefined) return "";
+  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+// ---- stats ----
+const total = FINDINGS.length;
+const sevCounts = {critical:0,high:0,medium:0,low:0};
+const catCounts = {bug:0,gap:0,improvement:0};
+FINDINGS.forEach(f=>{ sevCounts[f.severity]++; catCounts[f.category]++; });
+
+const statGrid = document.getElementById("statGrid");
+const stats = [
+  {n: total, l: "Total findings", cls:""},
+  {n: sevCounts.critical, l: "Critical", cls:"crit"},
+  {n: sevCounts.high, l: "High", cls:"high"},
+  {n: sevCounts.medium, l: "Medium", cls:"med"},
+  {n: sevCounts.low, l: "Low", cls:"low"},
+  {n: catCounts.bug, l: "Bugs", cls:""},
+  {n: catCounts.gap, l: "Gaps", cls:""},
+  {n: catCounts.improvement, l: "Improvements", cls:""},
+  {n: "0", l: "TS errors", cls:""},
+];
+statGrid.innerHTML = stats.map(s=>`<div class="stat ${s.cls}"><div class="n">${s.n}</div><div class="l">${s.l}</div></div>`).join("");
+
+// ---- top critical issues (curated) ----
+const TOP_IDS_HINT = null; // computed below by picking critical items across distinct domains, prioritizing systemic ones
+function pickTopIssues(){
+  const criticals = FINDINGS.filter(f=>f.severity==="critical");
+  // prioritize by domain diversity, keep first occurrence per domain, then fill remaining slots
+  const seenDomain = new Set();
+  const picked = [];
+  for(const f of criticals){
+    if(!seenDomain.has(f.domain)){ picked.push(f); seenDomain.add(f.domain); }
+    if(picked.length>=12) break;
+  }
+  if(picked.length<12){
+    for(const f of criticals){
+      if(picked.length>=12) break;
+      if(!picked.includes(f)) picked.push(f);
+    }
+  }
+  return picked;
+}
+const topIssues = pickTopIssues();
+const topIssuesEl = document.getElementById("topIssues");
+topIssuesEl.innerHTML = topIssues.map(f=>`
+  <li data-jump="${f.id}">
+    <div class="ti-title">${esc(f.title)}</div>
+    <div class="ti-meta">${esc(f.domain)} Â· ${esc(f.file)}${f.line?(":" + f.line):""}</div>
+  </li>
+`).join("");
+topIssuesEl.addEventListener("click", e=>{
+  const li = e.target.closest("li[data-jump]");
+  if(!li) return;
+  const id = li.getAttribute("data-jump");
+  clearFilters();
+  render();
+  requestAnimationFrame(()=>{
+    const el = document.querySelector(`.finding[data-id="${id}"]`);
+    if(el){ el.setAttribute("data-open","true"); el.scrollIntoView({behavior:"smooth", block:"center"}); }
+  });
+});
+
+// ---- domain bars ----
+const domainOrder = [...new Set(FINDINGS.map(f=>f.domain))];
+const domainBarsEl = document.getElementById("domainBars");
+const maxDomainCount = Math.max(...domainOrder.map(d=>FINDINGS.filter(f=>f.domain===d).length));
+domainBarsEl.innerHTML = domainOrder.map(d=>{
+  const items = FINDINGS.filter(f=>f.domain===d);
+  const c = {critical:0,high:0,medium:0,low:0};
+  items.forEach(f=>c[f.severity]++);
+  const pct = v => (v/Math.max(1,maxDomainCount))*100;
+  return `<div class="dbar-row">
+    <div>${esc(d)}</div>
+    <div class="dbar-track">
+      <div class="dbar-seg" style="width:${pct(c.critical)}%;background:var(--crit)"></div>
+      <div class="dbar-seg" style="width:${pct(c.high)}%;background:var(--high)"></div>
+      <div class="dbar-seg" style="width:${pct(c.medium)}%;background:var(--med)"></div>
+      <div class="dbar-seg" style="width:${pct(c.low)}%;background:var(--low)"></div>
+    </div>
+    <div style="text-align:right;color:var(--text-dim)">${items.length}</div>
+  </div>`;
+}).join("");
+
+// ---- filters ----
+const state = { search:"", sev:new Set(), cat:new Set(), domain:"" };
+
+const sevChipsEl = document.getElementById("sevChips");
+sevChipsEl.innerHTML = Object.keys(SEV_LABEL).map(s=>`<span class="chip" data-sev="${s}" data-active="false">${SEV_LABEL[s]} (${sevCounts[s]})</span>`).join("");
+sevChipsEl.addEventListener("click", e=>{
+  const chip = e.target.closest(".chip"); if(!chip) return;
+  const s = chip.getAttribute("data-sev");
+  if(state.sev.has(s)){ state.sev.delete(s); chip.setAttribute("data-active","false"); }
+  else { state.sev.add(s); chip.setAttribute("data-active","true"); }
+  render();
+});
+
+const catChipsEl = document.getElementById("catChips");
+catChipsEl.innerHTML = Object.keys(CAT_LABEL).map(c=>`<span class="chip" data-cat="${c}" data-active="false">${CAT_LABEL[c]} (${catCounts[c]})</span>`).join("");
+catChipsEl.addEventListener("click", e=>{
+  const chip = e.target.closest(".chip"); if(!chip) return;
+  const c = chip.getAttribute("data-cat");
+  if(state.cat.has(c)){ state.cat.delete(c); chip.setAttribute("data-active","false"); }
+  else { state.cat.add(c); chip.setAttribute("data-active","true"); }
+  render();
+});
+
+const domainFilterEl = document.getElementById("domainFilter");
+domainFilterEl.innerHTML = `<option value="">All domains</option>` + domainOrder.map(d=>`<option value="${esc(d)}">${esc(d)} (${FINDINGS.filter(f=>f.domain===d).length})</option>`).join("");
+domainFilterEl.addEventListener("change", ()=>{ state.domain = domainFilterEl.value; render(); });
+
+const searchBox = document.getElementById("searchBox");
+let searchTimer;
+searchBox.addEventListener("input", ()=>{
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(()=>{ state.search = searchBox.value.trim().toLowerCase(); render(); }, 120);
+});
+
+function clearFilters(){
+  state.search=""; state.sev.clear(); state.cat.clear(); state.domain="";
+  searchBox.value=""; domainFilterEl.value="";
+  document.querySelectorAll(".chip").forEach(c=>c.setAttribute("data-active","false"));
+}
+
+function matches(f){
+  if(state.sev.size && !state.sev.has(f.severity)) return false;
+  if(state.cat.size && !state.cat.has(f.category)) return false;
+  if(state.domain && f.domain !== state.domain) return false;
+  if(state.search){
+    const hay = (f.title+" "+f.description+" "+f.file+" "+f.area).toLowerCase();
+    if(!hay.includes(state.search)) return false;
+  }
+  return true;
+}
+
+const findingsListEl = document.getElementById("findingsList");
+const resultCountEl = document.getElementById("resultCount");
+const emptyStateEl = document.getElementById("emptyState");
+
+const sorted = [...FINDINGS].sort((a,b)=> SEV_ORDER[a.severity]-SEV_ORDER[b.severity] || a.domain.localeCompare(b.domain));
+
+function render(){
+  const visible = sorted.filter(matches);
+  resultCountEl.textContent = `${visible.length} of ${total}`;
+  emptyStateEl.style.display = visible.length ? "none" : "block";
+  findingsListEl.innerHTML = visible.map(f=>`
+    <div class="finding" data-id="${f.id}" data-open="false">
+      <div class="f-head">
+        <span class="badge sev-${f.severity}">${SEV_LABEL[f.severity]}</span>
+        <span class="badge cat cat-${f.category}">${CAT_LABEL[f.category]}</span>
+        <div class="f-main">
+          <div class="f-title">${esc(f.title)}</div>
+          <div class="f-meta">${esc(f.file)}${f.line?(":" + f.line):""}</div>
+        </div>
+        <span class="f-domain">${esc(f.area||f.domain)}</span>
+        <span class="f-chevron">â–¶</span>
+      </div>
+      <div class="f-body">
+        <div class="lbl">What's wrong</div>
+        <p>${esc(f.description)}</p>
+        <div class="lbl">Recommendation</div>
+        <p>${esc(f.recommendation)}</p>
+      </div>
+    </div>
+  `).join("");
+}
+
+findingsListEl.addEventListener("click", e=>{
+  const head = e.target.closest(".f-head"); if(!head) return;
+  const finding = head.closest(".finding");
+  finding.setAttribute("data-open", finding.getAttribute("data-open")==="true" ? "false" : "true");
+});
+
+render();
+
+// ---- theme toggle ----
+const root = document.documentElement;
+const themeToggle = document.getElementById("themeToggle");
+function applyStoredTheme(){
+  try{
+    const saved = localStorage.getItem("sanity-report-theme");
+    if(saved) root.setAttribute("data-theme", saved);
+  }catch(e){}
+}
+applyStoredTheme();
+themeToggle.addEventListener("click", ()=>{
+  const current = root.getAttribute("data-theme");
+  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const effectiveCurrent = current || (prefersDark ? "dark" : "light");
+  const next = effectiveCurrent === "dark" ? "light" : "dark";
+  root.setAttribute("data-theme", next);
+  try{ localStorage.setItem("sanity-report-theme", next); }catch(e){}
+});
+</script>
+</body>
+</html>
