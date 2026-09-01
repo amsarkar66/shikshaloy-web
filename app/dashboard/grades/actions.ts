@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
-import { getUser } from "@/lib/supabase/server";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { getTeacherContext } from "@/lib/teachers/context";
 import { MAX_MARKS } from "../exams/_data/exams";
 import { resolveGrade } from "@/lib/exams/grading";
@@ -17,14 +17,14 @@ const MARKS_ENTRY_ROLES = new Set(["admin", "staff", "super_admin", "kernel"]);
 // where the UI filtered combos per-teacher but the actions themselves
 // accepted any subject/section.
 async function assertCanEditMarks(examId: string, sectionId: string, subjectId: string) {
-  const { data: { user } } = await getUser();
-  if (!user) throw new Error("Sign-in required.");
+  const vu = await getVerifiedUser();
+  if (!vu) throw new Error("Sign-in required.");
 
-  const role = (user.user_metadata?.role as string) ?? "";
+  const role = vu.role ?? "";
   if (MARKS_ENTRY_ROLES.has(role)) return;
 
   if (role === "teacher") {
-    const teacher = await getTeacherContext(user.id);
+    const teacher = await getTeacherContext(vu.id);
     const assigned = teacher?.subjectAssignments.some(
       (a) => a.sectionId === sectionId && a.subjectId === subjectId,
     );
@@ -34,7 +34,7 @@ async function assertCanEditMarks(examId: string, sectionId: string, subjectId: 
       .from("marks_entry_grants")
       .select("id, section_subjects!inner(section_id, subject_id)")
       .eq("exam_id", examId)
-      .eq("staff_profile_id", user.id)
+      .eq("staff_profile_id", vu.id)
       .eq("section_subjects.section_id", sectionId)
       .eq("section_subjects.subject_id", subjectId)
       .maybeSingle();

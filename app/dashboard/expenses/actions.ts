@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { requireRole, requireRoleOrStaffTemplate } from "@/lib/auth/verified-role";
 
 export async function addExpense(input: {
   category: string;
@@ -13,14 +13,7 @@ export async function addExpense(input: {
   date: string;
   receiptRef?: string;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const role = user?.user_metadata?.role as string | undefined;
-  if (!role || !["admin", "super_admin", "staff"].includes(role)) {
-    throw new Error("Unauthorized");
-  }
+  await requireRoleOrStaffTemplate(["admin", "super_admin"], ["accountant"]);
   const schoolId = await getCurrentSchoolIdOrThrow();
 
   if (!input.category || !input.amount || input.amount <= 0) {
@@ -44,12 +37,9 @@ export async function addExpense(input: {
 }
 
 export async function updateExpenseStatus(expenseId: string, status: "approved" | "rejected") {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const role = user?.user_metadata?.role as string | undefined;
-  if (!role || !["admin", "super_admin"].includes(role)) {
+  try {
+    await requireRole(["admin", "super_admin"]);
+  } catch {
     throw new Error("Only an admin can approve or reject an expense.");
   }
   const schoolId = await getCurrentSchoolIdOrThrow();

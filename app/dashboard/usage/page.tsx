@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { Gauge, AlertTriangle, Users, Building2 } from "lucide-react";
-import { getUser } from "@/lib/supabase/server";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { Table, TableHead, Th, TableBody, Tr, Td, TableEmptyRow } from "@/components/ui/data-table";
 
@@ -23,13 +23,10 @@ function StatCard({ label, value, icon: Icon, color }: {
 }
 
 export default async function UsagePage() {
-  const {
-    data: { user },
-  } = await getUser();
-  if (!user) redirect("/login");
+  const verifiedUser = await getVerifiedUser();
+  if (!verifiedUser) redirect("/login");
 
-  const role = user.user_metadata?.role as string | undefined;
-  if (role !== "kernel") redirect("/dashboard");
+  if (verifiedUser.role !== "kernel") redirect("/dashboard");
 
   const [{ data: institutions }, { data: schools }, { data: subs }, { data: studentRows }] = await Promise.all([
     supabaseAdmin.from("institutions").select("id, name, status").eq("status", "active"),

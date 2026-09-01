@@ -425,27 +425,6 @@ export async function listAllUsers(): Promise<DirectoryUser[]> {
   });
 }
 
-export interface StaffUser {
-  id: string;
-  email: string;
-  user_metadata: {
-    role: "staff";
-    full_name?: string;
-    staff_type?: string;        // display label shown to the staff member, e.g. "Warden"
-    staff_template_id?: string; // template slug for permission lookups, e.g. "warden"
-  };
-}
-
-export async function listStaffUsers(): Promise<StaffUser[]> {
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users?per_page=1000`,
-    { headers: adminHeaders(), cache: "no-store" }
-  );
-  if (!res.ok) return [];
-  const data: { users?: StaffUser[] } = await res.json();
-  return (data.users ?? []).filter((u) => u.user_metadata?.role === "staff");
-}
-
 export interface KernelUser {
   id: string;
   email: string;
@@ -455,53 +434,30 @@ export interface KernelUser {
   last_sign_in_at: string | null;
 }
 
+// Who's actually kernel is decided by `profiles.role` (server-controlled),
+// not the live JWT — a self-escalated user_metadata.role="kernel" must not
+// be able to inject itself into the platform team roster.
 export async function listKernelUsers(): Promise<KernelUser[]> {
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users?per_page=1000`,
-    { headers: adminHeaders(), cache: "no-store" }
-  );
-  if (!res.ok) return [];
-  const data: {
-    users?: {
-      id: string;
-      email?: string;
-      created_at: string;
-      last_sign_in_at?: string | null;
-      user_metadata?: { role?: string; full_name?: string; kernel_permission?: string };
-    }[];
-  } = await res.json();
+  const { data: profiles } = await supabaseAdmin
+    .from("profiles")
+    .select("id, full_name, kernel_permission")
+    .eq("role", "kernel");
+  if (!profiles || profiles.length === 0) return [];
 
-  return (data.users ?? [])
-    .filter((u) => u.user_metadata?.role === "kernel")
-    .map((u) => ({
-      id: u.id,
-      email: u.email ?? "—",
-      full_name: u.user_metadata?.full_name,
-      permission: (KERNEL_PERMISSIONS as readonly string[]).includes(u.user_metadata?.kernel_permission ?? "")
-        ? (u.user_metadata!.kernel_permission as KernelPermission)
+  const authUsersById = await fetchAllAuthUsersById();
+
+  return profiles.map((p) => {
+    const auth = authUsersById.get(p.id);
+    return {
+      id: p.id,
+      email: auth?.email ?? "—",
+      full_name: p.full_name ?? undefined,
+      permission: (KERNEL_PERMISSIONS as readonly string[]).includes(p.kernel_permission ?? "")
+        ? (p.kernel_permission as KernelPermission)
         : "owner",
-      created_at: u.created_at,
-      last_sign_in_at: u.last_sign_in_at ?? null,
-    }));
+      created_at: auth?.created_at ?? "",
+      last_sign_in_at: auth?.last_sign_in_at ?? null,
+    };
+  });
 }
 
-export async function updateStaffType(
-  userId: string,
-  staffType: string,
-  staffTemplateId: string
-): Promise<boolean> {
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users/${userId}`,
-    {
-      method: "PUT",
-      headers: adminHeaders(),
-      body: JSON.stringify({
-        user_metadata: {
-          staff_type: staffType || null,
-          staff_template_id: staffTemplateId || null,
-        },
-      }),
-    }
-  );
-  return res.ok;
-}

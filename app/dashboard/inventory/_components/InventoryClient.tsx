@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import {
   Package, PackageCheck, PackageX, AlertTriangle, Wrench,
   Search, Download, ChevronLeft, ChevronRight, ChevronDown, X, Plus,
-  Pencil, ArrowUpDown, ArrowUp, ArrowDown, Eye, IndianRupee, Trash2, Loader2,
+  Pencil, ArrowUpDown, ArrowUp, ArrowDown, Eye, IndianRupee, Trash2, Loader2, Tags,
 } from "lucide-react";
 import { Table, TableHead, TableBody, Th, Td, Tr } from "@/components/ui/data-table";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { ItemFormModal } from "./ItemFormModal";
+import { ManageCategoriesModal } from "./ManageCategoriesModal";
 import { deleteItem } from "../actions";
 import {
   itemStatus, availableQty,
@@ -139,6 +140,13 @@ export default function InventoryClient({ items }: { items: InventoryItem[] }) {
   const [page, setPage] = useState(1);
   const [itemModal, setItemModal] = useState<{ mode: "add" | "edit"; item?: InventoryItem } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<InventoryItem | null>(null);
+  const [showCategories, setShowCategories] = useState(false);
+
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const item of items) counts[item.category] = (counts[item.category] ?? 0) + 1;
+    return counts;
+  }, [items]);
 
   function refresh() {
     router.refresh();
@@ -201,6 +209,9 @@ export default function InventoryClient({ items }: { items: InventoryItem[] }) {
           <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Track school assets and supplies</p>
         </div>
         <div className="flex gap-2 sm:ml-auto">
+          <button onClick={() => setShowCategories(true)} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
+            <Tags className="h-3.5 w-3.5" /> Manage Categories
+          </button>
           <button onClick={exportCsv} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
             <Download className="h-3.5 w-3.5" /> Export
           </button>
@@ -355,6 +366,15 @@ export default function InventoryClient({ items }: { items: InventoryItem[] }) {
           item={deleteTarget}
           onClose={() => setDeleteTarget(null)}
           onDeleted={refresh}
+        />
+      )}
+
+      {showCategories && (
+        <ManageCategoriesModal
+          categories={categories}
+          counts={categoryCounts}
+          onClose={() => setShowCategories(false)}
+          onSaved={() => { setCat("all"); refresh(); }}
         />
       )}
     </div>

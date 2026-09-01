@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getSiteSettings, getInstitutionDomainSummary, getWebsiteActivity } from "@/lib/site-settings/actions";
@@ -13,13 +13,9 @@ export default async function WebsitePage({
   searchParams: Promise<{ section?: string }>;
 }) {
   const { section } = await searchParams;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const verifiedUser = await getVerifiedUser();
 
-  const role = user?.user_metadata?.role as string | undefined;
-  if (!user || role !== "super_admin") redirect("/dashboard");
+  if (!verifiedUser || verifiedUser.role !== "super_admin") redirect("/dashboard");
 
   const { draft, published, publishedAt } = await getSiteSettings();
 

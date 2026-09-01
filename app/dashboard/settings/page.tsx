@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getUser } from "@/lib/supabase/server";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getOrSeedRoleTemplates } from "@/lib/settings/role-templates";
@@ -14,7 +15,8 @@ export default async function SettingsPage() {
 
   if (!user) redirect("/login");
 
-  const role = (user.user_metadata?.role as string) ?? "";
+  const verifiedUser = await getVerifiedUser();
+  const role = verifiedUser?.role ?? "";
 
   const { data: profileRow } = await supabaseAdmin
     .from("profiles")

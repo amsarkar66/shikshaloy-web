@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { X, Loader2, ChevronDown } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { getStaffForEdit, updateStaff, type StaffEditData } from "../../actions";
 
 interface EditStaffModalProps {
@@ -17,14 +18,23 @@ const inputClass =
 const selectClass =
   "h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20";
 
+const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
+
 type FormState = Omit<StaffEditData, "id" | "email">;
+
+const EMPTY_FORM: FormState = {
+  fullName: "", phone: "", designation: "", department: "", status: "active",
+  bloodGroup: "", address: "", emergencyContactName: "", emergencyContactPhone: "",
+  licenseNumber: "", licenseExpiry: "",
+};
 
 export function EditStaffModal({ staffId, onClose, onSaved }: EditStaffModalProps) {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
-  const [form, setForm] = useState<FormState>({ fullName: "", phone: "", designation: "", department: "", status: "active" });
+  const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isDriver = form.designation.trim().toLowerCase() === "driver";
 
   useEffect(() => {
     if (!staffId) return;
@@ -38,6 +48,12 @@ export function EditStaffModal({ staffId, onClose, onSaved }: EditStaffModalProp
           designation: data.designation,
           department: data.department,
           status: data.status,
+          bloodGroup: data.bloodGroup,
+          address: data.address,
+          emergencyContactName: data.emergencyContactName,
+          emergencyContactPhone: data.emergencyContactPhone,
+          licenseNumber: data.licenseNumber,
+          licenseExpiry: data.licenseExpiry,
         });
         setEmail(data.email);
       })
@@ -67,6 +83,12 @@ export function EditStaffModal({ staffId, onClose, onSaved }: EditStaffModalProp
         designation: form.designation || null,
         department: form.department || null,
         status: form.status,
+        bloodGroup: form.bloodGroup || null,
+        address: form.address || null,
+        emergencyContactName: form.emergencyContactName || null,
+        emergencyContactPhone: form.emergencyContactPhone || null,
+        licenseNumber: isDriver ? form.licenseNumber || null : null,
+        licenseExpiry: isDriver ? form.licenseExpiry || null : null,
       });
       onSaved();
     } catch (err) {
@@ -116,7 +138,7 @@ export function EditStaffModal({ staffId, onClose, onSaved }: EditStaffModalProp
                 <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Department</label>
                 <input className={inputClass} value={form.department} onChange={(e) => update("department", e.target.value)} />
               </div>
-              <div className="col-span-2">
+              <div>
                 <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Status</label>
                 <div className="relative">
                   <select
@@ -131,6 +153,45 @@ export function EditStaffModal({ staffId, onClose, onSaved }: EditStaffModalProp
                   <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
                 </div>
               </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Blood Group</label>
+                <div className="relative">
+                  <select
+                    className={selectClass}
+                    value={form.bloodGroup}
+                    onChange={(e) => update("bloodGroup", e.target.value)}
+                  >
+                    <option value="">—</option>
+                    {BLOOD_GROUPS.map((bg) => <option key={bg} value={bg}>{bg}</option>)}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+                </div>
+              </div>
+              <div className="col-span-2">
+                <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Address</label>
+                <textarea rows={2} className={`${inputClass} h-auto py-2 resize-none`} value={form.address} onChange={(e) => update("address", e.target.value)} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Emergency Contact Name</label>
+                <input className={inputClass} value={form.emergencyContactName} onChange={(e) => update("emergencyContactName", e.target.value)} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Emergency Contact Phone</label>
+                <input className={inputClass} value={form.emergencyContactPhone} onChange={(e) => update("emergencyContactPhone", e.target.value)} />
+              </div>
+              {isDriver && (
+                <>
+                  <div className="col-span-2 pt-1 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Driving License</div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">License Number</label>
+                    <input className={inputClass} value={form.licenseNumber} onChange={(e) => update("licenseNumber", e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">License Expiry</label>
+                    <DatePicker value={form.licenseExpiry} onChange={(v) => update("licenseExpiry", v)} />
+                  </div>
+                </>
+              )}
             </div>
 
             <p className="text-[11px] text-gray-400 dark:text-zinc-500 -mt-2">

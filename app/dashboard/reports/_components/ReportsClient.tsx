@@ -567,7 +567,7 @@ export default function ReportsClient({
     });
   }, [reports, tab, query]);
 
-  const hasFilter = query || tab !== "all";
+  const hasFilter = query;
 
   function refresh() {
     router.refresh();

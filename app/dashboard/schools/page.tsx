@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getUser } from "@/lib/supabase/server";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
 import { getSchoolCapacity } from "@/lib/billing/plan-limits";
@@ -7,10 +7,10 @@ import SchoolsClient from "./_components/SchoolsClient";
 import type { School } from "./_data/schools";
 
 export default async function SchoolsPage() {
-  const {
-    data: { user },
-  } = await getUser();
-  if (!user) redirect("/login");
+  const verifiedUser = await getVerifiedUser();
+  if (!verifiedUser) redirect("/login");
+
+  if (verifiedUser.role !== "super_admin") redirect("/dashboard");
 
   const institutionId = await getCurrentInstitutionIdOrThrow();
   const { maxSchools, atCapacity: atSchoolCapacity } = await getSchoolCapacity(institutionId);

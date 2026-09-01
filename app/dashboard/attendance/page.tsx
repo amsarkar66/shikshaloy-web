@@ -1,4 +1,4 @@
-import { getUser } from "@/lib/supabase/server";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
@@ -233,19 +233,30 @@ async function DriverAttendance({ userId }: { userId: string }) {
 }
 
 export default async function AttendancePage() {
-  const { data: { user } } = await getUser();
-  const role = user?.user_metadata?.role as string | undefined;
+  const vu = await getVerifiedUser();
+  const role = vu?.role;
 
-  if (role === "student" && user) {
-    return <StudentAttendance userId={user.id} />;
+  if (role === "student" && vu) {
+    return <StudentAttendance userId={vu.id} />;
   }
 
-  if (role === "teacher" && user) {
-    return <TeacherAttendance userId={user.id} />;
+  if (role === "teacher" && vu) {
+    return <TeacherAttendance userId={vu.id} />;
   }
 
-  if (role === "driver" && user) {
-    return <DriverAttendance userId={user.id} />;
+  if (role === "driver" && vu) {
+    return <DriverAttendance userId={vu.id} />;
+  }
+
+  if (!vu || role !== "admin") {
+    return (
+      <div className="w-full px-6 py-8">
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 py-24 text-center">
+          <p className="text-base font-semibold text-gray-900 dark:text-zinc-50">Not authorized</p>
+          <p className="text-sm text-gray-500 dark:text-zinc-400">You don&apos;t have access to attendance management.</p>
+        </div>
+      </div>
+    );
   }
 
   const today = new Date().toISOString().split("T")[0];

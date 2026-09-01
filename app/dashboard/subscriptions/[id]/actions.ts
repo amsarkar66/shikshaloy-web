@@ -1,21 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getInstitution } from "@/lib/supabase/admin";
 import { sendOfflinePaymentDecisionEmail } from "@/lib/email/resend";
 import { PLANS, type PlanId, type SubscriptionStatus } from "@/app/dashboard/billing/_data/billing";
+import { requireKernel as requireVerifiedKernel } from "@/lib/auth/verified-role";
 
 async function requireKernel() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const role = user?.user_metadata?.role as string | undefined;
-  if (!user || role !== "kernel") throw new Error("Unauthorized");
-  return user;
+  const { id } = await requireVerifiedKernel();
+  return { id };
 }
 
 export async function updateSubscriptionPlan(institutionId: string, planId: PlanId) {

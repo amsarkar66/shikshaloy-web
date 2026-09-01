@@ -20,7 +20,7 @@ import {
 import type { User } from "@supabase/supabase-js";
 import { getNavGroupsForRole, type NavItem } from "../_lib/nav-data";
 import { useIsMac } from "../_lib/use-is-mac";
-import { searchDirectory } from "../_lib/directory-search";
+import { searchDirectory, getVerifiedStaffTemplateId } from "../_lib/directory-search";
 
 type Entry = { label: string; href: string; icon: React.ElementType; group: string; sublabel?: string };
 
@@ -93,7 +93,24 @@ export function CommandMenu({
   const [directoryLoading, setDirectoryLoading] = useState(false);
   const directoryRequestId = useRef(0);
 
-  const staffTemplateId = user.user_metadata?.staff_template_id as string | undefined;
+  const [staffTemplateId, setStaffTemplateId] = useState<string | undefined>(undefined);
+
+  // user.user_metadata.staff_template_id is self-editable and no longer
+  // trusted for nav filtering — fetch the verified value (from
+  // staff_members, server-side) instead.
+  useEffect(() => {
+    if (role !== "staff") {
+      setStaffTemplateId(undefined);
+      return;
+    }
+    let cancelled = false;
+    getVerifiedStaffTemplateId().then((id) => {
+      if (!cancelled) setStaffTemplateId(id);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [role, user.id]);
 
   const entries = useMemo<Entry[]>(() => {
     const navGroups = getNavGroupsForRole(role, staffTemplateId);

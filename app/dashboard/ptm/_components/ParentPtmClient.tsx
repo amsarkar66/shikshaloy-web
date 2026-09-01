@@ -30,13 +30,13 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-function BookingRow({ booking, parentId }: { booking: ParentPtmBooking; parentId: string }) {
+function BookingRow({ booking }: { booking: ParentPtmBooking }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
   function handleCancel() {
     startTransition(async () => {
-      await cancelPtmBooking(booking.id, parentId);
+      await cancelPtmBooking(booking.id);
       router.refresh();
     });
   }
@@ -64,7 +64,7 @@ function BookingRow({ booking, parentId }: { booking: ParentPtmBooking; parentId
   );
 }
 
-function SessionCard({ session, parentId }: { session: ParentPtmSession; parentId: string }) {
+function SessionCard({ session }: { session: ParentPtmSession }) {
   const router = useRouter();
   const [childId, setChildId] = useState(session.eligibleChildren[0]?.id ?? "");
   const [pendingSlot, setPendingSlot] = useState<string | null>(null);
@@ -74,7 +74,7 @@ function SessionCard({ session, parentId }: { session: ParentPtmSession; parentI
     if (!childId) return;
     setPendingSlot(slotTime);
     startTransition(async () => {
-      await bookPtmSlot({ sessionId: session.id, studentId: childId, parentId, slotTime: `${slotTime}:00` });
+      await bookPtmSlot({ sessionId: session.id, studentId: childId, slotTime: `${slotTime}:00` });
       router.refresh();
       setPendingSlot(null);
     });
@@ -119,9 +119,8 @@ function SessionCard({ session, parentId }: { session: ParentPtmSession; parentI
 }
 
 export default function ParentPtmClient({
-  parentId, sessions, bookings,
+  sessions, bookings,
 }: {
-  parentId: string;
   sessions: ParentPtmSession[];
   bookings: ParentPtmBooking[];
 }) {
@@ -141,7 +140,7 @@ export default function ParentPtmClient({
           <p className="text-sm text-gray-400 dark:text-zinc-500 py-10 text-center">No bookings yet.</p>
         ) : (
           <div className="divide-y divide-gray-100 dark:divide-zinc-700/50">
-            {bookings.map((b) => <BookingRow key={b.id} booking={b} parentId={parentId} />)}
+            {bookings.map((b) => <BookingRow key={b.id} booking={b} />)}
           </div>
         )}
       </div>
@@ -157,7 +156,7 @@ export default function ParentPtmClient({
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {sessions.map((s) => <SessionCard key={s.id} session={s} parentId={parentId} />)}
+            {sessions.map((s) => <SessionCard key={s.id} session={s} />)}
           </div>
         )}
       </div>

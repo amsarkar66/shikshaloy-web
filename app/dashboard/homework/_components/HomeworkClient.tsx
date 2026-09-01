@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   ClipboardList, CheckCircle2, Clock, AlertTriangle,
   Search, Plus, ChevronLeft, ChevronRight, ChevronDown, X,
@@ -177,6 +178,7 @@ export default function HomeworkClient({
   sections: Section[];
   teachers: Teacher[];
 }) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [subjectFilter, setSubjectFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<"all" | HomeworkStatus>("all");
@@ -341,7 +343,7 @@ export default function HomeworkClient({
               const rate = submissionRate(hw);
               const overdue = isOverdue(hw);
               return (
-                <Tr key={hw.id}>
+                <Tr key={hw.id} onClick={() => router.push(`/dashboard/homework/${hw.id}`)}>
                   <Td position="first">
                     <div className="min-w-0">
                       <p className="font-medium text-gray-900 dark:text-zinc-100 leading-tight truncate max-w-[260px]">{hw.title}</p>

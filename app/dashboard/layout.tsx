@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getUser } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolId } from "@/lib/supabase/school-context";
+import { getVerifiedRole } from "@/lib/auth/verified-role";
 import { DashboardShell } from "./_components/dashboard-shell";
 import { PendingReviewScreen } from "./_components/pending-review-screen";
 import { RejectedScreen } from "./_components/rejected-screen";
@@ -17,7 +18,7 @@ export default async function DashboardLayout({
 
   if (!user) redirect("/login");
 
-  const role = (user.user_metadata?.role as string) ?? "";
+  const role = (await getVerifiedRole()) ?? "";
 
   // Super admin owns an institution (which can in turn own many
   // schools/colleges) — show the institution name and, when it has more

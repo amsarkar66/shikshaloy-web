@@ -20,8 +20,7 @@ const ROLE_SUBTITLES: Record<string, string> = {
   driver:      "Manage your assigned transport routes and attendance.",
 };
 
-export function RoleView({ user }: { user: User }) {
-  const role = (user.user_metadata?.role as string) ?? "";
+export function RoleView({ user, role }: { user: User; role: string }) {
   const staffType = user.user_metadata?.staff_type as string | undefined;
   const label = role === "staff" ? (staffType ?? ROLE_LABELS[role] ?? role) : (ROLE_LABELS[role] ?? role);
   const subtitle =

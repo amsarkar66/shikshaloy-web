@@ -1,11 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
 import { logAuditEvent } from "@/lib/audit/log";
+import { requireRole } from "@/lib/auth/verified-role";
 import {
   DEFAULT_SITE_SETTINGS,
   normalizeSiteSettings,
@@ -17,14 +17,7 @@ import {
 // an owner has exactly one institution (institutions.owner_id = user.id),
 // so there's no cross-admin sharing to reason about here.
 async function requireSuperAdmin() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const role = user?.user_metadata?.role as string | undefined;
-  if (!user || role !== "super_admin") throw new Error("Unauthorized");
-  return user;
+  return requireRole(["super_admin"]);
 }
 
 async function requireInstitutionId(): Promise<string> {

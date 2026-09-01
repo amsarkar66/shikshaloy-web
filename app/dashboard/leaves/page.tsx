@@ -1,4 +1,4 @@
-import { getUser } from "@/lib/supabase/server";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getTeacherContext } from "@/lib/teachers/context";
@@ -81,18 +81,33 @@ async function MyLeaves({ userId }: { userId: string }) {
 }
 
 export default async function LeavesPage() {
-  const { data: { user } } = await getUser();
-  const role = user?.user_metadata?.role as string | undefined;
+  const verifiedUser = await getVerifiedUser();
+  const role = verifiedUser?.role;
 
-  if ((role === "teacher" || role === "driver") && user) {
-    return <MyLeaves userId={user.id} />;
+  if ((role === "teacher" || role === "driver") && verifiedUser) {
+    return <MyLeaves userId={verifiedUser.id} />;
   }
 
-  if (role === "staff" && user) {
-    const staffTemplateId = user.user_metadata?.staff_template_id as string | undefined;
-    if (staffTemplateId !== "hr_manager") {
-      return <MyLeaves userId={user.id} />;
+  if (role === "staff" && verifiedUser) {
+    const { data: staffRow } = await supabaseAdmin
+      .from("staff_members")
+      .select("permission_template_id")
+      .eq("profile_id", verifiedUser.id)
+      .maybeSingle();
+    if (staffRow?.permission_template_id !== "hr_manager") {
+      return <MyLeaves userId={verifiedUser.id} />;
     }
+  }
+
+  if (!verifiedUser || (role !== "admin" && role !== "super_admin" && role !== "staff")) {
+    return (
+      <div className="w-full px-6 py-8">
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 py-24 text-center">
+          <p className="text-base font-semibold text-gray-900 dark:text-zinc-50">Not authorized</p>
+          <p className="text-sm text-gray-500 dark:text-zinc-400">You don&apos;t have access to leave management.</p>
+        </div>
+      </div>
+    );
   }
 
   const schoolId = await getCurrentSchoolIdOrThrow();

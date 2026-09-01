@@ -32,7 +32,7 @@ function GalleryTile({ image, isFirst, isLast }: { image: GalleryImage; isFirst:
     setError(null);
     startTransition(async () => {
       try {
-        await deleteGalleryImage(image.id, image.imageUrl);
+        await deleteGalleryImage(image.id);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to delete");
       }

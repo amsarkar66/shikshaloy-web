@@ -9,7 +9,14 @@ import { enrollStudent, type ParentLogin } from "@/lib/students/enroll";
 import { logAuditEvent } from "@/lib/audit/log";
 import { notifyRoles } from "@/lib/notifications/create";
 import { getUser } from "@/lib/supabase/server";
+import { requireRoleOrStaffTemplate } from "@/lib/auth/verified-role";
 import type { AdmissionStatus } from "./_data/admissions";
+
+// Admissions review/decision actions are admin/receptionist work, matching
+// the page-level gate in app/dashboard/admissions/page.tsx.
+async function requireAdmissionsAccess() {
+  return requireRoleOrStaffTemplate(["admin", "super_admin"], ["receptionist"]);
+}
 
 export type PrimaryContact = "father" | "mother" | "guardian";
 
@@ -156,10 +163,14 @@ export async function createApplication(input: NewApplicationInput): Promise<str
 }
 
 export async function updateApplicationStatus(applicationId: string, status: AdmissionStatus, reason?: string) {
+  await requireAdmissionsAccess();
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
   const { data: app, error } = await supabaseAdmin
     .from("admission_applications")
     .update({ status, status_reason: reason?.trim() || null, updated_at: new Date().toISOString() })
     .eq("id", applicationId)
+    .eq("school_id", schoolId)
     .select("school_id, applicant_name")
     .single();
 
@@ -216,6 +227,9 @@ export interface ApplicationDetailsPatch {
 }
 
 export async function updateApplicationDetails(applicationId: string, patch: ApplicationDetailsPatch) {
+  await requireAdmissionsAccess();
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
   const row: Record<string, unknown> = {};
   if (patch.applicantName    !== undefined) row.applicant_name     = patch.applicantName;
   if (patch.dob              !== undefined) row.dob                = patch.dob;
@@ -259,7 +273,8 @@ export async function updateApplicationDetails(applicationId: string, patch: App
   const { error } = await supabaseAdmin
     .from("admission_applications")
     .update(row)
-    .eq("id", applicationId);
+    .eq("id", applicationId)
+    .eq("school_id", schoolId);
 
   if (error) throw new Error(error.message);
 
@@ -304,10 +319,14 @@ export interface AdmissionFeeCollection {
 }
 
 export async function enrollApplication(applicationId: string, fee?: AdmissionFeeCollection): Promise<EnrollResult> {
+  await requireAdmissionsAccess();
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
   const { data: app, error: fetchError } = await supabaseAdmin
     .from("admission_applications")
     .select("applicant_name, dob, gender, applying_for_grade, academic_year_id, parent_name, parent_phone, parent_email, photo_url")
     .eq("id", applicationId)
+    .eq("school_id", schoolId)
     .single();
 
   if (fetchError || !app) throw new Error(fetchError?.message ?? "Application not found");
@@ -315,7 +334,6 @@ export async function enrollApplication(applicationId: string, fee?: AdmissionFe
   const { maxStudents, atCapacity } = await getStudentCapacity(await getCurrentInstitutionIdOrThrow());
   if (atCapacity) throw new Error(`Your plan allows up to ${maxStudents} students. Upgrade your plan to enroll more.`);
 
-  const schoolId = await getCurrentSchoolIdOrThrow();
   const result = await enrollStudent({
     schoolId,
     fullName: app.applicant_name,

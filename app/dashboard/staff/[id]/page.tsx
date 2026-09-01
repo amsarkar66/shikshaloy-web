@@ -1,6 +1,21 @@
 import { notFound } from "next/navigation";
+import { ShieldAlert } from "lucide-react";
+import { requireRoleOrStaffTemplate } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getDriverContext } from "@/lib/drivers/context";
+
+function Unauthorized() {
+  return (
+    <div className="w-full px-6 py-8">
+      <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 py-24 text-center">
+        <ShieldAlert className="h-6 w-6 text-gray-300 dark:text-zinc-600" />
+        <p className="text-base font-semibold text-gray-900 dark:text-zinc-50">Not authorized</p>
+        <p className="text-sm text-gray-500 dark:text-zinc-400">Only school admins and institution owners can view staff records.</p>
+      </div>
+    </div>
+  );
+}
 import StaffDetailClient, {
   type StaffDetail, type StaffLeave, type StaffAttendanceSummary,
 } from "./_components/StaffDetailClient";
@@ -31,6 +46,7 @@ function yearsOfService(joinedDate: string | null): string {
 
 interface StaffDetailRow {
   id: string;
+  profile_id: string | null;
   employee_id: string | null;
   full_name: string;
   phone: string | null;
@@ -44,6 +60,11 @@ interface StaffDetailRow {
   photo_url: string | null;
   bio: string | null;
   permission_template_name: string | null;
+  address: string | null;
+  emergency_contact_name: string | null;
+  emergency_contact_phone: string | null;
+  license_number: string | null;
+  license_expiry: string | null;
 }
 
 interface StaffAttendanceRow {
@@ -89,6 +110,12 @@ export default async function StaffDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  try {
+    await requireRoleOrStaffTemplate(["admin", "super_admin"], ["hr_manager"]);
+  } catch {
+    return <Unauthorized />;
+  }
+
   const schoolId = await getCurrentSchoolIdOrThrow();
 
   const [
@@ -99,7 +126,7 @@ export default async function StaffDetailPage({
   ] = await Promise.all([
     supabaseAdmin
       .from("staff_members")
-      .select("id, employee_id, full_name, phone, email, type, designation, department, joined_date, status, blood_group, photo_url, bio, permission_template_name")
+      .select("id, profile_id, employee_id, full_name, phone, email, type, designation, department, joined_date, status, blood_group, photo_url, bio, permission_template_name, address, emergency_contact_name, emergency_contact_phone, license_number, license_expiry")
       .eq("school_id", schoolId)
       .eq("id", id)
       .maybeSingle(),
@@ -132,6 +159,10 @@ export default async function StaffDetailPage({
   if (!staffRow) notFound();
 
   const s = staffRow as unknown as StaffDetailRow;
+  const isDriver = (s.designation ?? "").trim().toLowerCase() === "driver";
+
+  const driverContext = isDriver && s.profile_id ? await getDriverContext(s.profile_id) : null;
+
   const staff: StaffDetail = {
     id: s.id,
     name: s.full_name,
@@ -148,6 +179,12 @@ export default async function StaffDetailPage({
     bio: s.bio,
     permissionTemplateName: s.permission_template_name,
     yearsOfService: yearsOfService(s.joined_date),
+    isDriver,
+    address: s.address ?? "—",
+    emergencyContactName: s.emergency_contact_name ?? "—",
+    emergencyContactPhone: s.emergency_contact_phone ?? "—",
+    licenseNumber: s.license_number ?? "—",
+    licenseExpiry: s.license_expiry,
   };
 
   // ── Attendance, grouped by month ──────────────────────────────────────────
@@ -202,5 +239,13 @@ export default async function StaffDetailPage({
     payMode: r.pay_mode as PayrollRecord["payMode"],
   }));
 
-  return <StaffDetailClient staff={staff} attendance={attendance} leaves={leaves} payroll={payroll} />;
+  return (
+    <StaffDetailClient
+      staff={staff}
+      attendance={attendance}
+      leaves={leaves}
+      payroll={payroll}
+      routes={driverContext?.routes ?? []}
+    />
+  );
 }

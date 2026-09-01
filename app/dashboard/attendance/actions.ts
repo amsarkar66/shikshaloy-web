@@ -1,11 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 import { getTeacherContext } from "@/lib/teachers/context";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { logAuditEvent } from "@/lib/audit/log";
 import { markAttendanceEvent, resolveCredential } from "@/lib/attendance/resolve";
 
@@ -21,15 +21,14 @@ interface MarkerContext {
 }
 
 async function requireAttendanceMarker(): Promise<MarkerContext> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  const role = user?.user_metadata?.role as string | undefined;
+  const vu = await getVerifiedUser();
+  const role = vu?.role;
 
-  if (!user) throw new Error("Unauthorized");
+  if (!vu) throw new Error("Unauthorized");
   if (role === "admin" || role === "super_admin") return { role, teacherSectionIds: null };
 
   if (role === "teacher") {
-    const teacher = await getTeacherContext(user.id);
+    const teacher = await getTeacherContext(vu.id);
     if (!teacher) throw new Error("Unauthorized");
     return { role, teacherSectionIds: teacher.sectionIds };
   }

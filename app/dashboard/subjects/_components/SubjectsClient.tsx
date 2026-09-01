@@ -232,6 +232,7 @@ export default function SubjectsClient({ initialSubjects }: { initialSubjects: S
           subject={editingSubject}
           onClose={()=>setEditingSubject(null)}
           onSaved={()=>router.refresh()}
+          onDeleted={()=>router.refresh()}
         />
       )}
     </div>

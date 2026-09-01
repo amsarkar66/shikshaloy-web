@@ -1,18 +1,14 @@
 import { redirect } from "next/navigation";
-import { getUser } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
 import SubscriptionsClient, { type PlatformSubscription } from "./_components/SubscriptionsClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function SubscriptionsPage() {
-  const {
-    data: { user },
-  } = await getUser();
-  if (!user) redirect("/login");
-
-  const role = user.user_metadata?.role as string | undefined;
-  if (role !== "kernel") redirect("/dashboard");
+  const vu = await getVerifiedUser();
+  if (!vu) redirect("/login");
+  if (vu.role !== "kernel") redirect("/dashboard");
 
   const [{ data: subs }, { data: institutions }, { data: pendingInvoices }] = await Promise.all([
     supabaseAdmin

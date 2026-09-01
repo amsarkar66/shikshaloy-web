@@ -99,3 +99,39 @@ export async function deleteItem(id: string): Promise<void> {
 
   revalidatePath("/dashboard/inventory");
 }
+
+export async function renameCategory(oldName: string, newName: string): Promise<void> {
+  const from = oldName.trim();
+  const to = newName.trim();
+  if (!to) throw new Error("Category name is required.");
+  if (from === to) return;
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
+  const { error } = await supabaseAdmin
+    .from("inventory_items")
+    .update({ category: to })
+    .eq("category", from)
+    .eq("school_id", schoolId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/dashboard/inventory");
+}
+
+export async function deleteCategory(name: string, reassignTo: string): Promise<void> {
+  const category = name.trim();
+  const to = reassignTo.trim();
+  if (!to) throw new Error("Choose a category to move items into.");
+  if (to === category) throw new Error("Choose a different category to move items into.");
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
+  const { error } = await supabaseAdmin
+    .from("inventory_items")
+    .update({ category: to })
+    .eq("category", category)
+    .eq("school_id", schoolId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/dashboard/inventory");
+}

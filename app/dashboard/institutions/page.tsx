@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getUser } from "@/lib/supabase/server";
+import { getVerifiedRole } from "@/lib/auth/verified-role";
 import { listInstitutions } from "@/lib/supabase/admin";
 import InstitutionsClient from "./_components/InstitutionsClient";
 
@@ -11,7 +12,7 @@ export default async function InstitutionsPage() {
   } = await getUser();
   if (!user) redirect("/login");
 
-  const role = user.user_metadata?.role as string | undefined;
+  const role = await getVerifiedRole();
   if (role !== "kernel") redirect("/dashboard");
 
   const institutions = await listInstitutions();

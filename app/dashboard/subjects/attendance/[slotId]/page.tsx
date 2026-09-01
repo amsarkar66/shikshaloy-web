@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { ShieldAlert } from "lucide-react";
-import { getUser } from "@/lib/supabase/server";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import SubjectAttendanceClient from "../_components/SubjectAttendanceClient";
@@ -51,9 +51,9 @@ export default async function SubjectAttendancePage({
   const { slotId } = await params;
   const { date } = await searchParams;
 
-  const { data: { user } } = await getUser();
-  const role = user?.user_metadata?.role as string | undefined;
-  if (!user || (role !== "admin" && role !== "super_admin" && role !== "teacher")) return <Unauthorized />;
+  const vu = await getVerifiedUser();
+  const role = vu?.role;
+  if (!vu || (role !== "admin" && role !== "super_admin" && role !== "teacher")) return <Unauthorized />;
 
   const schoolId = await getCurrentSchoolIdOrThrow();
   const today = new Date().toISOString().split("T")[0];
@@ -67,7 +67,7 @@ export default async function SubjectAttendancePage({
     .maybeSingle<SlotRow>();
 
   if (!slotRow) notFound();
-  if (role === "teacher" && slotRow.teacher_id !== user.id) return <Unauthorized />;
+  if (role === "teacher" && slotRow.teacher_id !== vu.id) return <Unauthorized />;
 
   const [{ data: periodRow }, { data: studentRows }, { data: sessionRow }] = await Promise.all([
     supabaseAdmin

@@ -26,6 +26,7 @@ export interface InstitutionFormData {
   name: string;
   institutionType: string;
   board: string;
+  boardOther: string;
   establishedYear: string;
   city: string;
   state: string;
@@ -44,18 +45,26 @@ export interface InstitutionFormData {
 }
 
 const EMPTY: InstitutionFormData = {
-  name: "", institutionType: "", board: "", establishedYear: "",
+  name: "", institutionType: "", board: "", boardOther: "", establishedYear: "",
   city: "", state: "", country: "India", address: "", pinCode: "",
   studentRange: "", staffRange: "", gradesFrom: "", gradesTo: "", tagline: "",
   phone: "", email: "", website: "", udiseCode: "",
 };
 
-const INSTITUTION_TYPES = ["School", "College", "University", "Training Institute", "Coaching Centre", "Other"];
-const BOARDS = ["CBSE", "ICSE / ISC", "State Board", "IB", "IGCSE", "Other"];
+const INSTITUTION_TYPES = [
+  { value: "School", comingSoon: false },
+  { value: "College", comingSoon: true },
+  { value: "University", comingSoon: true },
+  { value: "Training Institute", comingSoon: true },
+  { value: "Coaching Centre", comingSoon: true },
+];
+export const BOARDS = ["CBSE", "ICSE / ISC", "State Board", "IB", "IGCSE", "Other"];
 const STUDENT_RANGES = ["< 100", "100 – 500", "500 – 1,000", "1,000 – 5,000", "> 5,000"];
 const STAFF_RANGES = ["< 10", "10 – 25", "25 – 50", "50 – 100", "> 100"];
-const GRADES_FROM = ["Pre-KG", "KG", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
-const GRADES_TO = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
+// Shared by both the "from" and "to" selects (rather than two separate,
+// misaligned lists) so every grade is a valid start and a valid end —
+// e.g. a preschool ending at "KG" or a junior college starting at "XI".
+const GRADE_LEVELS = ["Pre-KG", "KG", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
 
 const STEPS = [
   { label: "Institution", description: "Name and type", icon: Landmark },
@@ -73,6 +82,7 @@ function validateStep(step: number, data: InstitutionFormData): Partial<Record<k
     if (!data.name.trim())     errs.name           = "Institution name is required.";
     if (!data.institutionType) errs.institutionType = "Select a type.";
     if (isSchool && !data.board) errs.board = "Select your board.";
+    if (isSchool && data.board === "Other" && !data.boardOther.trim()) errs.boardOther = "Enter your board's name.";
   }
   if (step === 1) {
     if (!data.city.trim())    errs.city         = "City is required.";
@@ -83,6 +93,9 @@ function validateStep(step: number, data: InstitutionFormData): Partial<Record<k
   if (step === 2) {
     if (data.gradesFrom && !data.gradesTo) errs.gradesTo = "Select the ending grade too.";
     if (!data.gradesFrom && data.gradesTo) errs.gradesTo = "Select the starting grade too.";
+    if (data.gradesFrom && data.gradesTo && GRADE_LEVELS.indexOf(data.gradesFrom) > GRADE_LEVELS.indexOf(data.gradesTo)) {
+      errs.gradesTo = "Ending grade must come after the starting grade.";
+    }
   }
   if (step === CONTACT_STEP) {
     if (!data.phone.trim()) errs.phone = "Phone number is required.";
@@ -124,7 +137,18 @@ function Step0({ data, set, errors }: StepProps) {
         <div>
           <FieldLabel required>Institution type</FieldLabel>
           <Select value={data.institutionType} onChange={(v) => set("institutionType", v)} placeholder="Select type" invalid={!!errors.institutionType}>
-            {INSTITUTION_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            {INSTITUTION_TYPES.map((t) => (
+              <option key={t.value} value={t.value} disabled={t.comingSoon}>
+                <span className="flex w-full items-center justify-between gap-2">
+                  {t.value}
+                  {t.comingSoon && (
+                    <span className="shrink-0 rounded-full border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-gray-400 dark:text-zinc-500">
+                      Coming soon
+                    </span>
+                  )}
+                </span>
+              </option>
+            ))}
           </Select>
           <FieldError msg={errors.institutionType} />
         </div>
@@ -145,6 +169,19 @@ function Step0({ data, set, errors }: StepProps) {
             {BOARDS.map((b) => <option key={b} value={b}>{b}</option>)}
           </Select>
           <FieldError msg={errors.board} />
+        </div>
+      )}
+
+      {isSchool && data.board === "Other" && (
+        <div>
+          <FieldLabel required>Specify your board</FieldLabel>
+          <Input
+            placeholder="e.g. NIOS"
+            value={data.boardOther}
+            onChange={(v) => set("boardOther", v)}
+            invalid={!!errors.boardOther}
+          />
+          <FieldError msg={errors.boardOther} />
         </div>
       )}
     </div>
@@ -225,13 +262,13 @@ function Step2({ data, set, errors }: StepProps) {
           <div>
             <FieldLabel>Grades from (optional)</FieldLabel>
             <Select value={data.gradesFrom} onChange={(v) => set("gradesFrom", v)} placeholder="Select grade" invalid={!!errors.gradesTo}>
-              {GRADES_FROM.map((g) => <option key={g} value={g}>{g}</option>)}
+              {GRADE_LEVELS.map((g) => <option key={g} value={g}>{g}</option>)}
             </Select>
           </div>
           <div>
             <FieldLabel>Grades to (optional)</FieldLabel>
             <Select value={data.gradesTo} onChange={(v) => set("gradesTo", v)} placeholder="Select grade" invalid={!!errors.gradesTo}>
-              {GRADES_TO.map((g) => <option key={g} value={g}>{g}</option>)}
+              {GRADE_LEVELS.map((g) => <option key={g} value={g}>{g}</option>)}
             </Select>
           </div>
         </div>
@@ -324,7 +361,7 @@ function Step4({ data, goToStep }: { data: InstitutionFormData; goToStep: (i: nu
     { label: "Institution name", value: data.name, step: 0 },
     ...(data.tagline ? [{ label: "Tagline", value: data.tagline, step: 0 }] : []),
     { label: "Type", value: data.institutionType, step: 0 },
-    ...(isSchool && data.board ? [{ label: "Board", value: data.board, step: 0 }] : []),
+    ...(isSchool && data.board ? [{ label: "Board", value: data.board === "Other" ? data.boardOther : data.board, step: 0 }] : []),
     ...(data.establishedYear ? [{ label: "Established", value: data.establishedYear, step: 0 }] : []),
     { label: "Location", value: [data.city, data.state, data.country].filter(Boolean).join(", "), step: 1 },
     ...(data.address ? [{ label: "Address", value: data.address, step: 1 }] : []),
@@ -422,7 +459,8 @@ export function InstitutionForm({
 
     setSubmitting(true);
     try {
-      const result = await onSubmit(data);
+      const submitData = data.board === "Other" ? { ...data, board: data.boardOther.trim() } : data;
+      const result = await onSubmit(submitData);
       if (result?.error) {
         setSubmitError(result.error);
         return;

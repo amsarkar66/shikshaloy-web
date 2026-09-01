@@ -1,21 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { logAuditEvent } from "@/lib/audit/log";
+import { requireKernel } from "@/lib/auth/verified-role";
 import { PLATFORM_AUDIENCE_LABEL } from "./constants";
-
-async function requireKernel() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const role = user?.user_metadata?.role as string | undefined;
-  if (!user || role !== "kernel") throw new Error("Unauthorized");
-  return user;
-}
 
 export async function broadcastAnnouncement(formData: FormData): Promise<void> {
   await requireKernel();

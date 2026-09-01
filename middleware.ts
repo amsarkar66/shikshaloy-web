@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isAppHost, resolveDomainOwner } from "@/lib/domains/resolve-host";
+import { supabaseAdmin } from "@/lib/supabase/service";
 
 const ROLE_HOME: Record<string, string> = {
   kernel: "/dashboard",
@@ -66,7 +67,16 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && pathname === "/login") {
-    const role = user.user_metadata?.role as string | undefined;
+    // Post-login redirect destination only — not a security gate (every
+    // /dashboard route re-verifies role itself) — but still resolved from
+    // `profiles` rather than the client-editable JWT user_metadata so a
+    // tampered role can't even steer the initial redirect.
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+    const role = profile?.role;
     const home = role ? (ROLE_HOME[role] ?? "/") : "/";
     return NextResponse.redirect(new URL(home, request.url));
   }

@@ -1,26 +1,19 @@
 import { redirect } from "next/navigation";
-import { getUser } from "@/lib/supabase/server";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { listKernelUsers } from "@/lib/supabase/admin";
-import { KERNEL_PERMISSIONS, type KernelPermission } from "@/lib/kernel-permissions";
+import type { KernelPermission } from "@/lib/kernel-permissions";
 import TeamClient from "./_components/TeamClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function TeamPage() {
-  const {
-    data: { user },
-  } = await getUser();
-  if (!user) redirect("/login");
-
-  const role = user.user_metadata?.role as string | undefined;
-  if (role !== "kernel") redirect("/dashboard");
+  const verifiedUser = await getVerifiedUser();
+  if (!verifiedUser) redirect("/login");
+  if (verifiedUser.role !== "kernel") redirect("/dashboard");
 
   const members = await listKernelUsers();
 
-  const rawPermission = user.user_metadata?.kernel_permission as string | undefined;
-  const currentPermission: KernelPermission = (KERNEL_PERMISSIONS as readonly string[]).includes(rawPermission ?? "")
-    ? (rawPermission as KernelPermission)
-    : "owner";
+  const currentPermission: KernelPermission = verifiedUser.kernelPermission ?? "owner";
 
-  return <TeamClient members={members} currentUserId={user.id} currentPermission={currentPermission} />;
+  return <TeamClient members={members} currentUserId={verifiedUser.id} currentPermission={currentPermission} />;
 }

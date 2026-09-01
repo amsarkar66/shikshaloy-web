@@ -1,9 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient, getUser } from "@/lib/supabase/server";
+import { getUser } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { requireRoleOrStaffTemplate } from "@/lib/auth/verified-role";
 import { logAuditEvent } from "@/lib/audit/log";
 import { notifyRoles, notifyProfile } from "@/lib/notifications/create";
 import type { LeaveType } from "./_data/leaves";
@@ -61,18 +62,12 @@ export async function applyLeave(input: {
 }
 
 export async function updateLeaveStatus(leaveId: string, status: "approved" | "rejected") {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  const role = user?.user_metadata?.role as string | undefined;
-  const staffTemplateId = user?.user_metadata?.staff_template_id as string | undefined;
-  const canApprove = role === "admin" || role === "super_admin" || (role === "staff" && staffTemplateId === "hr_manager");
-  if (!user || !canApprove) throw new Error("Unauthorized");
+  const { id: userId } = await requireRoleOrStaffTemplate(["admin", "super_admin"], ["hr_manager"]);
 
   const { data: approver } = await supabaseAdmin
     .from("staff_members")
     .select("id")
-    .eq("profile_id", user.id)
+    .eq("profile_id", userId)
     .maybeSingle();
   const approvedBy = approver?.id ?? null;
 
@@ -215,12 +210,7 @@ export async function listAvailableSubstitutes(leaveId: string): Promise<Substit
 export interface SubstituteAssignmentInput { timetableSlotId: string; date: string; substituteStaffId: string }
 
 export async function saveLeaveSubstituteAssignments(leaveId: string, assignments: SubstituteAssignmentInput[]): Promise<void> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  const role = user?.user_metadata?.role as string | undefined;
-  const staffTemplateId = user?.user_metadata?.staff_template_id as string | undefined;
-  const canApprove = role === "admin" || role === "super_admin" || (role === "staff" && staffTemplateId === "hr_manager");
-  if (!user || !canApprove) throw new Error("Unauthorized");
+  await requireRoleOrStaffTemplate(["admin", "super_admin"], ["hr_manager"]);
 
   if (assignments.length === 0) return;
   const schoolId = await getCurrentSchoolIdOrThrow();

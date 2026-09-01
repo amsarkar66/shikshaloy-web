@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getUser } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
+import { getVerifiedRole } from "@/lib/auth/verified-role";
 import {
   sendSupportRequestEmail,
   sendSupportRequestReplyToTeamEmail,
@@ -82,7 +83,7 @@ export async function createSupportRequest(input: {
   message: string;
 }): Promise<string> {
   const user = await requireUser();
-  const role = user.user_metadata?.role as string | undefined;
+  const role = await getVerifiedRole();
   if (role !== "super_admin") throw new Error("Unauthorized");
 
   const subject = input.subject.trim();
@@ -126,8 +127,8 @@ export async function createSupportRequest(input: {
 }
 
 export async function getMySupportRequests(): Promise<SupportRequestSummary[]> {
-  const user = await requireUser();
-  const role = user.user_metadata?.role as string | undefined;
+  await requireUser();
+  const role = await getVerifiedRole();
   if (role !== "super_admin") return [];
 
   const institutionId = await getCurrentInstitutionIdOrThrow();
@@ -137,8 +138,8 @@ export async function getMySupportRequests(): Promise<SupportRequestSummary[]> {
 // ── Kernel: list every institution's requests ───────────────────────────────
 
 export async function getAllSupportRequests(): Promise<SupportRequestSummary[]> {
-  const user = await requireUser();
-  const role = user.user_metadata?.role as string | undefined;
+  await requireUser();
+  const role = await getVerifiedRole();
   if (role !== "kernel") throw new Error("Unauthorized");
   return listRequestsForInstitutions(null);
 }
@@ -146,8 +147,8 @@ export async function getAllSupportRequests(): Promise<SupportRequestSummary[]> 
 // ── Shared: read a thread, reply to it ──────────────────────────────────────
 
 export async function getSupportRequestThread(requestId: string): Promise<SupportRequestThread | null> {
-  const user = await requireUser();
-  const role = user.user_metadata?.role as string | undefined;
+  await requireUser();
+  const role = await getVerifiedRole();
 
   const { data, error } = await supabaseAdmin
     .from("support_requests")
@@ -193,7 +194,7 @@ export async function getSupportRequestThread(requestId: string): Promise<Suppor
 
 export async function replySupportRequest(input: { requestId: string; message: string }): Promise<void> {
   const user = await requireUser();
-  const role = user.user_metadata?.role as string | undefined;
+  const role = await getVerifiedRole();
   const message = input.message.trim();
   if (!message) throw new Error("Message is required");
 
@@ -260,8 +261,8 @@ export async function replySupportRequest(input: { requestId: string; message: s
 }
 
 export async function updateSupportRequestStatus(requestId: string, status: SupportRequestStatus): Promise<void> {
-  const user = await requireUser();
-  const role = user.user_metadata?.role as string | undefined;
+  await requireUser();
+  const role = await getVerifiedRole();
   if (role !== "kernel") throw new Error("Unauthorized");
 
   const { error } = await supabaseAdmin

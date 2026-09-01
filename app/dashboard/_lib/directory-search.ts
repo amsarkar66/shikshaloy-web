@@ -1,6 +1,6 @@
 "use server";
 
-import { getUser } from "@/lib/supabase/server";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolId } from "@/lib/supabase/school-context";
 
@@ -16,6 +16,22 @@ export interface DirectorySearchResult {
 
 const RESULT_LIMIT = 5;
 
+// Nav filtering (Sidebar / CommandMenu, both client components) needs the
+// caller's own staff template but can't call the server-only verified-role
+// helper directly — user.user_metadata.staff_template_id is self-editable
+// and must not be trusted, so this resolves it from staff_members instead.
+export async function getVerifiedStaffTemplateId(): Promise<string | undefined> {
+  const vu = await getVerifiedUser();
+  if (!vu || vu.role !== "staff") return undefined;
+
+  const { data: staff } = await supabaseAdmin
+    .from("staff_members")
+    .select("permission_template_id")
+    .eq("profile_id", vu.id)
+    .maybeSingle();
+  return staff?.permission_template_id ?? undefined;
+}
+
 // Record search is scoped to whatever the signed-in role can already see via
 // the sidebar nav (see app/dashboard/_lib/nav-data.ts): full directories for
 // admin, staff-only for super_admin and the HR staff template. Everyone else
@@ -25,13 +41,11 @@ export async function searchDirectory(query: string): Promise<DirectorySearchRes
   const q = query.trim();
   if (q.length < 2) return [];
 
-  const {
-    data: { user },
-  } = await getUser();
-  if (!user) return [];
+  const vu = await getVerifiedUser();
+  if (!vu) return [];
 
-  const role = (user.user_metadata?.role as string) ?? "";
-  const staffTemplateId = user.user_metadata?.staff_template_id as string | undefined;
+  const role = vu.role;
+  const staffTemplateId = role === "staff" ? await getVerifiedStaffTemplateId() : undefined;
 
   const canSearchStudents = role === "admin";
   const canSearchParents = role === "admin";

@@ -35,6 +35,7 @@ export async function addBook(input: BookInput) {
 }
 
 export async function updateBook(id: string, input: BookInput) {
+  const schoolId = await getCurrentSchoolIdOrThrow();
   const { count } = await supabaseAdmin
     .from("book_issues")
     .select("id", { count: "exact", head: true })
@@ -53,12 +54,14 @@ export async function updateBook(id: string, input: BookInput) {
       total_copies: input.totalCopies,
       added_year: input.addedYear,
     })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("school_id", schoolId);
   if (error) throw new Error(error.message);
   revalidatePath("/dashboard/library");
 }
 
 export async function deleteBook(id: string) {
+  const schoolId = await getCurrentSchoolIdOrThrow();
   const { count } = await supabaseAdmin
     .from("book_issues")
     .select("id", { count: "exact", head: true })
@@ -67,7 +70,7 @@ export async function deleteBook(id: string) {
   if ((count ?? 0) > 0) {
     throw new Error("Cannot delete a book that has copies currently issued.");
   }
-  const { error } = await supabaseAdmin.from("library_books").delete().eq("id", id);
+  const { error } = await supabaseAdmin.from("library_books").delete().eq("id", id).eq("school_id", schoolId);
   if (error) throw new Error(error.message);
   revalidatePath("/dashboard/library");
 }
@@ -105,10 +108,12 @@ export async function issueBook(input: {
 }
 
 export async function returnBook(issueId: string) {
+  const schoolId = await getCurrentSchoolIdOrThrow();
   const { error } = await supabaseAdmin
     .from("book_issues")
     .update({ returned_date: new Date().toISOString().slice(0, 10) })
-    .eq("id", issueId);
+    .eq("id", issueId)
+    .eq("school_id", schoolId);
   if (error) throw new Error(error.message);
   revalidatePath("/dashboard/library");
 }

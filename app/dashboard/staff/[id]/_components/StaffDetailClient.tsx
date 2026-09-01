@@ -7,6 +7,7 @@ import {
   ArrowLeft, Pencil, Phone, Mail, Calendar, Briefcase, Building2,
   IndianRupee, CheckCircle2, AlertCircle, TrendingUp, Shield,
   Droplet, ClipboardList, IdCard, LayoutGrid, CalendarCheck, FileText,
+  Bus, MapPin, Users, Wrench, Siren, Home, AlertTriangle,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import {
@@ -16,8 +17,10 @@ import {
   type PayrollRecord,
 } from "../../../payroll/_data/payroll";
 import { LEAVE_TYPE_LABEL, STATUS_BADGE as LEAVE_STATUS_BADGE, type LeaveStatus } from "../../../leaves/_data/leaves";
+import { FUEL_ICON, VEHICLE_STATUS_BADGE, FEE_BADGE, type FuelType, type TransportFeeStatus } from "../../../transport/_data/transport";
 import AttendanceCredentialsCard from "../../../attendance/_components/AttendanceCredentialsCard";
 import { EditStaffModal } from "./edit-staff-modal";
+import type { DriverRoute } from "@/lib/drivers/context";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -37,6 +40,12 @@ export interface StaffDetail {
   bio: string | null;
   permissionTemplateName: string | null;
   yearsOfService: string;
+  isDriver: boolean;
+  address: string;
+  emergencyContactName: string;
+  emergencyContactPhone: string;
+  licenseNumber: string;
+  licenseExpiry: string | null;
 }
 
 export interface StaffLeave {
@@ -90,24 +99,44 @@ const STATUS_LABEL: Record<string, string> = {
   active: "Active", on_leave: "On Leave", inactive: "Inactive",
 };
 
-type Tab = "overview" | "attendance" | "leaves" | "payroll";
+function licenseStatus(expiry: string | null): { label: string; cls: string } | null {
+  if (!expiry) return null;
+  const days = Math.ceil((new Date(expiry).getTime() - Date.now()) / 86400000);
+  if (days < 0) return { label: "Expired", cls: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20" };
+  if (days <= 30) return { label: "Expiring soon", cls: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20" };
+  return { label: "Valid", cls: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" };
+}
 
-const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
+function formatShortDate(d: string) {
+  return new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function serviceDueDays(nextService: string | null): number | null {
+  if (!nextService) return null;
+  return Math.ceil((new Date(nextService).getTime() - Date.now()) / 86400000);
+}
+
+type Tab = "overview" | "attendance" | "leaves" | "payroll" | "transport";
+
+const BASE_TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "overview",   label: "Overview",   icon: LayoutGrid },
   { id: "attendance", label: "Attendance", icon: CalendarCheck },
   { id: "leaves",     label: "Leaves",     icon: ClipboardList },
   { id: "payroll",    label: "Payroll",    icon: IndianRupee },
 ];
 
+const TRANSPORT_TAB: { id: Tab; label: string; icon: React.ElementType } = { id: "transport", label: "Transport", icon: Bus };
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function StaffDetailClient({
-  staff, attendance, leaves, payroll,
+  staff, attendance, leaves, payroll, routes,
 }: {
   staff: StaffDetail;
   attendance: StaffAttendanceSummary;
   leaves: StaffLeave[];
   payroll: PayrollRecord[];
+  routes: DriverRoute[];
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("overview");
@@ -117,6 +146,13 @@ export default function StaffDetailClient({
   const latestPayroll = payroll[0];
   const ac = attColor(attendance.overallPct);
   const chartMax = Math.max(1, ...attendance.monthly.map((m) => m.total));
+  const tabs = staff.isDriver ? [...BASE_TABS, TRANSPORT_TAB] : BASE_TABS;
+  const license = licenseStatus(staff.licenseExpiry);
+  const totalStudents = routes.reduce((sum, r) => sum + r.roster.length, 0);
+  const vehiclesDue = routes
+    .map((r) => r.vehicle)
+    .filter((v): v is NonNullable<typeof v> => v !== null)
+    .filter((v) => { const d = serviceDueDays(v.nextService); return d !== null && d <= 14; });
 
   return (
     <div className="w-full px-6 py-6 space-y-6">
@@ -205,6 +241,41 @@ export default function StaffDetailClient({
                   <dd className="font-medium text-gray-800 dark:text-zinc-200">{staff.joinedDate} <span className="text-xs text-gray-400 dark:text-zinc-500">({staff.yearsOfService})</span></dd>
                 </div>
               </div>
+              {staff.address !== "—" && (
+                <div className="flex items-start gap-2.5">
+                  <Home className="h-3.5 w-3.5 mt-0.5 shrink-0 text-gray-400 dark:text-zinc-500" />
+                  <div className="min-w-0">
+                    <dt className="text-xs text-gray-400 dark:text-zinc-500">Address</dt>
+                    <dd className="font-medium text-gray-800 dark:text-zinc-200">{staff.address}</dd>
+                  </div>
+                </div>
+              )}
+              {(staff.emergencyContactName !== "—" || staff.emergencyContactPhone !== "—") && (
+                <div className="flex items-start gap-2.5">
+                  <Siren className="h-3.5 w-3.5 mt-0.5 shrink-0 text-red-400" />
+                  <div className="min-w-0">
+                    <dt className="text-xs text-gray-400 dark:text-zinc-500">Emergency Contact</dt>
+                    <dd className="font-medium text-gray-800 dark:text-zinc-200">{staff.emergencyContactName}{staff.emergencyContactPhone !== "—" ? ` · ${staff.emergencyContactPhone}` : ""}</dd>
+                  </div>
+                </div>
+              )}
+              {staff.isDriver && (
+                <div className="flex items-start gap-2.5">
+                  <IdCard className="h-3.5 w-3.5 mt-0.5 shrink-0 text-gray-400 dark:text-zinc-500" />
+                  <div className="min-w-0 flex-1">
+                    <dt className="text-xs text-gray-400 dark:text-zinc-500">Driving License</dt>
+                    <dd className="flex items-center gap-2 font-medium text-gray-800 dark:text-zinc-200">
+                      {staff.licenseNumber}
+                      {license && (
+                        <span className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-semibold ${license.cls}`}>{license.label}</span>
+                      )}
+                    </dd>
+                    {staff.licenseExpiry && (
+                      <p className="text-[11px] text-gray-400 dark:text-zinc-500">Expires {formatShortDate(staff.licenseExpiry)}</p>
+                    )}
+                  </div>
+                </div>
+              )}
               {staff.type === "non_teaching" && (
                 <div className="flex items-start gap-2.5">
                   <Shield className="h-3.5 w-3.5 mt-0.5 shrink-0 text-gray-400 dark:text-zinc-500" />
@@ -232,7 +303,7 @@ export default function StaffDetailClient({
         {/* ── Right: Data (tabbed) ─────────────────────────────────────────── */}
         <div className="space-y-5 min-w-0">
           <div className="flex gap-1 border-b border-gray-200 dark:border-zinc-800 overflow-x-auto">
-            {TABS.map(({ id, label, icon: Icon }) => (
+            {tabs.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
                 onClick={() => setTab(id)}
@@ -246,6 +317,9 @@ export default function StaffDetailClient({
                 {id === "leaves" && pendingLeaves > 0 && (
                   <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500/15 px-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400">{pendingLeaves}</span>
                 )}
+                {id === "transport" && vehiclesDue.length > 0 && (
+                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500/15 px-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400">{vehiclesDue.length}</span>
+                )}
               </button>
             ))}
           </div>
@@ -258,6 +332,7 @@ export default function StaffDetailClient({
                 { label: "Years of Service", value: staff.yearsOfService, sub: `Joined ${staff.joinedDate}`, icon: TrendingUp, color: "text-violet-600 dark:text-violet-400 bg-violet-500/10" },
                 { label: "Net Salary",       value: latestPayroll ? formatCurrency(latestPayroll.net) : "—", sub: latestPayroll ? formatMonth(latestPayroll.monthStr) : "No payroll records yet", icon: IndianRupee, color: "text-indigo-600 dark:text-indigo-400 bg-indigo-500/10" },
                 { label: "Leave Requests",   value: String(leaves.length), sub: pendingLeaves ? `${pendingLeaves} pending` : "None pending", icon: ClipboardList, color: "text-amber-600 dark:text-amber-400 bg-amber-500/10" },
+                ...(staff.isDriver ? [{ label: "Students on Route", value: String(totalStudents), sub: `${routes.length} route${routes.length === 1 ? "" : "s"} assigned`, icon: Users, color: "text-teal-600 dark:text-teal-400 bg-teal-500/10" }] : []),
               ].map((st) => (
                 <div key={st.label} className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-4 flex items-center gap-3">
                   <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${st.color}`}>
@@ -296,6 +371,42 @@ export default function StaffDetailClient({
                       </div>
                     );
                   })()}
+                </div>
+              )}
+
+              {staff.isDriver && (vehiclesDue.length > 0 || license?.label === "Expiring soon" || license?.label === "Expired") && (
+                <div className="col-span-2 flex items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                    <AlertTriangle className="h-4 w-4" />
+                  </div>
+                  <div className="text-sm text-gray-700 dark:text-zinc-300 space-y-0.5">
+                    {vehiclesDue.map((v) => {
+                      const d = serviceDueDays(v.nextService)!;
+                      return <p key={v.id}>{v.regNo} — {d < 0 ? "service overdue" : `service due in ${d} day${d === 1 ? "" : "s"}`}</p>;
+                    })}
+                    {license && license.label !== "Valid" && <p>Driving license {license.label.toLowerCase()}{staff.licenseExpiry ? ` (${formatShortDate(staff.licenseExpiry)})` : ""}</p>}
+                  </div>
+                </div>
+              )}
+
+              {staff.isDriver && (
+                <div className="col-span-2 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50 flex items-center gap-2"><Bus className="h-4 w-4 text-teal-500" /> Vehicle &amp; Route Assignment</p>
+                    <button onClick={() => setTab("transport")} className="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline">View details</button>
+                  </div>
+                  {routes.length === 0 ? (
+                    <p className="text-sm text-gray-400 dark:text-zinc-500">No vehicle or route assigned yet.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {routes.map((r) => (
+                        <div key={r.id} className="flex items-center justify-between gap-3 text-sm">
+                          <span className="text-gray-700 dark:text-zinc-300">Route {r.routeNo}{r.routeName ? ` · ${r.routeName}` : ""}</span>
+                          <span className="text-gray-500 dark:text-zinc-400">{r.vehicle?.regNo ?? "No vehicle"} · {r.roster.length} student{r.roster.length === 1 ? "" : "s"}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -455,6 +566,104 @@ export default function StaffDetailClient({
                     </table>
                   </div>
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* Transport */}
+          {tab === "transport" && (
+            <div className="space-y-5">
+              {routes.length === 0 ? (
+                <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 py-16 text-center">
+                  <Bus className="h-8 w-8 text-gray-300 dark:text-zinc-600 mx-auto mb-2" />
+                  <p className="text-sm font-medium text-gray-500 dark:text-zinc-400">No vehicle or route assigned yet</p>
+                </div>
+              ) : (
+                routes.map((r) => {
+                  const v = r.vehicle;
+                  const dueDays = v ? serviceDueDays(v.nextService) : null;
+                  const vehicleBadge = v ? (VEHICLE_STATUS_BADGE[v.status as keyof typeof VEHICLE_STATUS_BADGE] ?? VEHICLE_STATUS_BADGE.active) : "";
+                  return (
+                    <div key={r.id} className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
+                      <div className="px-5 py-4 border-b border-gray-100 dark:border-zinc-700 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-teal-500" />
+                          <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Route {r.routeNo}{r.routeName ? ` · ${r.routeName}` : ""}</p>
+                        </div>
+                        <span className="text-xs text-gray-500 dark:text-zinc-400">{r.roster.length}/{r.capacity || "—"} students</span>
+                      </div>
+
+                      <div className="p-5 space-y-4">
+                        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-gray-600 dark:text-zinc-400">
+                          <span>Morning <span className="font-medium text-gray-800 dark:text-zinc-200">{r.morningDeparture?.slice(0, 5) ?? "—"}</span></span>
+                          <span>Evening <span className="font-medium text-gray-800 dark:text-zinc-200">{r.eveningDeparture?.slice(0, 5) ?? "—"}</span></span>
+                        </div>
+
+                        {r.stops.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {r.stops.map((stop) => (
+                              <span key={stop} className="rounded-md bg-gray-100 dark:bg-zinc-700 px-2 py-0.5 text-xs font-medium text-gray-600 dark:text-zinc-300">{stop}</span>
+                            ))}
+                          </div>
+                        )}
+
+                        {v ? (
+                          <div className="rounded-lg border border-gray-100 dark:border-zinc-700/50 p-3.5 flex items-center gap-3">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400">
+                              <Wrench className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-semibold text-gray-900 dark:text-zinc-100">{v.regNo}</p>
+                                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${vehicleBadge}`}>{v.status}</span>
+                              </div>
+                              <p className="text-xs text-gray-500 dark:text-zinc-400">
+                                {v.model} · {v.capacity} seats · {FUEL_ICON[v.fuelType as FuelType] ?? "⛽"} {v.fuelType}{v.year ? ` · ${v.year}` : ""}
+                              </p>
+                              {v.nextService && (
+                                <p className={`text-xs mt-0.5 ${dueDays !== null && dueDays <= 14 ? "text-amber-600 dark:text-amber-400 font-medium" : "text-gray-400 dark:text-zinc-500"}`}>
+                                  Next service {formatShortDate(v.nextService)}{dueDays !== null && dueDays <= 14 ? ` — ${dueDays < 0 ? "overdue" : `due in ${dueDays}d`}` : ""}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-400 dark:text-zinc-500">No vehicle assigned to this route.</p>
+                        )}
+
+                        {r.roster.length > 0 && (
+                          <div className="overflow-x-auto -mx-5 -mb-5 border-t border-gray-100 dark:border-zinc-700">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="border-b border-gray-100 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800">
+                                  <th className="py-2.5 pl-5 pr-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Student</th>
+                                  <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Class</th>
+                                  <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Stop</th>
+                                  <th className="py-2.5 pl-3 pr-5 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Fee Status</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-100 dark:divide-zinc-700/50">
+                                {r.roster.map((st) => (
+                                  <tr key={st.id} className="hover:bg-gray-50 dark:hover:bg-zinc-700/30 transition-colors">
+                                    <td className="py-2.5 pl-5 pr-3">
+                                      <p className="font-medium text-gray-800 dark:text-zinc-200">{st.fullName}</p>
+                                      <p className="text-xs text-gray-400 dark:text-zinc-500">Roll {st.rollNo}</p>
+                                    </td>
+                                    <td className="px-3 py-2.5 text-gray-600 dark:text-zinc-400">{st.classNum}-{st.section}</td>
+                                    <td className="px-3 py-2.5 text-gray-600 dark:text-zinc-400">{st.stopName}</td>
+                                    <td className="py-2.5 pl-3 pr-5">
+                                      <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${FEE_BADGE[st.feeStatus as TransportFeeStatus] ?? FEE_BADGE.overdue}`}>{st.feeStatus}</span>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
           )}

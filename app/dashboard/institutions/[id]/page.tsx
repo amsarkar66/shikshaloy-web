@@ -1,12 +1,12 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, MapPin, Phone, Globe, Users, Briefcase,
   CalendarDays, GraduationCap, Hash, CreditCard, Building2, Landmark,
 } from "lucide-react";
-import { getUser } from "@/lib/supabase/server";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { getInstitution } from "@/lib/supabase/admin";
-import { KERNEL_PERMISSIONS, type KernelPermission } from "@/lib/kernel-permissions";
+import type { KernelPermission } from "@/lib/kernel-permissions";
 import { StatusBadge, TypeBadge, BoardBadge, InstitutionActions } from "../_components/institution-ui";
 import { DeleteInstitutionButton } from "../_components/delete-institution-modal";
 
@@ -41,14 +41,12 @@ export default async function InstitutionDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [result, { data: { user } }] = await Promise.all([getInstitution(id), getUser()]);
+  const [result, verifiedUser] = await Promise.all([getInstitution(id), getVerifiedUser()]);
+  if (!verifiedUser || verifiedUser.role !== "kernel") redirect("/dashboard");
   if (!result) notFound();
 
   const { institution: inst, subscription } = result;
-  const rawPermission = user?.user_metadata?.kernel_permission as string | undefined;
-  const permission: KernelPermission = (KERNEL_PERMISSIONS as readonly string[]).includes(rawPermission ?? "")
-    ? (rawPermission as KernelPermission)
-    : "owner";
+  const permission: KernelPermission = verifiedUser.kernelPermission ?? "owner";
   const canDelete = permission === "owner";
   const location = [inst.address, inst.city, inst.state, inst.pin_code, inst.country]
     .filter(Boolean)

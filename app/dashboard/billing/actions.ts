@@ -3,16 +3,31 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
+import { requireRole } from "@/lib/auth/verified-role";
 import {
   createRazorpayOrder as createOrder,
   verifyRazorpaySignature,
   fetchRazorpayPayment,
+  fetchRazorpayOrder,
 } from "@/lib/razorpay";
 import { fulfillRazorpayPayment } from "@/lib/billing/fulfill-razorpay-payment";
 import { sendOfflinePaymentSubmittedEmail } from "@/lib/email/resend";
 import { PLANS, formatDate, generateInvoiceNo, renewsOnFromToday, type PlanId } from "./_data/billing";
 
+// Billing is an institution-owner (super_admin) feature only — everyone else
+// (admin, staff, teacher, parent, student, driver) can resolve an
+// institution id via their school, but must never be able to touch its
+// subscription or payment state.
+async function assertSuperAdmin() {
+  try {
+    await requireRole(["super_admin"]);
+  } catch {
+    throw new Error("Only the institution owner can manage billing.");
+  }
+}
+
 export async function createRazorpayOrder(planId: PlanId) {
+  await assertSuperAdmin();
   const institutionId = await getCurrentInstitutionIdOrThrow();
   const plan = PLANS.find((p) => p.id === planId);
   if (!plan || plan.price === null) throw new Error("Contact sales for this plan");
@@ -34,6 +49,7 @@ export async function verifyRazorpayPayment(input: {
   paymentId: string;
   signature: string;
 }) {
+  await assertSuperAdmin();
   const institutionId = await getCurrentInstitutionIdOrThrow();
 
   const ok = verifyRazorpaySignature({
@@ -43,11 +59,23 @@ export async function verifyRazorpayPayment(input: {
   });
   if (!ok) throw new Error("Payment verification failed");
 
+  // Never trust the client-supplied planId — a valid signature only proves
+  // *some* order/payment pair was completed, not which plan it paid for.
+  // Re-derive institutionId/planId from the order Razorpay itself created
+  // (same pattern the webhook handler already uses), and confirm the order
+  // actually belongs to this institution before fulfilling it.
+  const order = await fetchRazorpayOrder(input.orderId);
+  const orderInstitutionId = order.notes?.institutionId;
+  const orderPlanId = order.notes?.planId as PlanId | undefined;
+  if (orderInstitutionId !== institutionId) throw new Error("This payment does not belong to your institution.");
+  if (!orderPlanId || !PLANS.some((p) => p.id === orderPlanId)) throw new Error("Invalid plan on this order.");
+
   const payment = await fetchRazorpayPayment(input.paymentId);
+  if (payment.order_id !== input.orderId) throw new Error("Payment does not match order.");
 
   await fulfillRazorpayPayment({
     institutionId,
-    planId: input.planId,
+    planId: orderPlanId,
     orderId: input.orderId,
     payment,
   });
@@ -56,6 +84,7 @@ export async function verifyRazorpayPayment(input: {
 }
 
 export async function submitOfflinePayment(formData: FormData) {
+  await assertSuperAdmin();
   const institutionId = await getCurrentInstitutionIdOrThrow();
 
   const planId = formData.get("planId") as PlanId | null;
@@ -123,6 +152,7 @@ export async function submitOfflinePayment(formData: FormData) {
 }
 
 export async function cancelOfflinePayment(invoiceId: string) {
+  await assertSuperAdmin();
   const institutionId = await getCurrentInstitutionIdOrThrow();
 
   const { data: invoice } = await supabaseAdmin
@@ -153,6 +183,7 @@ export async function cancelOfflinePayment(invoiceId: string) {
 }
 
 export async function switchToFreePlan() {
+  await assertSuperAdmin();
   const institutionId = await getCurrentInstitutionIdOrThrow();
   const freePlan = PLANS.find((p) => p.id === "free")!;
 

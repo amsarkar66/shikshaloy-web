@@ -6,6 +6,7 @@ import { updateInstitutionStatus } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { sendInstitutionDecisionEmail } from "@/lib/email/resend";
+import { requireRole } from "@/lib/auth/verified-role";
 import { PLANS } from "./billing/_data/billing";
 
 // audit_log.school_id is a not-null FK to `schools`, so an institution-level
@@ -33,6 +34,7 @@ async function logInstitutionDecision(
 }
 
 export async function approveInstitution(formData: FormData) {
+  await requireRole(["kernel"]);
   const institutionId = formData.get("institutionId") as string;
   const planId = formData.get("planId") as string | null;
   const plan = planId ? PLANS.find((p) => p.id === planId) : undefined;
@@ -67,6 +69,7 @@ export async function approveInstitution(formData: FormData) {
 }
 
 export async function rejectInstitution(formData: FormData) {
+  await requireRole(["kernel"]);
   const institutionId = formData.get("institutionId") as string;
   const result = await updateInstitutionStatus(institutionId, "rejected");
 

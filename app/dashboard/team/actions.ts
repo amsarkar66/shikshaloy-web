@@ -1,27 +1,17 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { randomPassword } from "@/lib/auth/random-password";
 import { sendTeamInviteEmail } from "@/lib/email/resend";
 import { KERNEL_PERMISSIONS, KERNEL_PERMISSION_LABELS, type KernelPermission } from "@/lib/kernel-permissions";
+import { requireKernel as requireVerifiedKernel } from "@/lib/auth/verified-role";
 
 async function requireKernel() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const role = user?.user_metadata?.role as string | undefined;
-  if (!user || role !== "kernel") throw new Error("Unauthorized");
-
-  const rawPermission = user.user_metadata?.kernel_permission as string | undefined;
-  const permission: KernelPermission = (KERNEL_PERMISSIONS as readonly string[]).includes(rawPermission ?? "")
-    ? (rawPermission as KernelPermission)
-    : "owner"; // grandfather accounts created before permission tiers existed
-
-  return { user, permission };
+  // Verifies role/kernel_permission against `profiles`, not the
+  // self-editable user_metadata JWT claim.
+  const { id, permission } = await requireVerifiedKernel();
+  return { user: { id }, permission };
 }
 
 // Only Owners can grow the platform team — Admins and Viewers can see the

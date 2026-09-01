@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { getUser } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
-import { InstitutionForm } from "./_institution-form";
+import { getVerifiedRole } from "@/lib/auth/verified-role";
+import { InstitutionForm, BOARDS } from "./_institution-form";
 import { submitOnboarding } from "./actions";
 
 export default async function OnboardingPage() {
@@ -10,7 +11,7 @@ export default async function OnboardingPage() {
   } = await getUser();
   if (!user) redirect("/login");
 
-  const role = user.user_metadata?.role as string | undefined;
+  const role = await getVerifiedRole();
   if (role !== "super_admin") redirect("/dashboard");
 
   const { data: existingInstitution } = await supabaseAdmin
@@ -35,11 +36,15 @@ export default async function OnboardingPage() {
       ).data
     : null;
 
+  const rawBoard = existingSchool?.board ?? "";
+  const isKnownBoard = !rawBoard || (BOARDS as string[]).includes(rawBoard);
+
   const initialData = existingInstitution
     ? {
         name: existingInstitution.name ?? "",
         institutionType: existingInstitution.type ?? "",
-        board: existingSchool?.board ?? "",
+        board: isKnownBoard ? rawBoard : "Other",
+        boardOther: isKnownBoard ? "" : rawBoard,
         establishedYear: existingSchool?.established_year ? String(existingSchool.established_year) : "",
         city: existingInstitution.city ?? "",
         state: existingInstitution.state ?? "",

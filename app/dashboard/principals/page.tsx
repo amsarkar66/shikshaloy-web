@@ -1,8 +1,14 @@
+import { redirect } from "next/navigation";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
 import PrincipalsClient, { type Principal } from "./_components/PrincipalsClient";
 
 export default async function PrincipalsPage() {
+  const verifiedUser = await getVerifiedUser();
+  if (!verifiedUser) redirect("/login");
+  if (verifiedUser.role !== "super_admin") redirect("/dashboard");
+
   const institutionId = await getCurrentInstitutionIdOrThrow();
 
   const { data: schoolRows } = await supabaseAdmin

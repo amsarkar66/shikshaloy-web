@@ -1,10 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
+import { requireRole } from "@/lib/auth/verified-role";
 import type { EventType, AudienceType } from "./_data/events";
 
 export interface CreateEventInput {
@@ -22,15 +22,7 @@ export interface CreateEventInput {
 }
 
 export async function createEvent(input: CreateEventInput): Promise<void> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const role = user?.user_metadata?.role as string | undefined;
-  if (!user || (role !== "admin" && role !== "super_admin")) {
-    throw new Error("Unauthorized");
-  }
+  await requireRole(["admin", "super_admin"]);
 
   if (!input.title.trim()) throw new Error("Event title is required");
   if (!input.date) throw new Error("Event date is required");
@@ -70,15 +62,7 @@ export async function createEvent(input: CreateEventInput): Promise<void> {
 }
 
 export async function toggleEventPublic(id: string, isPublic: boolean): Promise<void> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const role = user?.user_metadata?.role as string | undefined;
-  if (!user || (role !== "admin" && role !== "super_admin" && role !== "kernel")) {
-    throw new Error("Unauthorized");
-  }
+  await requireRole(["admin", "super_admin", "kernel"]);
 
   const { error } = await supabaseAdmin
     .from("school_events")

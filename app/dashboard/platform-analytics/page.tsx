@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { TrendingUp, CheckCircle2, Building2, PieChart, Globe, Users2, Eye, Clock, LineChart } from "lucide-react";
-import { getUser } from "@/lib/supabase/server";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getWebsiteAnalytics } from "@/lib/google-analytics/report";
 
@@ -124,13 +124,10 @@ const TYPE_COLORS = ["bg-indigo-500", "bg-emerald-500", "bg-amber-500", "bg-rose
 const SOURCE_COLORS = ["bg-primary-500", "bg-sky-500", "bg-violet-500", "bg-amber-500", "bg-rose-500", "bg-teal-500"];
 
 export default async function PlatformAnalyticsPage() {
-  const {
-    data: { user },
-  } = await getUser();
-  if (!user) redirect("/login");
+  const verifiedUser = await getVerifiedUser();
+  if (!verifiedUser) redirect("/login");
 
-  const role = user.user_metadata?.role as string | undefined;
-  if (role !== "kernel") redirect("/dashboard");
+  if (verifiedUser.role !== "kernel") redirect("/dashboard");
 
   const [{ data: schools }, { data: subs }, websiteAnalytics] = await Promise.all([
     supabaseAdmin.from("schools").select("id, status, institution_type, created_at"),

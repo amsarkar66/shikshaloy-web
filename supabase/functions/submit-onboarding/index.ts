@@ -61,7 +61,26 @@ Deno.serve(async (req) => {
     data: { user },
   } = await callerClient.auth.getUser();
 
-  if (!user || user.user_metadata?.role !== "super_admin") {
+  if (!user) {
+    return jsonResponse({ error: "Unauthorized." }, 401);
+  }
+
+  // Privileged client for the actual writes, mirroring web's supabaseAdmin.
+  const adminClient = createClient(supabaseUrl, serviceRoleKey);
+
+  // Resolve role from `profiles`, not the JWT's user_metadata — that's
+  // editable by the signed-in user themselves via
+  // supabase.auth.updateUser({ data: {...} }), so it can't be trusted for
+  // authorization. Same fix as lib/auth/verified-role.ts on the web side;
+  // this function can't import that Next.js module directly, so the
+  // equivalent check is inlined here against the same `profiles` table.
+  const { data: profile } = await adminClient
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (profile?.role !== "super_admin") {
     return jsonResponse({ error: "Unauthorized." }, 401);
   }
 
@@ -71,9 +90,6 @@ Deno.serve(async (req) => {
   } catch {
     return jsonResponse({ error: "Invalid request body." }, 400);
   }
-
-  // Privileged client for the actual writes, mirroring web's supabaseAdmin.
-  const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
   const { data: existingInstitution } = await adminClient
     .from("institutions")

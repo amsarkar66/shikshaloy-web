@@ -10,7 +10,15 @@ import { getStudentCapacity } from "@/lib/billing/plan-limits";
 import { logAuditEvent } from "@/lib/audit/log";
 import { enrollStudent, createLoginForExistingStudent, type EnrollStudentResult } from "@/lib/students/enroll";
 import { randomPassword } from "@/lib/auth/random-password";
+import { requireRole, requireRoleOrStaffTemplate } from "@/lib/auth/verified-role";
 import type { LeaveType } from "../leaves/_data/leaves";
+
+// Student records hold sensitive PII (contacts, medical info, login
+// credentials) and student/parent/driver accounts must never be able to
+// read or mutate another student's record — only admins manage students.
+async function requireStudentAdmin() {
+  return requireRole(["admin", "super_admin"]);
+}
 
 export interface AddStudentInput {
   fullName: string;
@@ -39,6 +47,7 @@ export interface AddStudentInput {
 }
 
 export async function addStudentManual(input: AddStudentInput): Promise<EnrollStudentResult> {
+  await requireStudentAdmin();
   const { maxStudents, atCapacity } = await getStudentCapacity(await getCurrentInstitutionIdOrThrow());
   if (atCapacity) throw new Error(`Your plan allows up to ${maxStudents} students. Upgrade your plan to add more.`);
 
@@ -112,6 +121,7 @@ export interface UpdateStudentInput {
 }
 
 export async function updateStudent(input: UpdateStudentInput): Promise<void> {
+  await requireStudentAdmin();
   const schoolId = await getCurrentSchoolIdOrThrow();
   const { error } = await supabaseAdmin
     .from("students")
@@ -144,6 +154,14 @@ export async function updateStudent(input: UpdateStudentInput): Promise<void> {
   if (error) throw new Error(`Failed to update student: ${error.message}`);
 
   if (input.parentId && input.parentName) {
+    const { data: link } = await supabaseAdmin
+      .from("student_parents")
+      .select("parent_id")
+      .eq("student_id", input.studentId)
+      .eq("parent_id", input.parentId)
+      .maybeSingle();
+    if (!link) throw new Error("That parent is not linked to this student.");
+
     const { error: parentError } = await supabaseAdmin
       .from("parents")
       .update({
@@ -151,7 +169,8 @@ export async function updateStudent(input: UpdateStudentInput): Promise<void> {
         phone: input.parentPhone || null,
         email: input.parentEmail || null,
       })
-      .eq("id", input.parentId);
+      .eq("id", input.parentId)
+      .eq("school_id", schoolId);
 
     if (parentError) throw new Error(`Failed to update parent: ${parentError.message}`);
   }
@@ -205,18 +224,12 @@ export async function updateStudentLeaveStatus(
   studentId: string,
   status: "approved" | "rejected"
 ): Promise<void> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  const role = user?.user_metadata?.role as string | undefined;
-  const staffTemplateId = user?.user_metadata?.staff_template_id as string | undefined;
-  const canApprove = role === "admin" || role === "super_admin" || role === "kernel" || (role === "staff" && staffTemplateId === "hr_manager");
-  if (!user || !canApprove) throw new Error("Unauthorized");
+  const { id: userId } = await requireRoleOrStaffTemplate(["admin", "super_admin", "kernel"], ["hr_manager"]);
 
   const { data: approver } = await supabaseAdmin
     .from("staff_members")
     .select("id")
-    .eq("profile_id", user.id)
+    .eq("profile_id", userId)
     .maybeSingle();
   const approvedBy = approver?.id ?? null;
 
@@ -246,6 +259,7 @@ export async function updateStudentLeaveStatus(
 }
 
 export async function setStudentActive(studentId: string, active: boolean): Promise<void> {
+  await requireStudentAdmin();
   const schoolId = await getCurrentSchoolIdOrThrow();
   const { data: student, error } = await supabaseAdmin
     .from("students")
@@ -269,6 +283,7 @@ export async function setStudentActive(studentId: string, active: boolean): Prom
 }
 
 export async function getStudentLoginEmail(studentId: string): Promise<{ email: string | null }> {
+  await requireStudentAdmin();
   const schoolId = await getCurrentSchoolIdOrThrow();
   const { data: student, error } = await supabaseAdmin
     .from("students")
@@ -286,6 +301,7 @@ export async function getStudentLoginEmail(studentId: string): Promise<{ email: 
 }
 
 export async function resetStudentPassword(studentId: string): Promise<{ email: string; password: string }> {
+  await requireStudentAdmin();
   const schoolId = await getCurrentSchoolIdOrThrow();
   const { data: student, error } = await supabaseAdmin
     .from("students")
@@ -304,6 +320,7 @@ export async function resetStudentPassword(studentId: string): Promise<{ email: 
 }
 
 export async function createStudentLogin(studentId: string): Promise<{ email: string; password: string }> {
+  await requireStudentAdmin();
   const schoolId = await getCurrentSchoolIdOrThrow();
   const result = await createLoginForExistingStudent(studentId, schoolId);
   revalidatePath("/dashboard/students");
@@ -313,6 +330,7 @@ export async function createStudentLogin(studentId: string): Promise<{ email: st
 // ── Documents ────────────────────────────────────────────────────────────────
 
 export async function uploadStudentDocument(studentId: string, category: string, formData: FormData): Promise<void> {
+  await requireStudentAdmin();
   const schoolId = await getCurrentSchoolIdOrThrow();
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -345,6 +363,7 @@ export async function uploadStudentDocument(studentId: string, category: string,
 }
 
 export async function deleteStudentDocument(documentId: string, studentId: string): Promise<void> {
+  await requireStudentAdmin();
   const schoolId = await getCurrentSchoolIdOrThrow();
   const { error } = await supabaseAdmin
     .from("student_documents")
@@ -359,6 +378,7 @@ export async function deleteStudentDocument(documentId: string, studentId: strin
 // ── Notes ────────────────────────────────────────────────────────────────────
 
 export async function addStudentNote(studentId: string, category: string, note: string): Promise<void> {
+  await requireStudentAdmin();
   const schoolId = await getCurrentSchoolIdOrThrow();
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -390,6 +410,7 @@ export interface BulkImportOutcome {
 }
 
 export async function bulkImportStudents(rows: BulkImportRow[]): Promise<BulkImportOutcome> {
+  await requireStudentAdmin();
   const outcome: BulkImportOutcome = { succeeded: 0, failed: [] };
   const schoolId = await getCurrentSchoolIdOrThrow();
   const academicYearId = await getCurrentAcademicYearId();
@@ -451,6 +472,7 @@ export async function promoteStudents(
   targetAcademicYearId: string,
   decisions: PromotionDecision[]
 ): Promise<{ promoted: number; graduated: number }> {
+  await requireStudentAdmin();
   let promoted = 0;
   let graduated = 0;
   const schoolId = await getCurrentSchoolIdOrThrow();

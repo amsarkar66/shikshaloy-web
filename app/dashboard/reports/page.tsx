@@ -1,4 +1,5 @@
 import { getUser } from "@/lib/supabase/server";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getParentContext } from "@/lib/parents/context";
@@ -111,10 +112,22 @@ async function ParentReports({ userId }: { userId: string }) {
 
 export default async function ReportsPage() {
   const { data: { user } } = await getUser();
-  const role = user?.user_metadata?.role as string | undefined;
+  const vu = await getVerifiedUser();
+  const role = vu?.role;
 
   if (role === "parent" && user) {
     return <ParentReports userId={user.id} />;
+  }
+
+  if (!vu || (role !== "admin" && role !== "super_admin")) {
+    return (
+      <div className="w-full px-6 py-8">
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 py-24 text-center">
+          <p className="text-base font-semibold text-gray-900 dark:text-zinc-50">Not authorized</p>
+          <p className="text-sm text-gray-500 dark:text-zinc-400">You don&apos;t have access to reports.</p>
+        </div>
+      </div>
+    );
   }
 
   const schoolId = await getCurrentSchoolIdOrThrow();

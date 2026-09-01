@@ -1,5 +1,7 @@
+import { headers } from "next/headers";
 import { getUser } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
+import { getVerifiedRole } from "@/lib/auth/verified-role";
 
 export type AuditAction = "create" | "update" | "delete" | "approve" | "reject" | "login";
 
@@ -26,7 +28,7 @@ export async function logAuditEvent(input: {
     const { data: { user } } = await getUser();
     if (!user) return;
 
-    const role = (user.user_metadata?.role as string) ?? "";
+    const role = (await getVerifiedRole()) ?? "";
     await supabaseAdmin.from("audit_log").insert({
       school_id: input.schoolId,
       actor_name: (user.user_metadata?.full_name as string) || user.email || "Unknown",
@@ -34,8 +36,19 @@ export async function logAuditEvent(input: {
       action: input.action,
       module: input.module,
       description: input.description,
+      ip_address: await getClientIp(),
     });
   } catch {
     // swallow — logging failures shouldn't surface to the end user
   }
+}
+
+// x-forwarded-for can carry a client-proxy chain ("client, proxy1, proxy2");
+// the first entry is the original client. x-real-ip is the fallback some
+// proxies set instead.
+async function getClientIp(): Promise<string | null> {
+  const headerList = await headers();
+  const forwardedFor = headerList.get("x-forwarded-for");
+  if (forwardedFor) return forwardedFor.split(",")[0].trim();
+  return headerList.get("x-real-ip");
 }

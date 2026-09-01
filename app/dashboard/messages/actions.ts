@@ -14,9 +14,21 @@ async function currentProfileId(): Promise<string> {
   return user.id;
 }
 
+async function assertConversationParticipant(conversationId: string, profileId: string) {
+  const { data: conv } = await supabaseAdmin
+    .from("conversations")
+    .select("participant1, participant2")
+    .eq("id", conversationId)
+    .maybeSingle();
+  if (!conv || (conv.participant1 !== profileId && conv.participant2 !== profileId)) {
+    throw new Error("Unauthorized");
+  }
+}
+
 export async function sendMessage(conversationId: string, text: string) {
   const myId = await currentProfileId();
   if (!text.trim()) return;
+  await assertConversationParticipant(conversationId, myId);
 
   const { error: msgError } = await supabaseAdmin.from("messages").insert({
     conversation_id: conversationId,

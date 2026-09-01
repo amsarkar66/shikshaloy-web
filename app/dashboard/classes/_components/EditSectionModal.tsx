@@ -1,22 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { X, Loader2, ChevronDown } from "lucide-react";
+import { X, Loader2, ChevronDown, Trash2 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
-import { updateSection } from "../actions";
+import { updateSection, deleteSection } from "../actions";
 import { type TeacherOption, type StreamOption } from "./AddSectionModal";
 import type { ClassSection } from "./ClassesClient";
 
 const NEW_STREAM = "__new__";
 
 interface EditSectionModalProps {
-  section:   ClassSection;
-  onClose:   () => void;
-  onSaved:   () => void;
-  teachers:  TeacherOption[];
-  teacherId: string | null;
-  streams?:  StreamOption[];
-  streamId:  string | null;
+  section:    ClassSection;
+  onClose:    () => void;
+  onSaved:    () => void;
+  onDeleted?: () => void;
+  teachers:   TeacherOption[];
+  teacherId:  string | null;
+  streams?:   StreamOption[];
+  streamId:   string | null;
 }
 
 const inputClass =
@@ -25,7 +26,8 @@ const inputClass =
 const selectClass =
   "h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20";
 
-export function EditSectionModal({ section, onClose, onSaved, teachers, teacherId, streams = [], streamId: currentStreamId }: EditSectionModalProps) {
+export function EditSectionModal({ section, onClose, onSaved, onDeleted, teachers, teacherId, streams = [], streamId: currentStreamId }: EditSectionModalProps) {
+  const [classNum, setClassNum] = useState(section.classNum);
   const [name, setName] = useState(section.section);
   const [room, setRoom] = useState(section.room);
   const [capacity, setCapacity] = useState(String(section.capacity));
@@ -35,9 +37,30 @@ export function EditSectionModal({ section, onClose, onSaved, teachers, teacherI
   const [status, setStatus] = useState<"active" | "inactive">(section.status);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleDelete() {
+    setDeleting(true);
+    setError(null);
+    try {
+      await deleteSection(section.id);
+      onDeleted?.();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete section");
+      setConfirmingDelete(false);
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!classNum.trim()) {
+      setError("Class number is required.");
+      return;
+    }
     if (!name.trim()) {
       setError("Section name is required.");
       return;
@@ -47,6 +70,7 @@ export function EditSectionModal({ section, onClose, onSaved, teachers, teacherI
     try {
       await updateSection({
         id: section.id,
+        classNum: classNum.trim(),
         section: name.trim(),
         room: room || null,
         capacity: capacity ? Number(capacity) : null,
@@ -80,8 +104,15 @@ export function EditSectionModal({ section, onClose, onSaved, teachers, teacherI
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Class Number</label>
-              <input className={inputClass} value={section.classNum} disabled />
+              <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Class Number *</label>
+              <input
+                className={inputClass}
+                value={classNum}
+                onChange={(e) => setClassNum(e.target.value)}
+                placeholder="e.g. 5"
+                inputMode="numeric"
+                required
+              />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Section Name *</label>
@@ -163,15 +194,39 @@ export function EditSectionModal({ section, onClose, onSaved, teachers, teacherI
             </div>
           )}
 
-          <div className="flex justify-end gap-2 pt-1">
-            <button type="button" onClick={onClose} className="h-9 rounded-lg border border-gray-200 dark:border-zinc-700 px-4 text-sm text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800">
-              Cancel
-            </button>
-            <FancyButton type="submit" disabled={busy} size="sm">
-              {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              Save Changes
-            </FancyButton>
-          </div>
+          {confirmingDelete ? (
+            <div className="space-y-2 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-500/10 px-3 py-2.5">
+              <p className="text-xs text-red-700 dark:text-red-400">Delete Class {section.classNum}–{section.section}? This can&apos;t be undone.</p>
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setConfirmingDelete(false)} disabled={deleting} className="h-7 rounded-md px-2.5 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:bg-white dark:hover:bg-zinc-800">
+                  Cancel
+                </button>
+                <button type="button" onClick={handleDelete} disabled={deleting} className="flex h-7 items-center gap-1 rounded-md bg-red-600 px-2.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-60">
+                  {deleting && <Loader2 className="h-3 w-3 animate-spin" />}
+                  Confirm Delete
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(true)}
+                className="flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Delete
+              </button>
+              <div className="flex gap-2">
+                <button type="button" onClick={onClose} className="h-9 rounded-lg border border-gray-200 dark:border-zinc-700 px-4 text-sm text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800">
+                  Cancel
+                </button>
+                <FancyButton type="submit" disabled={busy} size="sm">
+                  {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  Save Changes
+                </FancyButton>
+              </div>
+            </div>
+          )}
         </form>
       </div>
     </div>

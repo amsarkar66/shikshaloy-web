@@ -2,10 +2,11 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Bus, UserCheck, UserMinus, Car,
   Search, Plus, ChevronLeft, ChevronRight, ChevronDown,
-  Pencil, ArrowUpDown, ArrowUp, ArrowDown, X, Loader2, CheckCircle2,
+  Pencil, Eye, ArrowUpDown, ArrowUp, ArrowDown, X, Loader2, CheckCircle2,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
@@ -347,6 +348,9 @@ export default function DriversClient({ initialDrivers }: { initialDrivers: Driv
                 <Td><span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[d.status]}`}>{STATUS_LABEL[d.status]}</span></Td>
                 <Td position="last">
                   <div className="flex items-center justify-end gap-1">
+                    {d.staffId && (
+                      <Link href={`/dashboard/staff/${d.staffId}`} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Eye className="h-3.5 w-3.5" /></Link>
+                    )}
                     <button onClick={() => setEditingDriver(d)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Pencil className="h-3.5 w-3.5" /></button>
                   </div>
                 </Td>

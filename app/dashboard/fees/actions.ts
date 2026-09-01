@@ -1,26 +1,18 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 import { logAuditEvent } from "@/lib/audit/log";
 import { notifyRoles } from "@/lib/notifications/create";
 import { getUser } from "@/lib/supabase/server";
+import { requireRoleOrStaffTemplate } from "@/lib/auth/verified-role";
 import { pickGradeApplicable } from "@/lib/fees/resolve";
 import { recomputeStudentFeeStatus } from "@/lib/fees/recompute-status";
 
 async function requireFeeManagerRole() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const role = user?.user_metadata?.role as string | undefined;
-  if (!role || !["admin", "super_admin", "staff"].includes(role)) {
-    throw new Error("Unauthorized");
-  }
+  await requireRoleOrStaffTemplate(["admin", "super_admin"], ["accountant"]);
 }
 
 export async function recordFeePayment(

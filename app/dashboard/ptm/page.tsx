@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getUser } from "@/lib/supabase/server";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getTeacherContext } from "@/lib/teachers/context";
 import { getParentContext } from "@/lib/parents/context";
@@ -113,7 +113,7 @@ async function ParentPtm({ userId }: { userId: string }) {
     status: b.status,
   })).sort((a, b) => (b.date > a.date ? 1 : -1));
 
-  return <ParentPtmClient parentId={parent.id} sessions={sessions} bookings={bookings} />;
+  return <ParentPtmClient sessions={sessions} bookings={bookings} />;
 }
 
 interface PtmSessionRow {
@@ -137,15 +137,14 @@ interface PtmBookingRow {
 }
 
 export default async function PtmPage() {
-  const { data: { user } } = await getUser();
-  if (!user) redirect("/login");
+  const vu = await getVerifiedUser();
+  if (!vu) redirect("/login");
 
-  const role = user.user_metadata?.role as string | undefined;
-  if (role === "parent") {
-    return <ParentPtm userId={user.id} />;
+  if (vu.role === "parent") {
+    return <ParentPtm userId={vu.id} />;
   }
 
-  const teacher = await getTeacherContext(user.id);
+  const teacher = await getTeacherContext(vu.id);
 
   if (!teacher) {
     return (

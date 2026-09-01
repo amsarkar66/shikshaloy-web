@@ -1,21 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolId, getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { requireRole } from "@/lib/auth/verified-role";
 
 // Front desk operations are principal/owner work, but day-to-day they're
 // run by reception staff (auth role "staff", nav template "receptionist"),
 // so this allows staff too rather than restricting to admin/super_admin.
 async function requireFrontDeskAccess() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  const role = user?.user_metadata?.role as string | undefined;
-  if (!user || (role !== "admin" && role !== "super_admin" && role !== "staff")) {
-    throw new Error("Unauthorized");
-  }
-  return user;
+  return requireRole(["admin", "super_admin", "staff"]);
 }
 
 // ── Visitor Log ────────────────────────────────────────────────────────────

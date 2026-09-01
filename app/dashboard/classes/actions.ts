@@ -95,8 +95,28 @@ export async function createSection(input: CreateSectionInput): Promise<{ id: st
   return { id: data.id };
 }
 
+export interface CreateClassInput {
+  classNum:       string;
+  room?:          string | null;
+  capacity?:      number | null;
+  classTeacherId?: string | null;
+}
+
+const DEFAULT_SECTION_NAME = "A";
+
+export async function createClass(input: CreateClassInput): Promise<{ id: string }> {
+  return createSection({
+    classNum:       input.classNum,
+    section:        DEFAULT_SECTION_NAME,
+    room:           input.room,
+    capacity:       input.capacity,
+    classTeacherId: input.classTeacherId,
+  });
+}
+
 export interface UpdateSectionInput {
   id:              string;
+  classNum:        string;
   section:         string;
   room?:           string | null;
   capacity?:       number | null;
@@ -107,15 +127,20 @@ export interface UpdateSectionInput {
 }
 
 export async function updateSection(input: UpdateSectionInput): Promise<void> {
+  const level = Number(input.classNum);
   const sectionName = input.section.trim();
+
+  if (!Number.isFinite(level) || level <= 0) throw new Error("Enter a valid class number.");
   if (!sectionName) throw new Error("Section name is required.");
 
   const schoolId = await getCurrentSchoolIdOrThrow();
+  const gradeId = await findOrCreateGrade(schoolId, level);
   const streamId = await resolveStreamId(schoolId, input.streamId, input.newStreamName);
 
   const { error } = await supabaseAdmin
     .from("sections")
     .update({
+      grade_id: gradeId,
       name: sectionName,
       stream_id: streamId,
       room: input.room?.trim() || null,
@@ -127,12 +152,36 @@ export async function updateSection(input: UpdateSectionInput): Promise<void> {
     .eq("school_id", schoolId);
 
   if (error) {
-    if (error.code === "23505") throw new Error(`A section named "${sectionName}" already exists in this class.`);
+    if (error.code === "23505") throw new Error(`Section ${level}-${sectionName} already exists.`);
     throw new Error(error.message);
   }
 
   revalidatePath("/dashboard/classes");
   revalidatePath(`/dashboard/classes/${input.id}`);
+}
+
+export async function deleteSection(id: string): Promise<void> {
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
+  const { count: studentCount } = await supabaseAdmin
+    .from("students")
+    .select("id", { count: "exact", head: true })
+    .eq("school_id", schoolId)
+    .eq("section_id", id);
+
+  if (studentCount && studentCount > 0) {
+    throw new Error(`Cannot delete — ${studentCount} student${studentCount === 1 ? "" : "s"} still enrolled in this section. Move or remove them first.`);
+  }
+
+  const { error } = await supabaseAdmin
+    .from("sections")
+    .delete()
+    .eq("id", id)
+    .eq("school_id", schoolId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/dashboard/classes");
 }
 
 // ── Stream management ────────────────────────────────────────────────────────

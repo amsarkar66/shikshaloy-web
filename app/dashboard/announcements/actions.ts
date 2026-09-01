@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import DOMPurify from "isomorphic-dompurify";
-import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { logAuditEvent } from "@/lib/audit/log";
+import { requireRole } from "@/lib/auth/verified-role";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { stripHtml, type Audience, type Priority, type Status } from "./_data/announcements";
 
@@ -19,16 +19,7 @@ const AUDIENCE_LABEL: Record<Audience, string> = {
 };
 
 async function requireAdmin() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const role = user?.user_metadata?.role as string | undefined;
-  if (!user || (role !== "admin" && role !== "super_admin" && role !== "kernel")) {
-    throw new Error("Unauthorized");
-  }
-  return user;
+  return requireRole(["admin", "super_admin", "kernel"]);
 }
 
 async function resolveAudienceLabel(schoolId: string, audience: Audience, targetSectionId?: string | null): Promise<string> {

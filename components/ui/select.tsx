@@ -92,12 +92,16 @@ function SelectItem({ className, children, ...props }: SelectPrimitive.Item.Prop
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        "relative flex cursor-default items-center gap-1.5 rounded-md py-1.5 pr-8 pl-2.5 text-sm outline-hidden select-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50",
+        "relative flex cursor-default items-center gap-1.5 rounded-md py-1.5 pl-2.5 text-sm outline-hidden select-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50",
+        // Disabled items can never show the checkmark, so they don't need
+        // the space reserved for it — lets right-aligned content (like a
+        // badge) sit flush to the edge instead of leaving a dead gap.
+        props.disabled ? "pr-2.5" : "pr-8",
         className
       )}
       {...props}
     >
-      <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+      <SelectPrimitive.ItemText className="flex-1 min-w-0">{children}</SelectPrimitive.ItemText>
       <SelectPrimitive.ItemIndicator className="absolute right-2 flex items-center justify-center">
         <CheckIcon className="h-3.5 w-3.5" />
       </SelectPrimitive.ItemIndicator>

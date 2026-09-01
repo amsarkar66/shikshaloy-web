@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
+import { requireRole } from "@/lib/auth/verified-role";
 import { generatePublishKey, hashPublishKey, publishKeyPrefix } from "./crypto";
 
 export interface PublishKeyRow {
@@ -15,16 +15,7 @@ export interface PublishKeyRow {
 }
 
 async function requireOwner() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const role = user?.user_metadata?.role as string | undefined;
-  if (!user || (role !== "super_admin" && role !== "kernel")) {
-    throw new Error("Unauthorized");
-  }
-  return user;
+  return requireRole(["super_admin", "kernel"]);
 }
 
 export async function createPublishKey(label?: string): Promise<{ plaintextKey: string }> {

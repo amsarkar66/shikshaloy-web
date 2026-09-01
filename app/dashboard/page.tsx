@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getUser } from "@/lib/supabase/server";
+import { getVerifiedRole } from "@/lib/auth/verified-role";
 import { KernelView } from "./_views/kernel-view";
 import { SuperAdminView } from "./_views/super-admin-view";
 import { AdminView } from "./_views/admin-view";
@@ -19,7 +20,7 @@ export default async function DashboardPage() {
 
   if (!user) redirect("/login");
 
-  const role = user.user_metadata?.role as string | undefined;
+  const role = await getVerifiedRole();
 
   if (role === "kernel")      return <KernelView />;
   if (role === "super_admin") return <SuperAdminView user={user} />;
@@ -29,5 +30,5 @@ export default async function DashboardPage() {
   if (role === "parent")      return <ParentView user={user} />;
   if (role === "driver")      return <DriverView user={user} />;
   if (role === "staff")       return <StaffView user={user} />;
-  return <RoleView user={user} />;
+  return <RoleView user={user} role={role ?? ""} />;
 }

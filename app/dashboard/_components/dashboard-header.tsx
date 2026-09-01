@@ -185,6 +185,7 @@ export function DashboardHeader({
     (/^\/dashboard\/schools\/[^/]+\/edit$/.test(pathname) ? { title: "Edit School", subtitle: "Update school profile" } :
      /^\/dashboard\/schools\/[^/]+$/.test(pathname) ? { title: "School Details", subtitle: "Overview, staff, and activity" } :
      /^\/dashboard\/invoices\/[^/]+$/.test(pathname) ? { title: "Invoice Details", subtitle: "Billing details and payment status" } :
+     /^\/dashboard\/payroll\/[^/]+$/.test(pathname) ? { title: "Payroll Details", subtitle: "Salary breakdown and payslip history" } :
      { title: "Dashboard", subtitle: "" });
   const name = (user.user_metadata?.full_name as string) || user.email || "";
   const initials = getInitials(name);
@@ -315,13 +316,15 @@ export function DashboardHeader({
               </div>
             </div>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              render={<Link href="/dashboard/billing" />}
-              className="cursor-pointer"
-            >
-              <CreditCard />
-              Billing & Subscription
-            </DropdownMenuItem>
+            {role === "super_admin" && (
+              <DropdownMenuItem
+                render={<Link href="/dashboard/billing" />}
+                className="cursor-pointer"
+              >
+                <CreditCard />
+                Billing & Subscription
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
               render={<Link href="/dashboard/settings" />}
               className="cursor-pointer"

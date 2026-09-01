@@ -1,4 +1,4 @@
-import { getUser } from "@/lib/supabase/server";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
@@ -183,15 +183,26 @@ async function TeacherHomework({ userId }: { userId: string }) {
 }
 
 export default async function HomeworkPage() {
-  const { data: { user } } = await getUser();
-  const role = user?.user_metadata?.role as string | undefined;
+  const verifiedUser = await getVerifiedUser();
+  const role = verifiedUser?.role;
 
-  if (role === "student" && user) {
-    return <StudentHomework userId={user.id} />;
+  if (role === "student" && verifiedUser) {
+    return <StudentHomework userId={verifiedUser.id} />;
   }
 
-  if (role === "teacher" && user) {
-    return <TeacherHomework userId={user.id} />;
+  if (role === "teacher" && verifiedUser) {
+    return <TeacherHomework userId={verifiedUser.id} />;
+  }
+
+  if (!verifiedUser || role !== "admin") {
+    return (
+      <div className="w-full px-6 py-8">
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 py-24 text-center">
+          <p className="text-base font-semibold text-gray-900 dark:text-zinc-50">Not authorized</p>
+          <p className="text-sm text-gray-500 dark:text-zinc-400">You don&apos;t have access to homework management.</p>
+        </div>
+      </div>
+    );
   }
 
   const academicYearId = await getCurrentAcademicYearId();

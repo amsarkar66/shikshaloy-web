@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getUser } from "@/lib/supabase/server";
+import { getVerifiedUser, requireRole } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
 import { getSchoolCapacity } from "@/lib/billing/plan-limits";
@@ -65,10 +66,8 @@ export async function updateSchool(input: UpdateSchoolInput): Promise<void> {
 }
 
 export async function createAdditionalSchool(input: SchoolFormData): Promise<{ error?: string }> {
-  const {
-    data: { user },
-  } = await getUser();
-  if (!user || user.user_metadata?.role !== "super_admin") {
+  const verifiedUser = await getVerifiedUser();
+  if (!verifiedUser || verifiedUser.role !== "super_admin") {
     return { error: "Unauthorized." };
   }
 
@@ -130,10 +129,7 @@ export async function createAdditionalSchool(input: SchoolFormData): Promise<{ e
 }
 
 export async function deleteSchool(schoolId: string): Promise<void> {
-  const {
-    data: { user },
-  } = await getUser();
-  if (!user || user.user_metadata?.role !== "super_admin") throw new Error("Unauthorized");
+  await requireRole(["super_admin"]);
 
   const institutionId = await getCurrentInstitutionIdOrThrow();
 

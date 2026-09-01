@@ -1,11 +1,27 @@
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
+import { Sparkles, ShieldAlert } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
 import { getSchoolCapacity } from "@/lib/billing/plan-limits";
 import AddSchoolFormClient from "./_components/AddSchoolFormClient";
 
+function Unauthorized() {
+  return (
+    <div className="w-full px-6 py-8">
+      <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 py-24 text-center">
+        <ShieldAlert className="h-6 w-6 text-gray-300 dark:text-zinc-600" />
+        <p className="text-base font-semibold text-gray-900 dark:text-zinc-50">Not authorized</p>
+        <p className="text-sm text-gray-500 dark:text-zinc-400">Only institution owners can add schools.</p>
+      </div>
+    </div>
+  );
+}
+
 export default async function AddSchoolPage() {
+  const verifiedUser = await getVerifiedUser();
+  if (!verifiedUser || verifiedUser.role !== "super_admin") return <Unauthorized />;
+
   const institutionId = await getCurrentInstitutionIdOrThrow();
   const { maxSchools, atCapacity } = await getSchoolCapacity(institutionId);
 

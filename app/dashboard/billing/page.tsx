@@ -1,9 +1,14 @@
+import { redirect } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
+import { getVerifiedRole } from "@/lib/auth/verified-role";
 import BillingClient, { type BillTo } from "./_components/BillingClient";
 import type { Subscription, Invoice } from "./_data/billing";
 
 export default async function BillingPage() {
+  const role = await getVerifiedRole();
+  if (role !== "super_admin") redirect("/dashboard");
+
   const institutionId = await getCurrentInstitutionIdOrThrow();
 
   const [{ data: subRow }, { data: invoiceRows }, { data: schoolRows }, { data: institutionRow }] = await Promise.all([

@@ -1,10 +1,30 @@
+import { ShieldAlert } from "lucide-react";
+import { requireRoleOrStaffTemplate } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getOrSeedRoleTemplates } from "@/lib/settings/role-templates";
 import StaffClient from "./_components/StaffClient";
 import type { StaffMember } from "./_components/StaffClient";
 
+function Unauthorized() {
+  return (
+    <div className="w-full px-6 py-8">
+      <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 py-24 text-center">
+        <ShieldAlert className="h-6 w-6 text-gray-300 dark:text-zinc-600" />
+        <p className="text-base font-semibold text-gray-900 dark:text-zinc-50">Not authorized</p>
+        <p className="text-sm text-gray-500 dark:text-zinc-400">Only school admins and institution owners can view staff records.</p>
+      </div>
+    </div>
+  );
+}
+
 export default async function StaffPage() {
+  try {
+    await requireRoleOrStaffTemplate(["admin", "super_admin"], ["hr_manager"]);
+  } catch {
+    return <Unauthorized />;
+  }
+
   const schoolId = await getCurrentSchoolIdOrThrow();
   const [{ data }, templates] = await Promise.all([
     supabaseAdmin

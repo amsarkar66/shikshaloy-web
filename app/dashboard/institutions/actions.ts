@@ -2,27 +2,21 @@
 
 import { createHash, randomInt } from "crypto";
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { hardDeleteInstitution, listKernelUsers } from "@/lib/supabase/admin";
 import { sendInstitutionDeleteOtpEmail, sendInstitutionDeletedEmail } from "@/lib/email/resend";
-import { KERNEL_PERMISSIONS, type KernelPermission } from "@/lib/kernel-permissions";
+import { requireKernelOwner as requireVerifiedKernelOwner } from "@/lib/auth/verified-role";
 
 async function requireKernelOwner() {
-  const supabase = await createClient();
+  // Verifies role/kernel_permission against `profiles`, not the
+  // self-editable user_metadata JWT claim.
+  await requireVerifiedKernelOwner();
+
   const {
     data: { user },
-  } = await supabase.auth.getUser();
-
-  const role = user?.user_metadata?.role as string | undefined;
-  if (!user || role !== "kernel") throw new Error("Unauthorized");
-
-  const rawPermission = user.user_metadata?.kernel_permission as string | undefined;
-  const permission: KernelPermission = (KERNEL_PERMISSIONS as readonly string[]).includes(rawPermission ?? "")
-    ? (rawPermission as KernelPermission)
-    : "owner"; // grandfather accounts created before permission tiers existed
-
-  if (permission !== "owner") throw new Error("Only Owners can delete an institution");
+  } = await getUser();
+  if (!user) throw new Error("Unauthorized");
   return user;
 }
 

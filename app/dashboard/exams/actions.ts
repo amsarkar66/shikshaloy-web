@@ -1,19 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
+import { requireRole } from "@/lib/auth/verified-role";
 
 async function requireSchoolAdmin() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  const role = user?.user_metadata?.role as string | undefined;
-  if (!user || (role !== "admin" && role !== "super_admin")) {
-    throw new Error("Unauthorized");
-  }
-  return user;
+  return requireRole(["admin", "super_admin"]);
 }
 
 export interface CreateExamInput {

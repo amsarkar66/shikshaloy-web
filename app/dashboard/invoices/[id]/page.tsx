@@ -1,6 +1,6 @@
 import { redirect, notFound } from "next/navigation";
-import { getUser } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
 import InvoiceDetailClient, { type InvoiceDetail } from "@/app/dashboard/billing/_components/InvoiceDetailClient";
 
 export const dynamic = "force-dynamic";
@@ -12,13 +12,9 @@ export default async function InvoiceDetailPage({
 }) {
   const { id } = await params;
 
-  const {
-    data: { user },
-  } = await getUser();
-  if (!user) redirect("/login");
-
-  const role = user.user_metadata?.role as string | undefined;
-  if (role !== "kernel") redirect("/dashboard");
+  const vu = await getVerifiedUser();
+  if (!vu) redirect("/login");
+  if (vu.role !== "kernel") redirect("/dashboard");
 
   const { data: inv } = await supabaseAdmin
     .from("subscription_invoices")

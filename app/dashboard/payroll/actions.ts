@@ -1,19 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { requireRoleOrStaffTemplate } from "@/lib/auth/verified-role";
 
 async function assertAuthorized() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const role = user?.user_metadata?.role as string | undefined;
-  if (!role || !["admin", "super_admin", "staff"].includes(role)) {
-    throw new Error("Unauthorized");
-  }
+  await requireRoleOrStaffTemplate(["admin", "super_admin"], ["accountant", "hr_manager"]);
 }
 
 function generateSlipNo(monthStr: string): string {

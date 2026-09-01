@@ -38,7 +38,8 @@ export async function uploadDocument(input: {
 }
 
 export async function deleteDocument(id: string) {
-  const { error } = await supabaseAdmin.from("documents").delete().eq("id", id);
+  const schoolId = await getCurrentSchoolIdOrThrow();
+  const { error } = await supabaseAdmin.from("documents").delete().eq("id", id).eq("school_id", schoolId);
   if (error) throw new Error(error.message);
   revalidatePath("/dashboard/documents");
 }

@@ -1,24 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { randomPassword } from "@/lib/auth/random-password";
 import { sendStaffInviteEmail } from "@/lib/email/resend";
 import { logAuditEvent } from "@/lib/audit/log";
+import { requireRole } from "@/lib/auth/verified-role";
 
 async function requireSchoolAdmin() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const role = user?.user_metadata?.role as string | undefined;
-  if (!user || (role !== "admin" && role !== "super_admin")) {
-    throw new Error("Unauthorized");
-  }
-  return user;
+  return requireRole(["admin", "super_admin"]);
 }
 
 // ── Permission template assignment ───────────────────────────────────────────
@@ -137,6 +128,12 @@ export interface StaffEditData {
   designation: string;
   department: string;
   status: "active" | "on_leave" | "inactive";
+  bloodGroup: string;
+  address: string;
+  emergencyContactName: string;
+  emergencyContactPhone: string;
+  licenseNumber: string;
+  licenseExpiry: string;
 }
 
 export async function getStaffForEdit(staffId: string): Promise<StaffEditData> {
@@ -144,7 +141,7 @@ export async function getStaffForEdit(staffId: string): Promise<StaffEditData> {
 
   const { data } = await supabaseAdmin
     .from("staff_members")
-    .select("id, full_name, phone, email, designation, department, status")
+    .select("id, full_name, phone, email, designation, department, status, blood_group, address, emergency_contact_name, emergency_contact_phone, license_number, license_expiry")
     .eq("school_id", schoolId)
     .eq("id", staffId)
     .maybeSingle();
@@ -159,6 +156,12 @@ export async function getStaffForEdit(staffId: string): Promise<StaffEditData> {
     designation: data.designation ?? "",
     department: data.department ?? "",
     status: (data.status ?? "active") as StaffEditData["status"],
+    bloodGroup: data.blood_group ?? "",
+    address: data.address ?? "",
+    emergencyContactName: data.emergency_contact_name ?? "",
+    emergencyContactPhone: data.emergency_contact_phone ?? "",
+    licenseNumber: data.license_number ?? "",
+    licenseExpiry: data.license_expiry ?? "",
   };
 }
 
@@ -169,6 +172,12 @@ export interface UpdateStaffInput {
   designation?: string | null;
   department?: string | null;
   status: "active" | "on_leave" | "inactive";
+  bloodGroup?: string | null;
+  address?: string | null;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
+  licenseNumber?: string | null;
+  licenseExpiry?: string | null;
 }
 
 export async function updateStaff(input: UpdateStaffInput): Promise<void> {
@@ -186,6 +195,12 @@ export async function updateStaff(input: UpdateStaffInput): Promise<void> {
       designation: input.designation?.trim() || null,
       department: input.department?.trim() || null,
       status: input.status,
+      blood_group: input.bloodGroup?.trim() || null,
+      address: input.address?.trim() || null,
+      emergency_contact_name: input.emergencyContactName?.trim() || null,
+      emergency_contact_phone: input.emergencyContactPhone?.trim() || null,
+      license_number: input.licenseNumber?.trim() || null,
+      license_expiry: input.licenseExpiry?.trim() || null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", input.staffId)

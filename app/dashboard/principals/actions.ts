@@ -1,22 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
+import { requireRole } from "@/lib/auth/verified-role";
 import { randomPassword } from "@/lib/auth/random-password";
 import { sendPrincipalCredentialsEmail } from "@/lib/email/resend";
 
 async function requireInstitutionOwner() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user || user.user_metadata?.role !== "super_admin") {
-    throw new Error("Unauthorized");
-  }
-  return user;
+  return requireRole(["super_admin"]);
 }
 
 export interface InvitePrincipalInput {

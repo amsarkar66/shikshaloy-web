@@ -1,4 +1,4 @@
-import { getUser } from "@/lib/supabase/server";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
@@ -169,10 +169,10 @@ async function Gradebook({ role, userId }: { role: string | undefined; userId: s
 }
 
 export default async function GradesPage() {
-  const { data: { user } } = await getUser();
-  const role = user?.user_metadata?.role as string | undefined;
+  const vu = await getVerifiedUser();
+  const role = vu?.role;
 
-  if (!user) {
+  if (!vu) {
     return (
       <div className="w-full px-6 py-8">
         <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 py-24 text-center">
@@ -183,11 +183,22 @@ export default async function GradesPage() {
     );
   }
 
-  if (role !== "student") {
-    return <Gradebook role={role} userId={user.id} />;
+  if (role === "admin" || role === "super_admin" || role === "teacher") {
+    return <Gradebook role={role} userId={vu.id} />;
   }
 
-  const student = await getStudentContext(user.id);
+  if (role !== "student") {
+    return (
+      <div className="w-full px-6 py-8">
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 py-24 text-center">
+          <p className="text-base font-semibold text-gray-900 dark:text-zinc-50">Not authorized</p>
+          <p className="text-sm text-gray-500 dark:text-zinc-400">You don&apos;t have access to grades.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const student = await getStudentContext(vu.id);
 
   if (!student) {
     return (

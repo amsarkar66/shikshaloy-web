@@ -1,8 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
+import { requireRole } from "@/lib/auth/verified-role";
+import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 
 export type GrievanceStatus = "open" | "in_review" | "resolved";
 
@@ -11,25 +12,26 @@ export async function updateGrievanceStatus(
   status: GrievanceStatus,
   resolutionNotes?: string
 ): Promise<void> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { id: userId, role } = await requireRole(["admin", "super_admin", "kernel"] as const);
 
-  const role = user?.user_metadata?.role as string | undefined;
-  if (!user || (role !== "admin" && role !== "super_admin" && role !== "kernel")) {
-    throw new Error("Unauthorized");
-  }
-
-  const { error } = await supabaseAdmin
+  let query = supabaseAdmin
     .from("grievances")
     .update({
       status,
       resolution_notes: resolutionNotes?.trim() || null,
-      resolved_by: status === "resolved" ? user.id : null,
+      resolved_by: status === "resolved" ? userId : null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id);
+
+  // kernel isn't tied to a single school; every other role may only touch
+  // grievances belonging to their own school.
+  if (role !== "kernel") {
+    const schoolId = await getCurrentSchoolIdOrThrow();
+    query = query.eq("school_id", schoolId);
+  }
+
+  const { error } = await query;
 
   if (error) throw new Error(error.message);
 

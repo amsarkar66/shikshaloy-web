@@ -2,9 +2,10 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, Pencil, Phone, Calendar,
-  GraduationCap, BookOpen,
+  GraduationCap, BookOpen, ShieldAlert,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
+import { getVerifiedRole } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { DAYS, type Period, type RowItem, type ClassTimetable, type Day, type Slot } from "../../timetable/_data/timetable";
@@ -40,6 +41,18 @@ function attColor(pct: number) {
 function formatDate(d: string | null): string {
   if (!d) return "—";
   return new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function Unauthorized() {
+  return (
+    <div className="w-full px-6 py-8">
+      <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 py-24 text-center">
+        <ShieldAlert className="h-6 w-6 text-gray-300 dark:text-zinc-600" />
+        <p className="text-base font-semibold text-gray-900 dark:text-zinc-50">Not authorized</p>
+        <p className="text-sm text-gray-500 dark:text-zinc-400">Only school admins can view student records.</p>
+      </div>
+    </div>
+  );
 }
 
 function monthLabel(d: string): string {
@@ -236,6 +249,9 @@ export default async function StudentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const role = await getVerifiedRole();
+  if (role !== "admin") return <Unauthorized />;
+
   const schoolId = await getCurrentSchoolIdOrThrow();
 
   const [

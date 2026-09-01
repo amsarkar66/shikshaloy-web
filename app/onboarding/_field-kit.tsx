@@ -78,10 +78,12 @@ export function Select({
   value: string; onChange: (v: string) => void;
   children: React.ReactNode; placeholder?: string; invalid?: boolean;
 }) {
-  // Accepts plain <option value="x">x</option> children (same call-site API
-  // as a native select) and renders them as styled Base UI select items.
+  // Accepts plain <option value="x" disabled>x</option> children (same
+  // call-site API as a native select) and renders them as styled Base UI
+  // select items.
   const items = React.Children.toArray(children) as React.ReactElement<{
     value: string;
+    disabled?: boolean;
     children: React.ReactNode;
   }>[];
 
@@ -96,7 +98,7 @@ export function Select({
       </SelectTrigger>
       <SelectContent>
         {items.map((item) => (
-          <SelectItem key={item.props.value} value={item.props.value}>
+          <SelectItem key={item.props.value} value={item.props.value} disabled={item.props.disabled}>
             {item.props.children}
           </SelectItem>
         ))}

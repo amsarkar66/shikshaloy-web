@@ -80,6 +80,29 @@ export async function updateSubject(input: UpdateSubjectInput): Promise<void> {
   revalidatePath(`/dashboard/subjects/${input.id}`);
 }
 
+export async function deleteSubject(id: string): Promise<void> {
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
+  const { count: assignmentCount } = await supabaseAdmin
+    .from("section_subjects")
+    .select("id", { count: "exact", head: true })
+    .eq("subject_id", id);
+
+  if (assignmentCount && assignmentCount > 0) {
+    throw new Error(`Cannot delete — this subject is assigned to ${assignmentCount} section${assignmentCount === 1 ? "" : "s"}. Remove those assignments first, or mark it Inactive instead.`);
+  }
+
+  const { error } = await supabaseAdmin
+    .from("subjects")
+    .delete()
+    .eq("id", id)
+    .eq("school_id", schoolId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/dashboard/subjects");
+}
+
 export interface AssignSubjectInput {
   subjectId:      string;
   sectionId:      string;

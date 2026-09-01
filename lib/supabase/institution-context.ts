@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { getUser } from "@/lib/supabase/server";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 
 // Resolves the institution the current signed-in user belongs to:
@@ -10,35 +10,26 @@ import { supabaseAdmin } from "@/lib/supabase/service";
 //     their assigned school (profiles.school_id -> schools.institution_id).
 //   - kernel: platform-level role, not tied to any single institution.
 export const getCurrentInstitutionId = cache(async (): Promise<string | null> => {
-  const {
-    data: { user },
-  } = await getUser();
-  if (!user) return null;
+  const vu = await getVerifiedUser();
+  if (!vu) return null;
+  if (vu.role === "kernel") return null;
 
-  const role = (user.user_metadata?.role as string) ?? "";
-  if (role === "kernel") return null;
-
-  if (role === "super_admin") {
+  if (vu.role === "super_admin") {
     const { data } = await supabaseAdmin
       .from("institutions")
       .select("id")
-      .eq("owner_id", user.id)
+      .eq("owner_id", vu.id)
       .limit(1)
       .maybeSingle();
     return data?.id ?? null;
   }
 
-  const { data: profile } = await supabaseAdmin
-    .from("profiles")
-    .select("school_id")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (!profile?.school_id) return null;
+  if (!vu.schoolId) return null;
 
   const { data: school } = await supabaseAdmin
     .from("schools")
     .select("institution_id")
-    .eq("id", profile.school_id)
+    .eq("id", vu.schoolId)
     .maybeSingle();
   return school?.institution_id ?? null;
 });

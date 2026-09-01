@@ -5,6 +5,7 @@ import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { logAuditEvent } from "@/lib/audit/log";
 import { randomPassword } from "@/lib/auth/random-password";
+import { requireRole } from "@/lib/auth/verified-role";
 
 export type ParentRelationship = "father" | "mother" | "guardian";
 
@@ -23,6 +24,7 @@ export interface AddParentResult {
 }
 
 export async function addParent(input: AddParentInput): Promise<AddParentResult> {
+  await requireRole(["admin", "super_admin"]);
   const schoolId = await getCurrentSchoolIdOrThrow();
 
   const fullName = input.fullName.trim();
@@ -152,6 +154,7 @@ export interface ParentEditData {
 }
 
 export async function getParentForEdit(parentId: string): Promise<ParentEditData> {
+  await requireRole(["admin", "super_admin"]);
   const schoolId = await getCurrentSchoolIdOrThrow();
 
   const { data } = await supabaseAdmin
@@ -223,6 +226,7 @@ export interface UpdateParentInput {
 }
 
 export async function updateParent(input: UpdateParentInput): Promise<void> {
+  await requireRole(["admin", "super_admin"]);
   const schoolId = await getCurrentSchoolIdOrThrow();
 
   const fullName = input.fullName.trim();
@@ -271,6 +275,7 @@ export async function updateParent(input: UpdateParentInput): Promise<void> {
 }
 
 export async function deleteParent(parentId: string): Promise<void> {
+  await requireRole(["admin", "super_admin"]);
   const schoolId = await getCurrentSchoolIdOrThrow();
 
   const { data: parent } = await supabaseAdmin

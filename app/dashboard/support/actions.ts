@@ -1,28 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { sendContactLeadReplyEmail } from "@/lib/email/resend";
-
-async function requireKernel(): Promise<void> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const role = user?.user_metadata?.role as string | undefined;
-  if (!user || role !== "kernel") throw new Error("Unauthorized");
-}
+import { requireKernel } from "@/lib/auth/verified-role";
 
 export async function replyToContactLead(input: { leadId: string; message: string }): Promise<void> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const role = user?.user_metadata?.role as string | undefined;
-  if (!user || role !== "kernel") throw new Error("Unauthorized");
+  await requireKernel();
 
   const message = input.message.trim();
   if (!message) throw new Error("Reply message is required");

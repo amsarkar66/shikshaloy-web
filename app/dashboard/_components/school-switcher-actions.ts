@@ -2,16 +2,14 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { getUser } from "@/lib/supabase/server";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
 import { ACTIVE_SCHOOL_COOKIE } from "@/lib/supabase/school-context";
 
 export async function setActiveSchool(schoolId: string): Promise<{ error?: string }> {
-  const {
-    data: { user },
-  } = await getUser();
-  if (!user || user.user_metadata?.role !== "super_admin") {
+  const verifiedUser = await getVerifiedUser();
+  if (!verifiedUser || verifiedUser.role !== "super_admin") {
     return { error: "Unauthorized." };
   }
 

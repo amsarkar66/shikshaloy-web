@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
 import type { CertType } from "./_data/certificates";
 import type { StudentOption } from "./_components/CertificatesClient";
 
@@ -54,6 +55,18 @@ export async function searchActiveStudents(query: string, offset = 0): Promise<S
 
 export async function requestCertificate(studentId: string, certType: CertType, purpose: string) {
   const schoolId = await getCurrentSchoolIdOrThrow();
+
+  // A parent submitting this from their Reports page must only be able to
+  // request certificates for their own linked children, not any student id.
+  const vu = await getVerifiedUser();
+  if (vu?.role === "parent") {
+    const { data: parent } = await supabaseAdmin.from("parents").select("id").eq("profile_id", vu.id).maybeSingle();
+    const { data: link } = parent
+      ? await supabaseAdmin.from("student_parents").select("student_id").eq("parent_id", parent.id).eq("student_id", studentId).maybeSingle()
+      : { data: null };
+    if (!link) throw new Error("This student isn't linked to your account.");
+  }
+
   const { data, error } = await supabaseAdmin
     .from("certificate_requests")
     .insert({

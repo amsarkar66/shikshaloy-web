@@ -1,10 +1,13 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
+import { useState, useMemo, useTransition, useRef, useLayoutEffect } from "react";
 import {
-  MessageSquareWarning, Clock, Eye, CheckCircle2, Search,
+  MessageSquareWarning, Clock, Eye, CheckCircle2,
   ChevronDown, ChevronUp, Mail, Phone, Loader2,
+  StickyNote, X,
 } from "lucide-react";
+import { FancyButton } from "@/components/ui/fancy-button";
+import { Select, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/select";
 import { updateGrievanceStatus, type GrievanceStatus } from "../actions";
 
 export interface Grievance {
@@ -30,6 +33,12 @@ const STATUS_BADGE: Record<GrievanceStatus, string> = {
   open: "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800",
   in_review: "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800",
   resolved: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800",
+};
+
+const STATUS_DOT: Record<GrievanceStatus, string> = {
+  open: "bg-amber-500",
+  in_review: "bg-blue-500",
+  resolved: "bg-emerald-500",
 };
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -68,12 +77,89 @@ function StatsRow({ grievances }: { grievances: Grievance[] }) {
   );
 }
 
+function NoteModal({
+  grievance, notes, status, onClose, onSaved,
+}: {
+  grievance: Grievance;
+  notes: string;
+  status: GrievanceStatus;
+  onClose: () => void;
+  onSaved: (notes: string) => void;
+}) {
+  const [value, setValue] = useState(notes);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSave() {
+    setBusy(true);
+    setError(null);
+    try {
+      await updateGrievanceStatus(grievance.id, status, value);
+      onSaved(value);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save note");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-sm rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-gray-200 dark:border-zinc-800 px-5 py-4">
+          <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Resolution Note</p>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-3">
+          <textarea
+            autoFocus
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="Resolution notes (optional)…"
+            rows={4}
+            className="w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20 resize-none"
+          />
+          {error && (
+            <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-400">
+              {error}
+            </div>
+          )}
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={onClose} className="h-9 rounded-lg border border-gray-200 dark:border-zinc-700 px-4 text-sm text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800">
+              Cancel
+            </button>
+            <FancyButton type="button" onClick={handleSave} disabled={busy} size="sm">
+              {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Save Note
+            </FancyButton>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function GrievanceCard({ grievance }: { grievance: Grievance }) {
   const [expanded, setExpanded] = useState(false);
   const [status, setStatus] = useState(grievance.status);
   const [notes, setNotes] = useState(grievance.resolutionNotes ?? "");
+  const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [isClamped, setIsClamped] = useState(false);
+  const messageRef = useRef<HTMLParagraphElement>(null);
+
+  useLayoutEffect(() => {
+    const el = messageRef.current;
+    if (el) setIsClamped(el.scrollHeight > el.clientHeight + 1);
+  }, [grievance.message]);
 
   function handleSetStatus(next: GrievanceStatus) {
     setError(null);
@@ -96,9 +182,22 @@ function GrievanceCard({ grievance }: { grievance: Grievance }) {
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="text-sm font-semibold text-gray-900 dark:text-zinc-100">{grievance.subject}</h3>
-              <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${STATUS_BADGE[status]}`}>
-                {STATUS_LABEL[status]}
-              </span>
+              <Select value={status} onValueChange={(v) => handleSetStatus(v as GrievanceStatus)} disabled={pending}>
+                <SelectTrigger className={`h-auto w-auto gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${STATUS_BADGE[status]}`}>
+                  {pending ? <Loader2 className="h-2.5 w-2.5 shrink-0 animate-spin" /> : STATUS_LABEL[status]}
+                  <ChevronDown className="h-2.5 w-2.5 shrink-0 opacity-70" />
+                </SelectTrigger>
+                <SelectContent className="w-32">
+                  {(["open", "in_review", "resolved"] as GrievanceStatus[]).map((s) => (
+                    <SelectItem key={s} value={s}>
+                      <span className="flex items-center gap-1.5 whitespace-nowrap">
+                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${STATUS_DOT[s]}`} />
+                        {STATUS_LABEL[s]}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-zinc-700 px-2 py-0.5 text-[10px] font-medium text-gray-600 dark:text-zinc-300">
                 {CATEGORY_LABEL[grievance.category] ?? grievance.category}
               </span>
@@ -112,43 +211,41 @@ function GrievanceCard({ grievance }: { grievance: Grievance }) {
           </div>
         </div>
 
-        <p className={`text-sm text-gray-600 dark:text-zinc-400 leading-relaxed ${!expanded ? "line-clamp-2" : ""}`}>
+        <p ref={messageRef} className={`text-sm text-gray-600 dark:text-zinc-400 leading-relaxed ${!expanded ? "line-clamp-2" : ""}`}>
           {grievance.message}
         </p>
-        {grievance.message.length > 120 && (
+        {(isClamped || expanded) && (
           <button onClick={() => setExpanded((v) => !v)} className="flex items-center gap-0.5 text-xs text-primary-600 dark:text-primary-400 hover:underline">
             {expanded ? <><ChevronUp className="h-3 w-3" />Show less</> : <><ChevronDown className="h-3 w-3" />Read more</>}
           </button>
         )}
 
-        {expanded && (
-          <div className="pt-2 space-y-2 border-t border-gray-100 dark:border-zinc-700/50">
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Resolution notes (optional)…"
-              rows={2}
-              className="w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-xs text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 resize-none"
-            />
-            {error && <p className="text-xs text-red-500">{error}</p>}
-            <div className="flex items-center gap-1.5">
-              {(["open", "in_review", "resolved"] as GrievanceStatus[]).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => handleSetStatus(s)}
-                  disabled={pending || status === s}
-                  className={`flex h-7 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition-colors disabled:opacity-50 ${
-                    status === s ? STATUS_BADGE[s] : "border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-700"
-                  }`}
-                >
-                  {pending ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-                  Mark {STATUS_LABEL[s]}
-                </button>
-              ))}
-            </div>
+        <button
+          onClick={() => setNoteModalOpen(true)}
+          className="flex w-fit items-center gap-1.5 rounded-md bg-primary-50 dark:bg-primary-500/10 px-2.5 py-1 text-xs font-medium text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-500/20 transition-colors"
+        >
+          <StickyNote className="h-3 w-3" /> {notes ? "Edit Note" : "Add Note"}
+        </button>
+
+        {notes && (
+          <div className="flex items-start gap-1.5 rounded-lg bg-gray-50 dark:bg-zinc-900/60 px-2.5 py-2 text-xs text-gray-500 dark:text-zinc-400">
+            <StickyNote className="h-3 w-3 mt-0.5 shrink-0" />
+            <span className="line-clamp-2">{notes}</span>
           </div>
         )}
+
+        {error && <p className="text-xs text-red-500">{error}</p>}
       </div>
+
+      {noteModalOpen && (
+        <NoteModal
+          grievance={grievance}
+          notes={notes}
+          status={status}
+          onClose={() => setNoteModalOpen(false)}
+          onSaved={(next) => setNotes(next)}
+        />
+      )}
     </div>
   );
 }
@@ -161,17 +258,11 @@ const STATUS_TABS: { value: GrievanceStatus | "all"; label: string }[] = [
 ];
 
 export default function GrievancesClient({ initialData }: { initialData: Grievance[] }) {
-  const [query, setQuery] = useState("");
   const [statusTab, setStatusTab] = useState<GrievanceStatus | "all">("all");
 
   const filtered = useMemo(() => {
-    const q = query.toLowerCase();
-    return initialData.filter((g) => {
-      const matchQ = !q || g.subject.toLowerCase().includes(q) || g.message.toLowerCase().includes(q) || g.name.toLowerCase().includes(q);
-      const matchSt = statusTab === "all" || g.status === statusTab;
-      return matchQ && matchSt;
-    });
-  }, [query, statusTab, initialData]);
+    return initialData.filter((g) => statusTab === "all" || g.status === statusTab);
+  }, [statusTab, initialData]);
 
   return (
     <div className="w-full px-6 py-6 space-y-5">
@@ -194,11 +285,6 @@ export default function GrievancesClient({ initialData }: { initialData: Grievan
             </button>
           );
         })}
-      </div>
-
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-zinc-500 pointer-events-none" />
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search grievances…" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 dark:focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" />
       </div>
 
       {filtered.length === 0 ? (

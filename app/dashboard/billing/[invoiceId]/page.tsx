@@ -1,6 +1,7 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
+import { getVerifiedRole } from "@/lib/auth/verified-role";
 import InvoiceDetailClient, { type InvoiceDetail } from "../_components/InvoiceDetailClient";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,9 @@ export default async function BillingInvoiceDetailPage({
   params: Promise<{ invoiceId: string }>;
   searchParams: Promise<{ download?: string }>;
 }) {
+  const role = await getVerifiedRole();
+  if (role !== "super_admin") redirect("/dashboard");
+
   const { invoiceId } = await params;
   const { download } = await searchParams;
   const institutionId = await getCurrentInstitutionIdOrThrow();

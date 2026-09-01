@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { logAuditEvent } from "@/lib/audit/log";
+import { requireRole } from "@/lib/auth/verified-role";
 
 // ── Authorization ────────────────────────────────────────────────────────────
 // Subject attendance can be marked by admin/super_admin (any slot in the
@@ -20,15 +20,10 @@ interface SubjectMarkerContext {
 }
 
 async function requireSubjectAttendanceMarker(): Promise<SubjectMarkerContext> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  const role = user?.user_metadata?.role as string | undefined;
+  const { id, role } = await requireRole(["admin", "super_admin", "teacher"] as const);
 
-  if (!user) throw new Error("Unauthorized");
-  if (role === "admin" || role === "super_admin") return { role, userId: user.id, teacherProfileId: null };
-  if (role === "teacher") return { role, userId: user.id, teacherProfileId: user.id };
-
-  throw new Error("Unauthorized");
+  if (role === "admin" || role === "super_admin") return { role, userId: id, teacherProfileId: null };
+  return { role, userId: id, teacherProfileId: id };
 }
 
 function assertCanMarkSlot(marker: SubjectMarkerContext, slotTeacherId: string | null) {

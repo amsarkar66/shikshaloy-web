@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ShieldAlert, ArrowLeft, Clock, Users, CalendarOff, CheckCircle2 } from "lucide-react";
-import { getUser } from "@/lib/supabase/server";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
@@ -64,9 +64,9 @@ export default async function SubjectAttendancePickerPage({
 }: {
   searchParams: Promise<{ date?: string; section?: string; subject?: string }>;
 }) {
-  const { data: { user } } = await getUser();
-  const role = user?.user_metadata?.role as string | undefined;
-  if (!user || (role !== "admin" && role !== "super_admin")) return <Unauthorized />;
+  const vu = await getVerifiedUser();
+  const role = vu?.role;
+  if (!vu || (role !== "admin" && role !== "super_admin")) return <Unauthorized />;
 
   const { date, section, subject: subjectId } = await searchParams;
   if (!subjectId) return <EmptyState title="Open this from a subject's detail page to mark its attendance." />;

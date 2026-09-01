@@ -7,6 +7,7 @@ import { listKernelUsers } from "@/lib/supabase/admin";
 import { getStoredUtm } from "@/lib/marketing/utm-server";
 import { sendInstitutionSubmittedEmail, sendNewInstitutionSubmittedEmail } from "@/lib/email/resend";
 import { PLANS } from "@/app/dashboard/billing/_data/billing";
+import { getVerifiedRole } from "@/lib/auth/verified-role";
 import type { InstitutionFormData } from "./_institution-form";
 
 export async function submitOnboarding(
@@ -15,7 +16,8 @@ export async function submitOnboarding(
   const {
     data: { user },
   } = await getUser();
-  if (!user || user.user_metadata?.role !== "super_admin") {
+  const verifiedRole = await getVerifiedRole();
+  if (!user || verifiedRole !== "super_admin") {
     return { error: "Unauthorized." };
   }
   // Phone verification is temporarily optional while SMS delivery is being

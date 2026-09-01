@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { getUser } from "@/lib/supabase/server";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
 import SchoolDetailClient, {
@@ -25,10 +25,10 @@ export default async function SchoolDetailPage({
 }) {
   const { id } = await params;
 
-  const {
-    data: { user },
-  } = await getUser();
-  if (!user) redirect("/login");
+  const verifiedUser = await getVerifiedUser();
+  if (!verifiedUser) redirect("/login");
+
+  if (verifiedUser.role !== "super_admin") redirect("/dashboard");
 
   const institutionId = await getCurrentInstitutionIdOrThrow();
 

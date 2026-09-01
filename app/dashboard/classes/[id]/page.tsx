@@ -4,9 +4,23 @@ import {
   ArrowLeft, DoorOpen, Users, BookOpen, TrendingUp,
   GraduationCap, Eye, UserCheck, UserX, Clock, HelpCircle,
 } from "lucide-react";
+import { ShieldAlert } from "lucide-react";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { attendanceColor, attendanceBar } from "../_data/classes";
+
+function Unauthorized() {
+  return (
+    <div className="w-full px-6 py-8">
+      <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 py-24 text-center">
+        <ShieldAlert className="h-6 w-6 text-gray-300 dark:text-zinc-600" />
+        <p className="text-base font-semibold text-gray-900 dark:text-zinc-50">Not authorized</p>
+        <p className="text-sm text-gray-500 dark:text-zinc-400">Only school admins and teachers can view class rosters.</p>
+      </div>
+    </div>
+  );
+}
 
 const AVATAR_COLORS = [
   "bg-blue-500", "bg-violet-500", "bg-emerald-500", "bg-rose-500",
@@ -53,6 +67,7 @@ interface SectionRow {
   avg_attendance: number | null;
   status: string | null;
   academic_year_id: string | null;
+  grade_id: string | null;
   grades: { level: number | null } | null;
   profiles: { full_name: string | null } | null;
   streams: { name: string | null } | null;
@@ -81,11 +96,15 @@ export default async function ClassRosterPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const vu = await getVerifiedUser();
+  const role = vu?.role;
+  if (!vu || (role !== "admin" && role !== "teacher")) return <Unauthorized />;
+
   const schoolId = await getCurrentSchoolIdOrThrow();
 
   const { data: sectionRow } = await supabaseAdmin
     .from("sections")
-    .select("id, name, room, capacity, avg_attendance, status, academic_year_id, grades ( level ), profiles ( full_name ), streams ( name )")
+    .select("id, name, room, capacity, avg_attendance, status, academic_year_id, grade_id, grades ( level ), profiles ( full_name ), streams ( name )")
     .eq("id", id)
     .eq("school_id", schoolId)
     .maybeSingle();
@@ -95,7 +114,14 @@ export default async function ClassRosterPage({
 
   const today = new Date().toISOString().split("T")[0];
 
-  const [{ data: studentRows }, { data: subjectRows }, { data: attRows }] = await Promise.all([
+  const [{ count: siblingSectionCount }, { data: studentRows }, { data: subjectRows }, { data: attRows }] = await Promise.all([
+    supabaseAdmin
+      .from("sections")
+      .select("id", { count: "exact", head: true })
+      .eq("school_id", schoolId)
+      .eq("grade_id", section.grade_id ?? "")
+      .eq("academic_year_id", section.academic_year_id ?? ""),
+
     supabaseAdmin
       .from("students")
       .select("id, full_name, roll_no, gender, phone, attendance_pct, fee_status, status, photo_url")
@@ -141,6 +167,7 @@ export default async function ClassRosterPage({
 
   const classNum = String(section.grades?.level ?? "?");
   const sectionName = section.name ?? "";
+  const solo = (siblingSectionCount ?? 1) <= 1;
   const capacity = section.capacity ?? 40;
   const avgAtt = Math.round(Number(section.avg_attendance ?? 0));
   const isActive = (section.status ?? "active") === "active";
@@ -159,11 +186,11 @@ export default async function ClassRosterPage({
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary-500/10 dark:bg-primary-500/20">
-              <span className="text-lg font-bold text-primary-600 dark:text-primary-400">{classNum}<span className="text-sm">–{sectionName}</span></span>
+              <span className="text-lg font-bold text-primary-600 dark:text-primary-400">{classNum}{!solo && <span className="text-sm">–{sectionName}</span>}</span>
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Class {classNum}–{sectionName}</h1>
+                <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Class {classNum}{!solo && `–${sectionName}`}</h1>
                 {section.streams?.name && (
                   <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400">
                     {section.streams.name}

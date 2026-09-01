@@ -62,13 +62,27 @@ export async function getAdmissionApplication(id: string): Promise<{
 
   if (!data) return null;
 
-  const documents: AdmissionDocument[] = (documentRows ?? []).map((d) => ({
-    id: d.id,
-    category: d.category,
-    fileName: d.file_name,
-    fileUrl: d.file_url,
-    uploadedAt: d.uploaded_at,
-  }));
+  // admission-documents is a private bucket (see
+  // 20260901010000_restrict_admission_documents_bucket.sql) — the stored
+  // file_url is only used to recover the object path; the actual URL handed
+  // to the browser is a short-lived signed one.
+  const documents: AdmissionDocument[] = await Promise.all(
+    (documentRows ?? []).map(async (d) => {
+      const marker = "/admission-documents/";
+      const idx = d.file_url.indexOf(marker);
+      const path = idx !== -1 ? d.file_url.slice(idx + marker.length) : null;
+      const signedUrl = path
+        ? (await supabaseAdmin.storage.from("admission-documents").createSignedUrl(path, 300)).data?.signedUrl
+        : null;
+      return {
+        id: d.id,
+        category: d.category,
+        fileName: d.file_name,
+        fileUrl: signedUrl ?? d.file_url,
+        uploadedAt: d.uploaded_at,
+      };
+    })
+  );
 
   const a = data as unknown as AdmissionApplicationRow;
 

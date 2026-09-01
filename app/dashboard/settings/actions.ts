@@ -5,44 +5,10 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolId, getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
-import { updateStaffType } from "@/lib/supabase/admin";
 import { BUILTIN_DEFAULTS, type ModulePerms } from "@/lib/settings/role-template-constants";
 import { logAuditEvent } from "@/lib/audit/log";
+import { requireRole } from "@/lib/auth/verified-role";
 import { DEFAULT_REPORT_CARD_SETTINGS, type ReportCardSettings, type ReportCardVisibleFields } from "@/lib/report-cards/templates";
-
-export async function assignStaffTemplate(
-  userId: string,
-  staffType: string,
-  staffTemplateId: string
-) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const role = user?.user_metadata?.role as string | undefined;
-  if (role !== "admin" && role !== "super_admin") {
-    throw new Error("Unauthorized");
-  }
-
-  const ok = await updateStaffType(userId, staffType, staffTemplateId);
-  if (!ok) throw new Error("Failed to update staff type");
-
-  const schoolId = await getCurrentSchoolIdOrThrow();
-  const { data: staff } = await supabaseAdmin
-    .from("staff_members")
-    .select("full_name")
-    .eq("profile_id", userId)
-    .maybeSingle();
-  await logAuditEvent({
-    schoolId,
-    action: "update",
-    module: "Staff",
-    description: `Changed staff type for ${staff?.full_name ?? "a staff member"} to '${staffType}'`,
-  });
-
-  revalidatePath("/dashboard/settings");
-}
 
 // ── School Profile ────────────────────────────────────────────────────────────
 
@@ -271,6 +237,7 @@ export interface SaveRoleTemplateInput {
 }
 
 export async function saveRoleTemplate(input: SaveRoleTemplateInput): Promise<void> {
+  await requireRole(["admin", "super_admin"]);
   const schoolId = await getCurrentSchoolIdOrThrow();
 
   const { error } = await supabaseAdmin
@@ -281,7 +248,8 @@ export async function saveRoleTemplate(input: SaveRoleTemplateInput): Promise<vo
       permissions: input.permissions,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", input.id);
+    .eq("id", input.id)
+    .eq("school_id", schoolId);
 
   if (error) throw new Error(`Failed to save role template: ${error.message}`);
 
@@ -296,6 +264,7 @@ export async function saveRoleTemplate(input: SaveRoleTemplateInput): Promise<vo
 }
 
 export async function createRoleTemplate(): Promise<{ id: string }> {
+  await requireRole(["admin", "super_admin"]);
   const schoolId = await getCurrentSchoolIdOrThrow();
 
   const { data, error } = await supabaseAdmin
@@ -325,12 +294,14 @@ export async function createRoleTemplate(): Promise<{ id: string }> {
 }
 
 export async function deleteRoleTemplate(id: string): Promise<void> {
+  await requireRole(["admin", "super_admin"]);
   const schoolId = await getCurrentSchoolIdOrThrow();
 
   const { data: template, error } = await supabaseAdmin
     .from("role_templates")
     .delete()
     .eq("id", id)
+    .eq("school_id", schoolId)
     .eq("is_builtin", false)
     .select("name")
     .single();
@@ -348,6 +319,7 @@ export async function deleteRoleTemplate(id: string): Promise<void> {
 }
 
 export async function restoreRoleTemplateDefaults(id: string, slug: string): Promise<ModulePerms> {
+  await requireRole(["admin", "super_admin"]);
   const permissions = BUILTIN_DEFAULTS[slug];
   if (!permissions) throw new Error("Not a built-in template");
 
@@ -357,6 +329,7 @@ export async function restoreRoleTemplateDefaults(id: string, slug: string): Pro
     .from("role_templates")
     .update({ permissions, updated_at: new Date().toISOString() })
     .eq("id", id)
+    .eq("school_id", schoolId)
     .eq("is_builtin", true)
     .select("name")
     .single();

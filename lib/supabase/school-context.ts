@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { cookies } from "next/headers";
-import { getUser } from "@/lib/supabase/server";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentInstitutionId } from "@/lib/supabase/institution-context";
 
@@ -15,15 +15,11 @@ export const ACTIVE_SCHOOL_COOKIE = "active_school_id";
 //     assigned when their account was created.
 //   - kernel: platform-level role, not tied to any single school.
 export const getCurrentSchoolId = cache(async (): Promise<string | null> => {
-  const {
-    data: { user },
-  } = await getUser();
-  if (!user) return null;
+  const vu = await getVerifiedUser();
+  if (!vu) return null;
+  if (vu.role === "kernel") return null;
 
-  const role = (user.user_metadata?.role as string) ?? "";
-  if (role === "kernel") return null;
-
-  if (role === "super_admin") {
+  if (vu.role === "super_admin") {
     const institutionId = await getCurrentInstitutionId();
     if (!institutionId) return null;
 
@@ -49,12 +45,7 @@ export const getCurrentSchoolId = cache(async (): Promise<string | null> => {
     return data?.id ?? null;
   }
 
-  const { data } = await supabaseAdmin
-    .from("profiles")
-    .select("school_id")
-    .eq("id", user.id)
-    .maybeSingle();
-  return data?.school_id ?? null;
+  return vu.schoolId;
 });
 
 // Same resolution, but throws instead of returning null — for server

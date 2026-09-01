@@ -41,15 +41,25 @@ export async function uploadGalleryImage(formData: FormData): Promise<void> {
   revalidatePath("/dashboard/website");
 }
 
-export async function deleteGalleryImage(id: string, imageUrl: string): Promise<void> {
+export async function deleteGalleryImage(id: string): Promise<void> {
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
+  const { data: image } = await supabaseAdmin
+    .from("school_gallery")
+    .select("image_url")
+    .eq("id", id)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+  if (!image) throw new Error("Image not found");
+
   const marker = "/school-gallery/";
-  const idx = imageUrl.indexOf(marker);
+  const idx = image.image_url.indexOf(marker);
   if (idx !== -1) {
-    const path = imageUrl.slice(idx + marker.length);
+    const path = image.image_url.slice(idx + marker.length);
     await supabaseAdmin.storage.from("school-gallery").remove([path]);
   }
 
-  const { error } = await supabaseAdmin.from("school_gallery").delete().eq("id", id);
+  const { error } = await supabaseAdmin.from("school_gallery").delete().eq("id", id).eq("school_id", schoolId);
   if (error) throw new Error(error.message);
 
   revalidatePath("/dashboard/gallery");

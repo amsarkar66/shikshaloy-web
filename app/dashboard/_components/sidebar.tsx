@@ -9,6 +9,7 @@ import { LogoutButton } from "./logout-button";
 import { SchoolSwitcher } from "./school-switcher";
 import { RELEASES } from "@/lib/changelog";
 import { ROLE_META, getNavGroupsForRole } from "../_lib/nav-data";
+import { getVerifiedStaffTemplateId } from "../_lib/directory-search";
 
 const TYPE_DOT: Record<string, string> = {
   feat: "bg-emerald-500",
@@ -89,7 +90,25 @@ export function Sidebar({
   activeSchoolId?: string | null;
 }) {
   const pathname = usePathname();
-  const staffTemplateId = user.user_metadata?.staff_template_id as string | undefined;
+  const [staffTemplateId, setStaffTemplateId] = useState<string | undefined>(undefined);
+
+  // user.user_metadata.staff_template_id is self-editable and no longer
+  // trusted for nav filtering — fetch the verified value (from
+  // staff_members, server-side) instead.
+  useEffect(() => {
+    if (role !== "staff") {
+      setStaffTemplateId(undefined);
+      return;
+    }
+    let cancelled = false;
+    getVerifiedStaffTemplateId().then((id) => {
+      if (!cancelled) setStaffTemplateId(id);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [role, user.id]);
+
   const navGroups = getNavGroupsForRole(role, staffTemplateId);
   const meta = ROLE_META[role] ?? ROLE_META.student;
   const roleLabel =

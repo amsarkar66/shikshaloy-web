@@ -1,7 +1,7 @@
 import { redirect, notFound } from "next/navigation";
-import { getUser } from "@/lib/supabase/server";
 import { getInstitution } from "@/lib/supabase/admin";
 import { supabaseAdmin } from "@/lib/supabase/service";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
 import SubscriptionDetailClient from "./_components/SubscriptionDetailClient";
 import type { Invoice, SubscriptionStatus } from "@/app/dashboard/billing/_data/billing";
 
@@ -14,13 +14,9 @@ export default async function SubscriptionDetailPage({
 }) {
   const { id } = await params;
 
-  const {
-    data: { user },
-  } = await getUser();
-  if (!user) redirect("/login");
-
-  const role = user.user_metadata?.role as string | undefined;
-  if (role !== "kernel") redirect("/dashboard");
+  const vu = await getVerifiedUser();
+  if (!vu) redirect("/login");
+  if (vu.role !== "kernel") redirect("/dashboard");
 
   const [result, { data: invoiceRows }, { data: schoolRows }] = await Promise.all([
     getInstitution(id),
