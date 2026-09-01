@@ -27,14 +27,14 @@ export function isAppHost(host: string): boolean {
 
 export async function resolveDomainOwner(host: string): Promise<string | null> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !anonKey) return null;
+  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!supabaseUrl || !publishableKey) return null;
 
   const bareHost = host.split(":")[0].toLowerCase();
 
   const res = await fetch(
     `${supabaseUrl}/rest/v1/institution_domains?domain=eq.${encodeURIComponent(bareHost)}&status=eq.active&select=owner_id`,
-    { headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` }, cache: "no-store" }
+    { headers: { apikey: publishableKey, Authorization: `Bearer ${publishableKey}` }, cache: "no-store" }
   );
   if (!res.ok) return null;
 
