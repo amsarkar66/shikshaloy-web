@@ -6,7 +6,7 @@ import {
   Receipt, TrendingDown, Wallet, Search, Download, Plus,
   ArrowLeft, Printer, X, Check, Clock, Ban, Loader2,
   BarChart2, ChevronLeft, ChevronRight, ChevronDown,
-  SlidersHorizontal, ArrowUpDown, ArrowUp, ArrowDown,
+  SlidersHorizontal, ArrowUpDown, ArrowUp, ArrowDown, Landmark,
 } from "lucide-react";
 import {
   computeMonthStats, computeCategoryBreakdown,
@@ -15,6 +15,19 @@ import {
   type Expense, type ExpenseStatus, type BudgetLine,
 } from "../_data/expenses";
 import { addExpense, updateExpenseStatus } from "../actions";
+
+export interface SchoolOption {
+  id: string;
+  name: string;
+}
+
+function SchoolTag({ name }: { name: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs text-gray-500 dark:text-zinc-400">
+      <Landmark className="h-3 w-3 shrink-0 text-violet-400" />{name}
+    </span>
+  );
+}
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -273,6 +286,7 @@ function ExpenseDetail({ expense, onBack, onStatusChanged }: { expense: Expense;
               { label: "Date",        value: formatDate(expense.date) },
               { label: "Description", value: expense.description || "—" },
               { label: "Month",       value: formatMonth(expense.monthStr) },
+              ...(expense.schoolName ? [{ label: "School", value: expense.schoolName }] : []),
             ].map((f) => (
               <div key={f.label}>
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">{f.label}</p>
@@ -378,7 +392,7 @@ function ExpenseSortMenu({
 // ── Expense table ─────────────────────────────────────────────────────────────
 
 function ExpenseTable({
-  expenses, budgets, monthStr, categories, onView, onAdded, showAdd, setShowAdd,
+  expenses, budgets, monthStr, categories, onView, onAdded, showAdd, setShowAdd, showSchoolColumn,
 }: {
   expenses: Expense[];
   budgets: BudgetLine[];
@@ -388,6 +402,7 @@ function ExpenseTable({
   onAdded: () => void;
   showAdd: boolean;
   setShowAdd: (v: boolean) => void;
+  showSchoolColumn: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategory] = useState<"all" | string>("all");
@@ -532,6 +547,7 @@ function ExpenseTable({
           >
             <TableHead>
               <Th position="first">Date</Th>
+              {showSchoolColumn && <Th>School</Th>}
               <Th>Category</Th>
               <Th>Description</Th>
               <Th>Vendor</Th>
@@ -541,10 +557,11 @@ function ExpenseTable({
             </TableHead>
             <TableBody>
               {filtered.length === 0 ? (
-                <TableEmptyRow colSpan={7} message="No expenses match this filter" />
+                <TableEmptyRow colSpan={showSchoolColumn ? 8 : 7} message="No expenses match this filter" />
               ) : filtered.map((expense) => (
                 <Tr key={expense.id} className={expense.status === "rejected" ? "opacity-60" : ""}>
                   <Td position="first" className="text-xs text-gray-500 dark:text-zinc-400 whitespace-nowrap">{formatDate(expense.date)}</Td>
+                  {showSchoolColumn && <Td><SchoolTag name={expense.schoolName ?? "—"} /></Td>}
                   <Td>
                     <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-700 dark:text-zinc-300">
                       <span className={`h-2 w-2 rounded-full ${categoryColor(expense.category)}`} />
@@ -578,19 +595,24 @@ function ExpenseTable({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ExpensesClient({
-  expenses, budgets,
+  expenses, budgets, schools = [],
 }: {
   expenses: Expense[];
   budgets: BudgetLine[];
+  schools?: SchoolOption[];
 }) {
   const router = useRouter();
   const months = useMemo(() => Array.from(new Set(expenses.map((e) => e.monthStr))).sort(), [expenses]);
   const [monthIndex, setMonthIndex] = useState(Math.max(0, months.length - 1));
   const [selected, setSelected] = useState<Expense | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [schoolFilter, setSchoolFilter] = useState("all");
 
   const monthStr = months[monthIndex] ?? "";
-  const monthExpenses = useMemo(() => expenses.filter((e) => e.monthStr === monthStr), [expenses, monthStr]);
+  const monthExpenses = useMemo(
+    () => expenses.filter((e) => e.monthStr === monthStr && (schoolFilter === "all" || e.schoolId === schoolFilter)),
+    [expenses, monthStr, schoolFilter]
+  );
   const categories = useMemo(() => Array.from(new Set([...budgets.map((b) => b.category), ...expenses.map((e) => e.category)])).sort(), [expenses, budgets]);
 
   function handleMonthChange(i: number) {
@@ -629,6 +651,15 @@ export default function ExpensesClient({
           <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Track institution expenses</p>
         </div>
         <div className="sm:ml-auto flex items-center gap-2 flex-wrap">
+          {schools.length > 0 && (
+            <div className="relative">
+              <select value={schoolFilter} onChange={(e) => setSchoolFilter(e.target.value)} className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+                <option value="all">All Schools</option>
+                {schools.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+            </div>
+          )}
           {months.length > 0 && <MonthNav months={months} index={monthIndex} onChange={handleMonthChange} />}
           <button onClick={exportCsv} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
             <Download className="h-3.5 w-3.5" /> Export
@@ -656,6 +687,7 @@ export default function ExpensesClient({
             onAdded={() => router.refresh()}
             showAdd={showAdd}
             setShowAdd={setShowAdd}
+            showSchoolColumn={schools.length > 0}
           />
         </>
       )}

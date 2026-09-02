@@ -10,6 +10,8 @@ export interface PayrollStaff {
   department: string;
   type: StaffType;
   status: string;
+  schoolId?: string;
+  schoolName?: string;
 }
 
 export interface PayrollRecord {

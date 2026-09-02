@@ -7,6 +7,7 @@ import {
   BookOpen,
   ClipboardList,
   ClipboardCheck,
+  CheckCircle2,
   CreditCard,
   BarChart3,
   Shield,
@@ -25,6 +26,7 @@ import {
   UserPlus,
   Receipt,
   Wallet,
+  TrendingDown,
   Megaphone,
   MessageSquare,
   Library,
@@ -98,16 +100,22 @@ export const NAV: Record<string, NavGroup[]> = {
       group: "Institution",
       items: [
         { label: "Schools",                  href: "/dashboard/schools",   icon: Landmark },
-        { label: "Principals & Admins", href: "/dashboard/principals", icon: UserCog },
         { label: "Website",             href: "/dashboard/website",    icon: Globe },
       ],
     },
     {
       group: "People",
       items: [
-        { label: "People",          href: "/dashboard/people",     icon: Users2 },
+        { label: "Students",        href: "/dashboard/students",   icon: GraduationCap },
         { label: "Staff",           href: "/dashboard/staff",      icon: Users },
-        { label: "Leave Approvals", href: "/dashboard/leaves",     icon: CalendarOff },
+        { label: "Parents",         href: "/dashboard/parents",    icon: Users2 },
+        { label: "Administrators",  href: "/dashboard/principals", icon: UserCog },
+      ],
+    },
+    {
+      group: "Operations",
+      items: [
+        { label: "Approvals",       href: "/dashboard/approvals",  icon: CheckCircle2 },
         { label: "Admissions",      href: "/dashboard/admissions", icon: UserPlus },
         { label: "Front Desk",      href: "/dashboard/front-desk", icon: DoorOpen },
       ],
@@ -117,14 +125,15 @@ export const NAV: Record<string, NavGroup[]> = {
       items: [
         { label: "Academic Calendar", href: "/dashboard/academic-calendar", icon: CalendarRange },
         { label: "Exams & Results",   href: "/dashboard/exams",             icon: ClipboardCheck },
-        { label: "Grades",            href: "/dashboard/grades",            icon: BarChart3 },
+        { label: "Certificates",      href: "/dashboard/certificates",      icon: Award },
       ],
     },
     {
       group: "Finance",
       items: [
-        { label: "Billing & Subscription", href: "/dashboard/billing",        icon: CreditCard },
-        { label: "Fee Collection",         href: "/dashboard/fee-collection", icon: Receipt },
+        { label: "Fee Collection", href: "/dashboard/fees",           icon: Receipt },
+        { label: "Expenses",       href: "/dashboard/expenses",       icon: TrendingDown },
+        { label: "Payroll",        href: "/dashboard/payroll",        icon: Wallet },
       ],
     },
     {
@@ -139,13 +148,13 @@ export const NAV: Record<string, NavGroup[]> = {
       items: [
         { label: "Announcements",       href: "/dashboard/announcements", icon: Megaphone },
         { label: "Messages",            href: "/dashboard/messages",      icon: MessageSquare },
-        { label: "Documents & Circulars", href: "/dashboard/documents",   icon: FolderOpen },
         { label: "Grievances",          href: "/dashboard/grievances",    icon: MessageSquareWarning },
       ],
     },
     {
       group: "Administration",
       items: [
+        { label: "Documents & Circulars", href: "/dashboard/documents", icon: FolderOpen },
         { label: "Settings",       href: "/dashboard/settings",  icon: Settings },
         { label: "Audit Log",      href: "/dashboard/audit-log", icon: History },
         { label: "Help & Support", href: "/dashboard/help",      icon: LifeBuoy },
@@ -163,32 +172,33 @@ export const NAV: Record<string, NavGroup[]> = {
       items: [
         { label: "Students",         href: "/dashboard/students", icon: GraduationCap },
         { label: "Staff",            href: "/dashboard/staff",    icon: Briefcase },
+        { label: "Drivers",          href: "/dashboard/drivers",  icon: UserCog },
         { label: "Parents",          href: "/dashboard/parents",  icon: Users2 },
-        { label: "Leave Management", href: "/dashboard/leaves",   icon: CalendarOff },
+      ],
+    },
+    {
+      group: "Time & Attendance",
+      items: [
+        { label: "Attendance",       href: "/dashboard/attendance", icon: UserCheck },
+        { label: "Leave Management", href: "/dashboard/leaves",     icon: CalendarOff },
       ],
     },
     {
       group: "Academics",
       items: [
+        { label: "Academic Calendar",  href: "/dashboard/academic-calendar",  icon: CalendarRange },
         { label: "Classes & Sections", href: "/dashboard/classes",            icon: Layers },
         { label: "Subjects",           href: "/dashboard/subjects",           icon: BookMarked },
         { label: "Timetable",          href: "/dashboard/timetable",          icon: CalendarDays },
+        { label: "Homework",          href: "/dashboard/homework",           icon: FileText },
         { label: "Exams & Results",    href: "/dashboard/exams",              icon: ClipboardCheck },
         { label: "Grades",             href: "/dashboard/grades",             icon: BarChart3 },
-        { label: "Academic Calendar",  href: "/dashboard/academic-calendar",  icon: CalendarRange },
         { label: "Certificates",       href: "/dashboard/certificates",       icon: Award },
-        { label: "Homework",          href: "/dashboard/homework",           icon: FileText },
         { label: "ID Cards",          href: "/dashboard/id-cards",           icon: IdCard },
       ],
     },
     {
-      group: "Attendance",
-      items: [
-        { label: "Attendance", href: "/dashboard/attendance", icon: UserCheck },
-      ],
-    },
-    {
-      group: "Admissions",
+      group: "Operations",
       items: [
         { label: "Admissions", href: "/dashboard/admissions", icon: UserPlus },
         { label: "Front Desk", href: "/dashboard/front-desk", icon: DoorOpen },
@@ -208,7 +218,6 @@ export const NAV: Record<string, NavGroup[]> = {
         { label: "Announcements",     href: "/dashboard/announcements", icon: Megaphone },
         { label: "Messages",          href: "/dashboard/messages",      icon: MessageSquare },
         { label: "Events & Calendar", href: "/dashboard/events",        icon: Calendar },
-        { label: "Documents & Circulars",   href: "/dashboard/documents", icon: FolderOpen },
         { label: "Grievances",        href: "/dashboard/grievances",    icon: MessageSquareWarning },
       ],
     },
@@ -216,7 +225,6 @@ export const NAV: Record<string, NavGroup[]> = {
       group: "Facilities",
       items: [
         { label: "Transport",  href: "/dashboard/transport",  icon: Bus },
-        { label: "Drivers",    href: "/dashboard/drivers",    icon: UserCog },
         { label: "Library",    href: "/dashboard/library",    icon: Library },
         { label: "Hostel",     href: "/dashboard/hostel",     icon: BedDouble },
         { label: "Inventory",  href: "/dashboard/inventory",  icon: Package },
@@ -232,6 +240,7 @@ export const NAV: Record<string, NavGroup[]> = {
     {
       group: "Administration",
       items: [
+        { label: "Documents & Circulars", href: "/dashboard/documents",  icon: FolderOpen },
         { label: "Settings",   href: "/dashboard/settings",   icon: Settings },
         { label: "Audit Log",  href: "/dashboard/audit-log",  icon: History },
       ],

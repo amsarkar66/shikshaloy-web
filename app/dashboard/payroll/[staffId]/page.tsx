@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { ShieldAlert } from "lucide-react";
 import { requireRoleOrStaffTemplate } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
-import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { resolveAuthorizedSchoolId } from "@/lib/supabase/authorized-school";
 import PayrollDetailClient from "./_components/PayrollDetailClient";
 import type { PayrollStaff, PayrollRecord } from "../_data/payroll";
 
@@ -27,12 +27,17 @@ export default async function PayrollDetailPage({
   const { staffId } = await params;
   const { month } = await searchParams;
   try {
-    await requireRoleOrStaffTemplate(["admin"], ["accountant", "hr_manager"]);
+    await requireRoleOrStaffTemplate(["admin", "super_admin"], ["accountant", "hr_manager"]);
   } catch {
     return <Unauthorized />;
   }
 
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  let schoolId: string;
+  try {
+    schoolId = await resolveAuthorizedSchoolId("staff_members", staffId);
+  } catch {
+    return <Unauthorized />;
+  }
 
   const [{ data: staffRow }, { data: recordRows }] = await Promise.all([
     supabaseAdmin

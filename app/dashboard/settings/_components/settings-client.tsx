@@ -18,7 +18,7 @@ import {
   Plus,
   Trash2,
   RotateCcw,
-  Building2,
+  Settings,
   Loader2,
   KeyRound,
   Globe,
@@ -82,7 +82,7 @@ const ROLE_TABS: Record<string, { id: Tab; label: string; icon: React.ElementTyp
     { id: "account",       label: "My Account",    icon: User },
   ],
   super_admin: [
-    { id: "institution",   label: "Institution",   icon: Building2 },
+    { id: "institution",   label: "General",       icon: Settings },
     { id: "domain",        label: "Domain",        icon: Globe     },
     { id: "permissions",   label: "Permissions",   icon: Shield    },
     { id: "notifications", label: "Notifications", icon: Bell      },
@@ -305,8 +305,8 @@ function InstitutionTab({ publishKeys }: { publishKeys: PublishKeyRow[] }) {
             <Input value={website} onChange={setWebsite} placeholder="www.example.com" />
           </div>
         </div>
+        <SaveBar onSave={handleSave} saved={saved} />
       </SectionCard>
-      <SaveBar onSave={handleSave} saved={saved} />
       <PublishKeyPanel initialKeys={publishKeys} />
     </div>
   );

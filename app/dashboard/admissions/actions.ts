@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { resolveAuthorizedSchoolId } from "@/lib/supabase/authorized-school";
 import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
 import { getStudentCapacity } from "@/lib/billing/plan-limits";
 import { enrollStudent, type ParentLogin } from "@/lib/students/enroll";
@@ -164,21 +165,21 @@ export async function createApplication(input: NewApplicationInput): Promise<str
 
 export async function updateApplicationStatus(applicationId: string, status: AdmissionStatus, reason?: string) {
   await requireAdmissionsAccess();
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("admission_applications", applicationId);
 
   const { data: app, error } = await supabaseAdmin
     .from("admission_applications")
     .update({ status, status_reason: reason?.trim() || null, updated_at: new Date().toISOString() })
     .eq("id", applicationId)
     .eq("school_id", schoolId)
-    .select("school_id, applicant_name")
+    .select("applicant_name")
     .single();
 
   if (error) throw new Error(error.message);
 
   const action = status === "approved" ? "approve" : status === "rejected" ? "reject" : "update";
   await logAuditEvent({
-    schoolId: app.school_id,
+    schoolId,
     action,
     module: "Admissions",
     description: `${app.applicant_name}'s application marked '${status}'${reason ? ` — ${reason.trim()}` : ""}`,
@@ -320,7 +321,7 @@ export interface AdmissionFeeCollection {
 
 export async function enrollApplication(applicationId: string, fee?: AdmissionFeeCollection): Promise<EnrollResult> {
   await requireAdmissionsAccess();
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("admission_applications", applicationId);
 
   const { data: app, error: fetchError } = await supabaseAdmin
     .from("admission_applications")

@@ -146,6 +146,18 @@ export default function PrincipalsClient({ principals, schools }: { principals: 
 
   return (
     <div className="w-full px-6 py-6 space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Administrators</h1>
+          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Principals and school admins across your institution</p>
+        </div>
+        <div className="sm:ml-auto">
+          <FancyButton onClick={() => setShowInvite(true)} size="sm">
+            <Plus className="h-4 w-4" /> Invite Principal
+          </FancyButton>
+        </div>
+      </div>
+
       <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-4 flex items-center gap-4">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-violet-500 bg-violet-500/10">
           <UserCog className="h-5 w-5" />
@@ -167,11 +179,6 @@ export default function PrincipalsClient({ principals, schools }: { principals: 
             {schools.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
           <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
-        </div>
-        <div className="sm:ml-auto">
-          <FancyButton onClick={() => setShowInvite(true)} size="sm">
-            <Plus className="h-4 w-4" /> Invite Principal
-          </FancyButton>
         </div>
       </div>
 

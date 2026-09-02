@@ -226,6 +226,7 @@ export async function updateStudentLeaveStatus(
   status: "approved" | "rejected"
 ): Promise<void> {
   const { id: userId } = await requireRoleOrStaffTemplate(["admin", "super_admin", "kernel"], ["hr_manager"]);
+  const schoolId = await resolveAuthorizedSchoolId("student_leave_requests", leaveId);
 
   const { data: approver } = await supabaseAdmin
     .from("staff_members")
@@ -237,18 +238,19 @@ export async function updateStudentLeaveStatus(
   const { error } = await supabaseAdmin
     .from("student_leave_requests")
     .update({ status, approved_by: approvedBy })
-    .eq("id", leaveId);
+    .eq("id", leaveId)
+    .eq("school_id", schoolId);
 
   if (error) throw new Error(`Failed to update leave status: ${error.message}`);
 
   const { data: student } = await supabaseAdmin
     .from("students")
-    .select("school_id, full_name")
+    .select("full_name")
     .eq("id", studentId)
     .maybeSingle();
   if (student) {
     await logAuditEvent({
-      schoolId: student.school_id,
+      schoolId,
       action: status === "approved" ? "approve" : "reject",
       module: "Leave",
       description: `${status === "approved" ? "Approved" : "Rejected"} leave request for ${student.full_name}`,

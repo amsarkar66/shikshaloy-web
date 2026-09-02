@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import {
   Wallet, CheckCircle2, Clock, PauseCircle,
-  Search, Download, BadgeDollarSign, X,
+  Search, Download, BadgeDollarSign, X, ChevronDown, Landmark,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import {
@@ -17,6 +17,19 @@ import {
 import { processAllPending } from "../actions";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
 import MonthNav from "./MonthNav";
+
+export interface SchoolOption {
+  id: string;
+  name: string;
+}
+
+function SchoolTag({ name }: { name: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs text-gray-500 dark:text-zinc-400">
+      <Landmark className="h-3 w-3 shrink-0 text-violet-400" />{name}
+    </span>
+  );
+}
 
 // ── Stats row ─────────────────────────────────────────────────────────────────
 
@@ -55,11 +68,12 @@ function StatsRow({ records, staffCount }: { records: PayrollRecord[]; staffCoun
 // ── Payroll table (list view) ─────────────────────────────────────────────────
 
 function PayrollTable({
-  staff, monthStr, recordsByStaffMonth,
+  staff, monthStr, recordsByStaffMonth, showSchoolColumn,
 }: {
   staff: PayrollStaff[];
   monthStr: string;
   recordsByStaffMonth: Map<string, PayrollRecord>;
+  showSchoolColumn: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [typeFilter, setType] = useState<"all" | "teaching" | "non_teaching">("all");
@@ -126,6 +140,7 @@ function PayrollTable({
       >
         <TableHead>
           <Th position="first">Employee</Th>
+          {showSchoolColumn && <Th>School</Th>}
           <Th>Type</Th>
           <Th>Gross</Th>
           <Th>Deductions</Th>
@@ -136,7 +151,7 @@ function PayrollTable({
         </TableHead>
         <TableBody>
           {filtered.length === 0 ? (
-            <TableEmptyRow colSpan={8} message="No staff match this filter" />
+            <TableEmptyRow colSpan={showSchoolColumn ? 9 : 8} message="No staff match this filter" />
           ) : filtered.map(({ staff: s, record }) => (
             <Tr key={s.id} className={record.status === "on_hold" ? "opacity-60" : ""}>
               <Td position="first">
@@ -148,6 +163,7 @@ function PayrollTable({
                   </div>
                 </div>
               </Td>
+              {showSchoolColumn && <Td><SchoolTag name={s.schoolName ?? "—"} /></Td>}
               <Td>
                 <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${deptColor(s.department)}`}>{s.department}</span>
               </Td>
@@ -172,14 +188,21 @@ function PayrollTable({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function PayrollClient({
-  staff, records,
+  staff, records, schools = [],
 }: {
   staff: PayrollStaff[];
   records: PayrollRecord[];
+  schools?: SchoolOption[];
 }) {
   const months = useMemo(() => Array.from(new Set(records.map((r) => r.monthStr))).sort(), [records]);
   const [monthIndex, setMonthIndex] = useState(Math.max(0, months.length - 1));
   const [isPending, startTransition] = useTransition();
+  const [schoolFilter, setSchoolFilter] = useState("all");
+
+  const visibleStaff = useMemo(
+    () => schoolFilter === "all" ? staff : staff.filter((s) => s.schoolId === schoolFilter),
+    [staff, schoolFilter]
+  );
 
   const recordsByStaffMonth = useMemo(() => {
     const map = new Map<string, PayrollRecord>();
@@ -188,15 +211,22 @@ export default function PayrollClient({
   }, [records]);
 
   const monthStr = months[monthIndex] ?? "";
-  const monthRecords = useMemo(() => records.filter((r) => r.monthStr === monthStr), [records, monthStr]);
+  const visibleStaffIds = useMemo(() => new Set(visibleStaff.map((s) => s.id)), [visibleStaff]);
+  const monthRecords = useMemo(
+    () => records.filter((r) => r.monthStr === monthStr && visibleStaffIds.has(r.staffId)),
+    [records, monthStr, visibleStaffIds]
+  );
 
   function handleMonthChange(i: number) {
     setMonthIndex(Math.max(0, Math.min(months.length - 1, i)));
   }
 
+  const canProcessAll = schools.length === 0 || schoolFilter !== "all";
+
   function handleProcessAll() {
+    if (!canProcessAll) return;
     startTransition(async () => {
-      await processAllPending(monthStr);
+      await processAllPending(monthStr, schoolFilter !== "all" ? schoolFilter : undefined);
     });
   }
 
@@ -227,11 +257,20 @@ export default function PayrollClient({
           <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Staff salary and payroll processing</p>
         </div>
         <div className="sm:ml-auto flex items-center gap-2 flex-wrap">
+          {schools.length > 0 && (
+            <div className="relative">
+              <select value={schoolFilter} onChange={(e) => setSchoolFilter(e.target.value)} className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+                <option value="all">All Schools</option>
+                {schools.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+            </div>
+          )}
           {months.length > 0 && <MonthNav months={months} index={monthIndex} onChange={handleMonthChange} />}
           <button onClick={exportCsv} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
             <Download className="h-3.5 w-3.5" /> Export
           </button>
-          <FancyButton onClick={handleProcessAll} disabled={isPending} size="sm" className="shrink-0">
+          <FancyButton onClick={handleProcessAll} disabled={isPending || !canProcessAll} size="sm" className="shrink-0" title={canProcessAll ? undefined : "Select a specific school to process its payroll"}>
             <BadgeDollarSign className="h-4 w-4" /> {isPending ? "Processing…" : "Process All"}
           </FancyButton>
         </div>
@@ -244,12 +283,13 @@ export default function PayrollClient({
         </div>
       ) : (
         <>
-          <StatsRow records={monthRecords} staffCount={staff.filter((s) => s.status !== "inactive").length} />
+          <StatsRow records={monthRecords} staffCount={visibleStaff.filter((s) => s.status !== "inactive").length} />
 
           <PayrollTable
-            staff={staff}
+            staff={visibleStaff}
             monthStr={monthStr}
             recordsByStaffMonth={recordsByStaffMonth}
+            showSchoolColumn={schools.length > 0}
           />
         </>
       )}

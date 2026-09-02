@@ -22,7 +22,7 @@ export const dynamic = "force-dynamic";
 
 export default async function FeeStructurePage() {
   try {
-    await requireRoleOrStaffTemplate(["admin"], ["accountant"]);
+    await requireRoleOrStaffTemplate(["admin", "super_admin"], ["accountant"]);
   } catch {
     return <Unauthorized />;
   }

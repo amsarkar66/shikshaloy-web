@@ -6,7 +6,7 @@ import {
   Award, Clock, CheckCircle2, FileText, Search, Plus,
   Download, X, Eye, Printer, XCircle, PackageCheck,
   ArrowUpDown, ArrowUp, ArrowDown,
-  ChevronLeft, ChevronRight, ChevronDown, Loader2,
+  ChevronLeft, ChevronRight, ChevronDown, Loader2, Landmark,
 } from "lucide-react";
 import { STATUS_BADGE, CERT_TYPE_LABEL, CERT_TYPE_BADGE, formatDate } from "../_data/certificates";
 import { FancyButton } from "@/components/ui/fancy-button";
@@ -28,6 +28,17 @@ export interface Cert {
   issuedOn?: string;
   status: CertStatus;
   issuedBy?: string;
+  schoolId?: string;
+  schoolName?: string;
+  schoolAddress?: string;
+  schoolLogoUrl?: string | null;
+  schoolSignatureUrl?: string | null;
+  academicYear?: string;
+}
+
+export interface SchoolOption {
+  id: string;
+  name: string;
 }
 
 export interface StudentOption {
@@ -36,6 +47,14 @@ export interface StudentOption {
   rollNo: string;
   class: string;
   section: string;
+}
+
+function SchoolTag({ name }: { name: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs text-gray-500 dark:text-zinc-400">
+      <Landmark className="h-3 w-3 shrink-0 text-violet-400" />{name}
+    </span>
+  );
 }
 
 const AVATAR_COLORS = ["bg-blue-500","bg-violet-500","bg-emerald-500","bg-rose-500","bg-amber-500","bg-teal-500","bg-indigo-500","bg-pink-500","bg-cyan-500","bg-orange-500"];
@@ -321,6 +340,18 @@ function CertificateViewModal({
   onClose: () => void;
 }) {
   const [downloading, setDownloading] = useState(false);
+  // In institution-wide mode each cert carries its own school's letterhead
+  // details (fetched per-school in page.tsx) — falls back to the page-level
+  // schoolInfo prop for the single-school Certificates page.
+  const effectiveSchoolInfo = cert.schoolName
+    ? {
+        schoolName: cert.schoolName,
+        schoolAddress: cert.schoolAddress ?? "",
+        schoolLogoUrl: cert.schoolLogoUrl ?? null,
+        schoolSignatureUrl: cert.schoolSignatureUrl ?? null,
+        academicYear: cert.academicYear ?? schoolInfo.academicYear,
+      }
+    : schoolInfo;
 
   function handlePrint() { window.print(); }
 
@@ -354,7 +385,7 @@ function CertificateViewModal({
           <div className="flex-1 overflow-auto bg-gray-100 dark:bg-zinc-950 p-6">
             <div className="origin-top scale-[0.8] shadow-lg sm:scale-90 lg:scale-100">
               <div id="certificate-preview">
-                <CertificateDocument cert={cert} {...schoolInfo} />
+                <CertificateDocument cert={cert} {...effectiveSchoolInfo} />
               </div>
             </div>
           </div>
@@ -372,7 +403,7 @@ function CertificateViewModal({
           html2canvas capture trickery is needed here (that's only for the Download PDF button above, which
           captures the already-visible on-screen preview instead). */}
       <div className="hidden print:block">
-        <CertificateDocument cert={cert} {...schoolInfo} />
+        <CertificateDocument cert={cert} {...effectiveSchoolInfo} />
       </div>
 
       <style>{`@media print { @page { size: A4; margin: 0; } }`}</style>
@@ -386,7 +417,7 @@ const TABS: { id: TabFilter; label: string }[] = [
 ];
 
 export default function CertificatesClient({
-  initialCerts, schoolName, schoolAddress, schoolLogoUrl, schoolSignatureUrl, academicYear,
+  initialCerts, schoolName, schoolAddress, schoolLogoUrl, schoolSignatureUrl, academicYear, schools = [],
 }: {
   initialCerts: Cert[];
   schoolName: string;
@@ -394,17 +425,20 @@ export default function CertificatesClient({
   schoolLogoUrl: string | null;
   schoolSignatureUrl: string | null;
   academicYear: string;
+  schools?: SchoolOption[];
 }) {
   const [certs,      setCerts]     = useState(initialCerts);
   const [tab,        setTab]       = useState<TabFilter>("all");
   const [query,      setQuery]     = useState("");
   const [typeFilter, setType]      = useState<"all"|CertType>("all");
+  const [schoolFilter, setSchoolFilter] = useState("all");
   const [sortField,  setSortField] = useState<SortField>("requestedOn");
   const [sortDir,    setSortDir]   = useState<SortDir>("desc");
   const [page,       setPage]      = useState(1);
   const [newRequestOpen, setNewRequestOpen] = useState(false);
   const [viewCert,   setViewCert]  = useState<Cert | null>(null);
   const [, startTransition] = useTransition();
+  const showSchoolColumn = schools.length > 0;
   const schoolInfo = { schoolName, schoolAddress, schoolLogoUrl, schoolSignatureUrl, academicYear };
 
   function toggleSort(field: SortField) {
@@ -447,10 +481,11 @@ export default function CertificatesClient({
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
     return certs.filter((c) => {
-      const matchTab  = tab==="all"||c.status===tab;
-      const matchType = typeFilter==="all"||c.certType===typeFilter;
-      const matchQ    = !q||c.studentName.toLowerCase().includes(q)||c.rollNo.toLowerCase().includes(q)||c.purpose.toLowerCase().includes(q);
-      return matchTab&&matchType&&matchQ;
+      const matchTab    = tab==="all"||c.status===tab;
+      const matchType   = typeFilter==="all"||c.certType===typeFilter;
+      const matchSchool = schoolFilter==="all"||c.schoolId===schoolFilter;
+      const matchQ      = !q||c.studentName.toLowerCase().includes(q)||c.rollNo.toLowerCase().includes(q)||c.purpose.toLowerCase().includes(q);
+      return matchTab&&matchType&&matchSchool&&matchQ;
     }).sort((a,b) => {
       let cmp=0;
       if (sortField==="studentName") cmp=a.studentName.localeCompare(b.studentName);
@@ -460,12 +495,12 @@ export default function CertificatesClient({
       if (sortField==="status")      cmp=a.status.localeCompare(b.status);
       return sortDir==="asc"?cmp:-cmp;
     });
-  }, [tab, query, typeFilter, sortField, sortDir, certs]);
+  }, [tab, query, typeFilter, schoolFilter, sortField, sortDir, certs]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length/PAGE_SIZE));
   const pageData   = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
-  const hasFilter  = query||typeFilter!=="all";
-  function clearFilters() { setQuery(""); setType("all"); setPage(1); }
+  const hasFilter  = query||typeFilter!=="all"||schoolFilter!=="all";
+  function clearFilters() { setQuery(""); setType("all"); setSchoolFilter("all"); setPage(1); }
 
   return (
     <div className="w-full px-6 py-6 space-y-5 print:p-0">
@@ -502,6 +537,14 @@ export default function CertificatesClient({
           options={[{ value: "all", label: "All Types" }, ...CERT_TYPE_OPTIONS]}
           className="h-9 w-auto min-w-[9.5rem] py-0"
         />
+        {showSchoolColumn && (
+          <SimpleSelect
+            value={schoolFilter}
+            onValueChange={(v)=>{setSchoolFilter(v);setPage(1);}}
+            options={[{ value: "all", label: "All Schools" }, ...schools.map((s)=>({ value: s.id, label: s.name }))]}
+            className="h-9 w-auto min-w-[9.5rem] py-0"
+          />
+        )}
         {hasFilter&&<button onClick={clearFilters} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><X className="h-3.5 w-3.5"/> Clear</button>}
       </div>
 
@@ -527,6 +570,7 @@ export default function CertificatesClient({
       >
         <TableHead>
           <Th position="first"><button onClick={()=>toggleSort("studentName")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Student <SortIcon active={sortField==="studentName"} dir={sortDir}/></button></Th>
+          {showSchoolColumn && <Th>School</Th>}
           <Th><button onClick={()=>toggleSort("class")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Class <SortIcon active={sortField==="class"} dir={sortDir}/></button></Th>
           <Th><button onClick={()=>toggleSort("certType")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Certificate <SortIcon active={sortField==="certType"} dir={sortDir}/></button></Th>
           <Th>Purpose</Th>
@@ -537,7 +581,7 @@ export default function CertificatesClient({
         </TableHead>
         <TableBody>
           {pageData.length===0?(
-            <TableEmptyRow colSpan={8} icon={Award} message="No certificates found" />
+            <TableEmptyRow colSpan={showSchoolColumn ? 9 : 8} icon={Award} message="No certificates found" />
           ):pageData.map((cert) => {
             const stBadge   = STATUS_BADGE[cert.status];
             const certBadge = CERT_TYPE_BADGE[cert.certType];
@@ -549,6 +593,7 @@ export default function CertificatesClient({
                     <div className="min-w-0"><p className="font-medium text-gray-900 dark:text-zinc-100 leading-tight truncate">{cert.studentName}</p><p className="text-xs text-gray-400 dark:text-zinc-500">{cert.rollNo}</p></div>
                   </div>
                 </Td>
+                {showSchoolColumn && <Td><SchoolTag name={cert.schoolName ?? "—"} /></Td>}
                 <Td><span className="inline-flex items-center rounded-lg bg-primary-500/10 px-2.5 py-1 text-xs font-semibold text-primary-700 dark:text-primary-300">{cert.class}–{cert.section}</span></Td>
                 <Td><span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-semibold ${certBadge}`}>{CERT_TYPE_LABEL[cert.certType]}</span></Td>
                 <Td className="max-w-[200px]"><p className="text-sm text-gray-600 dark:text-zinc-400 truncate">{cert.purpose}</p></Td>

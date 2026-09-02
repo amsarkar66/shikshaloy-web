@@ -10,6 +10,8 @@ export interface Expense {
   amount: number;
   status: ExpenseStatus;
   receiptRef: string | null;
+  schoolId?: string;
+  schoolName?: string;
 }
 
 export interface BudgetLine {

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getUser } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { resolveAuthorizedSchoolId } from "@/lib/supabase/authorized-school";
 import { requireRoleOrStaffTemplate } from "@/lib/auth/verified-role";
 import { logAuditEvent } from "@/lib/audit/log";
 import { notifyRoles, notifyProfile } from "@/lib/notifications/create";
@@ -63,6 +64,7 @@ export async function applyLeave(input: {
 
 export async function updateLeaveStatus(leaveId: string, status: "approved" | "rejected") {
   const { id: userId } = await requireRoleOrStaffTemplate(["admin", "super_admin"], ["hr_manager"]);
+  const schoolId = await resolveAuthorizedSchoolId("leave_requests", leaveId);
 
   const { data: approver } = await supabaseAdmin
     .from("staff_members")
@@ -75,7 +77,8 @@ export async function updateLeaveStatus(leaveId: string, status: "approved" | "r
     .from("leave_requests")
     .update({ status, approved_by: approvedBy })
     .eq("id", leaveId)
-    .select("school_id, leave_type, staff_members!leave_requests_staff_id_fkey ( full_name, profile_id )")
+    .eq("school_id", schoolId)
+    .select("leave_type, staff_members!leave_requests_staff_id_fkey ( full_name, profile_id )")
     .single();
 
   if (error) throw new Error(error.message);
@@ -84,7 +87,7 @@ export async function updateLeaveStatus(leaveId: string, status: "approved" | "r
   const staffInfo = staffMember as { full_name: string | null; profile_id: string | null } | undefined;
   const staffName = staffInfo?.full_name ?? "a staff member";
   await logAuditEvent({
-    schoolId: leave.school_id,
+    schoolId,
     action: status === "approved" ? "approve" : "reject",
     module: "Leave",
     description: `${status === "approved" ? "Approved" : "Rejected"} leave request for ${staffName}`,
@@ -92,7 +95,7 @@ export async function updateLeaveStatus(leaveId: string, status: "approved" | "r
 
   if (staffInfo?.profile_id) {
     await notifyProfile({
-      schoolId: leave.school_id,
+      schoolId,
       profileId: staffInfo.profile_id,
       title: status === "approved" ? "Leave request approved" : "Leave request rejected",
       description: `Your ${leave.leave_type} leave request was ${status}`,
@@ -122,7 +125,7 @@ export interface AffectedPeriod {
 }
 
 export async function getAffectedPeriods(leaveId: string): Promise<AffectedPeriod[]> {
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("leave_requests", leaveId);
 
   const { data: leave } = await supabaseAdmin
     .from("leave_requests")
@@ -186,7 +189,7 @@ export async function getAffectedPeriods(leaveId: string): Promise<AffectedPerio
 export interface SubstituteOption { id: string; name: string }
 
 export async function listAvailableSubstitutes(leaveId: string): Promise<SubstituteOption[]> {
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("leave_requests", leaveId);
 
   const { data: leave } = await supabaseAdmin
     .from("leave_requests")
@@ -213,7 +216,7 @@ export async function saveLeaveSubstituteAssignments(leaveId: string, assignment
   await requireRoleOrStaffTemplate(["admin", "super_admin"], ["hr_manager"]);
 
   if (assignments.length === 0) return;
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("leave_requests", leaveId);
 
   const { error } = await supabaseAdmin
     .from("leave_substitute_assignments")
@@ -235,7 +238,7 @@ export async function saveLeaveSubstituteAssignments(leaveId: string, assignment
 export interface SavedSubstituteAssignment { timetableSlotId: string; date: string; substituteStaffId: string; substituteName: string }
 
 export async function getLeaveSubstituteAssignments(leaveId: string): Promise<SavedSubstituteAssignment[]> {
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("leave_requests", leaveId);
   const { data } = await supabaseAdmin
     .from("leave_substitute_assignments")
     .select("timetable_slot_id, occurrence_date, staff_members ( id, full_name )")

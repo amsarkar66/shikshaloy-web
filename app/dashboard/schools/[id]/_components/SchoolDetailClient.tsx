@@ -80,7 +80,7 @@ const QUICK_LINKS = [
   { label: "Admissions",         href: "/dashboard/admissions",        icon: UserPlus,      color: "text-blue-600 dark:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 border-blue-500/20" },
   { label: "Academic Calendar",  href: "/dashboard/academic-calendar", icon: CalendarRange, color: "text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 border-indigo-500/20" },
   { label: "Exams & Results",    href: "/dashboard/exams",             icon: ClipboardCheck, color: "text-sky-600 dark:text-sky-400 bg-sky-500/10 hover:bg-sky-500/20 border-sky-500/20" },
-  { label: "Fee Collection",     href: "/dashboard/fee-collection",    icon: Receipt,       color: "text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/20" },
+  { label: "Fee Collection",     href: "/dashboard/fees",              icon: Receipt,       color: "text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/20" },
   { label: "Announcements",      href: "/dashboard/announcements",     icon: Megaphone,     color: "text-violet-600 dark:text-violet-400 bg-violet-500/10 hover:bg-violet-500/20 border-violet-500/20" },
 ] as const;
 

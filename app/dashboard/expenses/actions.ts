@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { resolveAuthorizedSchoolId } from "@/lib/supabase/authorized-school";
 import { requireRole, requireRoleOrStaffTemplate } from "@/lib/auth/verified-role";
 
 export async function addExpense(input: {
@@ -42,7 +43,7 @@ export async function updateExpenseStatus(expenseId: string, status: "approved" 
   } catch {
     throw new Error("Only an admin can approve or reject an expense.");
   }
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("expenses", expenseId);
 
   const { error } = await supabaseAdmin
     .from("expenses")

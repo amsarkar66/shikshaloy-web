@@ -402,8 +402,8 @@ export default function AnnouncementsClient({ initialData, sections }: { initial
     });
   }, [query, statusTab, priorityFilter, audienceFilter, initialData]);
 
-  const hasFilter = query || statusTab !== "all" || priorityFilter !== "all" || audienceFilter !== "all";
-  function clearFilters() { setQuery(""); setStatus("all"); setPriority("all"); setAudience("all"); }
+  const hasFilter = query || priorityFilter !== "all" || audienceFilter !== "all";
+  function clearFilters() { setQuery(""); setPriority("all"); setAudience("all"); }
 
   function openCreate() { setEditing(null); setModalOpen(true); }
   function openEdit(ann: Announcement) { setEditing(ann); setModalOpen(true); }

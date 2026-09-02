@@ -184,24 +184,16 @@ function EmptyState({ totalConvs, unread, onCompose }: { totalConvs: number; unr
   );
 }
 
-type ComposeStep = "pick" | "chat";
-
 function ComposeModal({
-  contacts, existingConversations, initialContactId, onClose, onOpenExisting, onCreated,
+  contacts, existingConversations, onClose, onOpenExisting, onPickNew,
 }: {
   contacts: Contact[];
   existingConversations: Conversation[];
-  initialContactId?: string | null;
   onClose: () => void;
   onOpenExisting: (conversationId: string) => void;
-  onCreated: (conversationId: string) => void;
+  onPickNew: (contact: Contact) => void;
 }) {
-  const initialContact = initialContactId ? contacts.find((c) => c.profileId === initialContactId) ?? null : null;
-  const [step, setStep] = useState<ComposeStep>(initialContact ? "chat" : "pick");
   const [query, setQuery] = useState("");
-  const [contact, setContact] = useState<Contact | null>(initialContact);
-  const [text, setText] = useState("");
-  const [isPending, startTransition] = useTransition();
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
@@ -212,21 +204,63 @@ function ComposeModal({
     const existing = existingConversations.find((conv) => conv.contact.profileId === c.profileId);
     if (existing) {
       onOpenExisting(existing.id);
-      onClose();
-      return;
+    } else {
+      onPickNew(c);
     }
-    setContact(c);
-    setStep("chat");
+    onClose();
   }
 
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative flex h-[32rem] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-2xl">
+        <div className="flex shrink-0 items-center justify-between border-b border-gray-100 dark:border-zinc-800 px-5 py-4">
+          <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Select recipient</p>
+          <button onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"><X className="h-4 w-4" /></button>
+        </div>
+        <div className="shrink-0 px-4 pt-3 pb-1">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400 dark:text-zinc-500" />
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search people…"
+              className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 pl-8 pr-3 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 dark:focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+            />
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto px-2 py-2">
+          {filtered.length === 0 ? (
+            <p className="py-10 text-center text-xs text-gray-400 dark:text-zinc-500">
+              {contacts.length === 0 ? "No contacts available yet — accounts need to be set up for messaging." : "No matches"}
+            </p>
+          ) : filtered.map((c) => (
+            <button key={c.profileId} onClick={() => handlePick(c)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-gray-50 dark:hover:bg-zinc-800/60">
+              <Avatar name={c.name} role={c.role} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-gray-900 dark:text-zinc-100">{c.name}</p>
+                <span className={`mt-0.5 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${ROLE_BADGE[c.role]}`}>{ROLE_LABEL[c.role]}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NewConversationPanel({ contact, onBack, onStarted }: { contact: Contact; onBack: () => void; onStarted: (conversationId: string) => void }) {
+  const [text, setText] = useState("");
+  const [isPending, startTransition] = useTransition();
+
   function handleSend() {
-    if (!contact || !text.trim()) return;
+    if (!text.trim()) return;
     const body = text.trim();
     setText("");
     startTransition(async () => {
       const id = await startConversation(contact.profileId, body);
-      onCreated(id);
-      onClose();
+      onStarted(id);
     });
   }
 
@@ -235,81 +269,41 @@ function ComposeModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative flex h-[32rem] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-2xl">
-        {step === "pick" ? (
-          <>
-            <div className="flex shrink-0 items-center justify-between border-b border-gray-100 dark:border-zinc-800 px-5 py-4">
-              <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Select recipient</p>
-              <button onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"><X className="h-4 w-4" /></button>
-            </div>
-            <div className="shrink-0 px-4 pt-3 pb-1">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400 dark:text-zinc-500" />
-                <input
-                  autoFocus
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search people…"
-                  className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 pl-8 pr-3 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 dark:focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                />
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto px-2 py-2">
-              {filtered.length === 0 ? (
-                <p className="py-10 text-center text-xs text-gray-400 dark:text-zinc-500">
-                  {contacts.length === 0 ? "No contacts available yet — accounts need to be set up for messaging." : "No matches"}
-                </p>
-              ) : filtered.map((c) => (
-                <button key={c.profileId} onClick={() => handlePick(c)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-gray-50 dark:hover:bg-zinc-800/60">
-                  <Avatar name={c.name} role={c.role} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-gray-900 dark:text-zinc-100">{c.name}</p>
-                    <span className={`mt-0.5 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${ROLE_BADGE[c.role]}`}>{ROLE_LABEL[c.role]}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </>
-        ) : contact && (
-          <>
-            <div className="flex h-14 shrink-0 items-center gap-3 border-b border-gray-200 dark:border-zinc-800 px-4">
-              <button onClick={() => { setStep("pick"); setContact(null); }} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"><ArrowLeft className="h-4 w-4" /></button>
-              <Avatar name={contact.name} role={contact.role} />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="truncate text-sm font-semibold text-gray-900 dark:text-zinc-50">{contact.name}</p>
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${ROLE_BADGE[contact.role]}`}>{ROLE_LABEL[contact.role]}</span>
-                </div>
-              </div>
-              <button onClick={onClose} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"><X className="h-4 w-4" /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto px-4 py-5">
-              <p className="py-10 text-center text-sm text-gray-400 dark:text-zinc-500">No messages yet. Say hello!</p>
-            </div>
-            <div className="shrink-0 border-t border-gray-200 dark:border-zinc-800 px-4 py-3">
-              <div className="flex items-end gap-2">
-                <textarea
-                  autoFocus
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  onKeyDown={handleKey}
-                  placeholder={`Message ${contact.name}…`}
-                  rows={1}
-                  className="flex-1 resize-none rounded-xl border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 px-4 py-2.5 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 dark:focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 max-h-28 overflow-y-auto"
-                  style={{ minHeight: 40 }}
-                />
-                <button onClick={handleSend} disabled={!text.trim() || isPending} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-500 hover:bg-primary-600 text-white transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed">
-                  <Send className="h-4 w-4" />
-                </button>
-              </div>
-              <p className="mt-1.5 pl-1 text-[10px] text-gray-400 dark:text-zinc-600">Sending this will start the conversation</p>
-            </div>
-          </>
-        )}
+    <>
+      <div className="relative flex h-14 shrink-0 items-center gap-3 border-b border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4">
+        <button onClick={onBack} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors lg:hidden">
+          <ArrowLeft className="h-4 w-4" />
+        </button>
+        <Avatar name={contact.name} role={contact.role} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50 truncate">{contact.name}</p>
+            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${ROLE_BADGE[contact.role]}`}>{ROLE_LABEL[contact.role]}</span>
+          </div>
+        </div>
       </div>
-    </div>
+      <div className="flex-1 overflow-y-auto px-4 py-5">
+        <p className="text-center text-sm text-gray-400 dark:text-zinc-500 py-10">No messages yet. Say hello!</p>
+      </div>
+      <div className="shrink-0 border-t border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-3">
+        <div className="flex items-end gap-2">
+          <textarea
+            autoFocus
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={handleKey}
+            placeholder={`Message ${contact.name}…`}
+            rows={1}
+            className="flex-1 resize-none rounded-xl border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 px-4 py-2.5 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 dark:focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 max-h-28 overflow-y-auto"
+            style={{ minHeight: 40 }}
+          />
+          <button onClick={handleSend} disabled={!text.trim() || isPending} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-500 hover:bg-primary-600 text-white transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed">
+            <Send className="h-4 w-4" />
+          </button>
+        </div>
+        <p className="mt-1.5 text-[10px] text-gray-400 dark:text-zinc-600 pl-1">Press Enter to send · Shift+Enter for new line</p>
+      </div>
+    </>
   );
 }
 
@@ -335,7 +329,7 @@ export default function MessagesClient({
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<TabValue>("all");
   const [composing, setComposing] = useState(false);
-  const [presetContactId, setPresetContactId] = useState<string | null>(null);
+  const [newContact, setNewContact] = useState<Contact | null>(null);
 
   const selected = conversations.find((c) => c.id === selectedId) ?? null;
   const totalUnread = conversations.reduce((sum, c) => sum + c.unread, 0);
@@ -346,9 +340,9 @@ export default function MessagesClient({
     const existing = conversations.find((c) => c.contact.profileId === withId);
     if (existing) {
       setSelected(existing.id);
-    } else if (contacts.some((c) => c.profileId === withId)) {
-      setPresetContactId(withId);
-      setComposing(true);
+    } else {
+      const contact = contacts.find((c) => c.profileId === withId);
+      if (contact) setNewContact(contact);
     }
     router.replace("/dashboard/messages");
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -364,6 +358,7 @@ export default function MessagesClient({
   }, [conversations, query, tab]);
 
   function handleSelect(id: string) {
+    setNewContact(null);
     setSelected(id);
     const conv = conversations.find((c) => c.id === id);
     if (conv && conv.unread > 0) markConversationRead(id);
@@ -389,7 +384,7 @@ export default function MessagesClient({
             <h1 className="text-base font-bold text-gray-900 dark:text-zinc-50">Messages</h1>
             <p className="mt-0.5 text-xs text-gray-500 dark:text-zinc-400">{totalUnread > 0 ? <span className="text-primary-600 dark:text-primary-400 font-medium">{totalUnread} unread</span> : "All caught up"}</p>
           </div>
-          <button onClick={() => { setPresetContactId(null); setComposing(true); }} className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-500 hover:bg-primary-600 text-white transition-colors shadow-sm"><Plus className="h-4 w-4" /></button>
+          <button onClick={() => setComposing(true)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-500 hover:bg-primary-600 text-white transition-colors shadow-sm"><Plus className="h-4 w-4" /></button>
         </div>
         <div className="shrink-0 px-3 pt-3 pb-1">
           <div className="relative">
@@ -415,11 +410,17 @@ export default function MessagesClient({
         </div>
       </div>
 
-      <div className={`flex-1 flex flex-col overflow-hidden bg-slate-50 dark:bg-zinc-900 ${selected ? "flex" : "hidden lg:flex"}`}>
+      <div className={`flex-1 flex flex-col overflow-hidden bg-slate-50 dark:bg-zinc-900 ${selected || newContact ? "flex" : "hidden lg:flex"}`}>
         {selected ? (
           <MessageThread conv={selected} onBack={() => setSelected(null)} onSent={refresh} />
+        ) : newContact ? (
+          <NewConversationPanel
+            contact={newContact}
+            onBack={() => setNewContact(null)}
+            onStarted={(id) => { setNewContact(null); setSelected(id); refresh(); }}
+          />
         ) : (
-          <EmptyState totalConvs={conversations.length} unread={totalUnread} onCompose={() => { setPresetContactId(null); setComposing(true); }} />
+          <EmptyState totalConvs={conversations.length} unread={totalUnread} onCompose={() => setComposing(true)} />
         )}
       </div>
 
@@ -427,10 +428,9 @@ export default function MessagesClient({
         <ComposeModal
           contacts={contacts}
           existingConversations={conversations}
-          initialContactId={presetContactId}
-          onClose={() => { setComposing(false); setPresetContactId(null); }}
-          onOpenExisting={(id) => setSelected(id)}
-          onCreated={(id) => { setSelected(id); refresh(); }}
+          onClose={() => setComposing(false)}
+          onOpenExisting={(id) => { setNewContact(null); setSelected(id); }}
+          onPickNew={(contact) => { setSelected(null); setNewContact(contact); }}
         />
       )}
     </div>

@@ -1,10 +1,11 @@
 import { ShieldAlert } from "lucide-react";
-import { requireRole } from "@/lib/auth/verified-role";
+import { getVerifiedUser, requireRole } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
+import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
 import CertificatesClient from "./_components/CertificatesClient";
-import type { Cert } from "./_components/CertificatesClient";
+import type { Cert, SchoolOption } from "./_components/CertificatesClient";
 
 function Unauthorized() {
   return (
@@ -25,6 +26,7 @@ interface CertificateRequestRow {
   status: string | null;
   requested_on: string | null;
   issued_on: string | null;
+  school_id: string;
   students: {
     full_name: string | null;
     roll_no: string | null;
@@ -35,9 +37,84 @@ interface CertificateRequestRow {
 
 export default async function CertificatesPage() {
   try {
-    await requireRole(["admin"]);
+    await requireRole(["admin", "super_admin"]);
   } catch {
     return <Unauthorized />;
+  }
+
+  const verifiedUser = await getVerifiedUser();
+  const isSuperAdmin = verifiedUser?.role === "super_admin";
+
+  if (isSuperAdmin) {
+    const institutionId = await getCurrentInstitutionIdOrThrow();
+    const { data: schoolRows } = await supabaseAdmin
+      .from("schools")
+      .select("id, name, address, city, state, logo_url, principal_signature_url")
+      .eq("institution_id", institutionId)
+      .order("name");
+
+    const schools: SchoolOption[] = (schoolRows ?? []).map((s) => ({ id: s.id, name: s.name ?? "" }));
+    const schoolIds = schools.map((s) => s.id);
+
+    if (schoolIds.length === 0) {
+      return <CertificatesClient initialCerts={[]} schoolName="" schoolAddress="" schoolLogoUrl={null} schoolSignatureUrl={null} academicYear="" schools={[]} />;
+    }
+
+    const [{ data: certRows }, { data: currentYearRows }] = await Promise.all([
+      supabaseAdmin
+        .from("certificate_requests")
+        .select(`
+          id, cert_type, purpose, status, requested_on, issued_on, school_id,
+          students ( full_name, roll_no, sections ( name, grades ( level ) ) ),
+          staff_members ( full_name )
+        `)
+        .in("school_id", schoolIds)
+        .order("requested_on", { ascending: false }),
+      supabaseAdmin
+        .from("academic_years")
+        .select("school_id, name")
+        .in("school_id", schoolIds)
+        .eq("is_current", true),
+    ]);
+
+    const schoolById = new Map((schoolRows ?? []).map((s) => [s.id, s]));
+    const academicYearBySchool = new Map((currentYearRows ?? []).map((y) => [y.school_id, y.name]));
+
+    const certs: Cert[] = ((certRows ?? []) as unknown as CertificateRequestRow[]).map((c) => {
+      const school = schoolById.get(c.school_id);
+      const schoolAddress = school ? [school.address, school.city, school.state].filter(Boolean).join(", ") : "";
+      return {
+        id: c.id,
+        studentName: c.students?.full_name ?? "Unknown",
+        rollNo: c.students?.roll_no ?? "",
+        class: String(c.students?.sections?.grades?.level ?? ""),
+        section: c.students?.sections?.name ?? "",
+        certType: c.cert_type as Cert["certType"],
+        purpose: c.purpose ?? "",
+        requestedOn: c.requested_on ?? "",
+        issuedOn: c.issued_on ?? undefined,
+        status: (c.status ?? "pending") as Cert["status"],
+        issuedBy: c.staff_members?.full_name ?? undefined,
+        schoolId: c.school_id,
+        schoolName: school?.name ?? "—",
+        schoolAddress,
+        schoolLogoUrl: school?.logo_url ?? null,
+        schoolSignatureUrl: school?.principal_signature_url ?? null,
+        academicYear: academicYearBySchool.get(c.school_id) ?? "",
+      };
+    });
+
+    return (
+      <CertificatesClient
+        initialCerts={certs}
+        schoolName=""
+        schoolAddress=""
+        schoolLogoUrl={null}
+        schoolSignatureUrl={null}
+        academicYear=""
+        schools={schools}
+      />
+    );
   }
 
   const schoolId = await getCurrentSchoolIdOrThrow();

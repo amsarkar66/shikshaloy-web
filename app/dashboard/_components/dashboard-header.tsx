@@ -54,7 +54,6 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   "/dashboard/documents":               { title: "Documents & Circulars", subtitle: "Policy and compliance documents" },
   "/dashboard/leaves":                  { title: "Leave Approvals", subtitle: "Review and approve leave requests" },
   "/dashboard/principals":              { title: "Principals & School Admins", subtitle: "Manage principal accounts across your schools" },
-  "/dashboard/fee-collection":          { title: "Fee Collection", subtitle: "Dues and collection across every school" },
   "/dashboard/help":                    { title: "Help & Support", subtitle: "Reach the Shikshaloy team" },
   "/dashboard/parents":                 { title: "Parents",        subtitle: "Manage parent accounts and linked students" },
   "/dashboard/certificates":            { title: "Certificates",   subtitle: "Generate and issue student certificates" },
@@ -327,7 +326,7 @@ export function DashboardHeader({
             )}
             <DropdownMenuItem
               render={<Link href="/dashboard/settings" />}
-              className="cursor-pointer"
+              className="cursor-pointer mt-1"
             >
               <Settings />
               Settings
@@ -335,7 +334,7 @@ export function DashboardHeader({
             <DropdownMenuSeparator />
             <DropdownMenuItem
               variant="destructive"
-              className="cursor-pointer"
+              className="cursor-pointer mt-1"
               onClick={() => {
                 void signOut();
               }}

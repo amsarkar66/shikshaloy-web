@@ -1,9 +1,11 @@
 import { ShieldAlert } from "lucide-react";
-import { requireRoleOrStaffTemplate } from "@/lib/auth/verified-role";
+import { getVerifiedUser, requireRoleOrStaffTemplate } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
 import ExpensesClient from "./_components/ExpensesClient";
 import type { Expense, BudgetLine } from "./_data/expenses";
+import type { SchoolOption } from "./_components/ExpensesClient";
 
 function Unauthorized() {
   return (
@@ -19,9 +21,62 @@ function Unauthorized() {
 
 export default async function ExpensesPage() {
   try {
-    await requireRoleOrStaffTemplate(["admin"], ["accountant"]);
+    await requireRoleOrStaffTemplate(["admin", "super_admin"], ["accountant"]);
   } catch {
     return <Unauthorized />;
+  }
+
+  const verifiedUser = await getVerifiedUser();
+  const isSuperAdmin = verifiedUser?.role === "super_admin";
+
+  if (isSuperAdmin) {
+    const institutionId = await getCurrentInstitutionIdOrThrow();
+    const { data: schoolRows } = await supabaseAdmin
+      .from("schools")
+      .select("id, name")
+      .eq("institution_id", institutionId)
+      .order("name");
+
+    const schools: SchoolOption[] = (schoolRows ?? []).map((s) => ({ id: s.id, name: s.name ?? "" }));
+    const schoolIds = schools.map((s) => s.id);
+    const schoolNameById = new Map(schools.map((s) => [s.id, s.name]));
+
+    if (schoolIds.length === 0) {
+      return <ExpensesClient expenses={[]} budgets={[]} schools={[]} />;
+    }
+
+    const [{ data: expenseRows }, { data: budgetRows }] = await Promise.all([
+      supabaseAdmin
+        .from("expenses")
+        .select("id, date, month_str, category, description, vendor, amount, status, receipt_ref, school_id")
+        .in("school_id", schoolIds)
+        .order("date", { ascending: false }),
+      supabaseAdmin
+        .from("expense_budgets")
+        .select("category, monthly_amount")
+        .in("school_id", schoolIds),
+    ]);
+
+    const expenses: Expense[] = (expenseRows ?? []).map((e) => ({
+      id: e.id,
+      monthStr: e.month_str,
+      date: e.date,
+      category: e.category,
+      description: e.description ?? "",
+      vendor: e.vendor ?? "",
+      amount: Number(e.amount ?? 0),
+      status: e.status ?? "pending",
+      receiptRef: e.receipt_ref,
+      schoolId: e.school_id,
+      schoolName: schoolNameById.get(e.school_id) ?? "—",
+    }));
+
+    const budgets: BudgetLine[] = (budgetRows ?? []).map((b) => ({
+      category: b.category,
+      budget: Number(b.monthly_amount ?? 0),
+    }));
+
+    return <ExpensesClient expenses={expenses} budgets={budgets} schools={schools} />;
   }
 
   const schoolId = await getCurrentSchoolIdOrThrow();

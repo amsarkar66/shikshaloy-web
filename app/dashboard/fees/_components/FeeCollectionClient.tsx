@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Landmark, Search, Wallet, AlertTriangle, TrendingUp, Users, Download,
-  CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, X,
+  CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, X, Settings2,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
@@ -309,9 +309,17 @@ export default function FeeCollectionClient({
 
   return (
     <div className="w-full px-6 py-6 space-y-6">
-      <div>
-        <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Fee Collection</h1>
-        <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Collection progress across schools and outstanding student dues</p>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Fee Collection</h1>
+          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Collection progress across schools and outstanding student dues</p>
+        </div>
+        <Link
+          href="/dashboard/fees/structure"
+          className="sm:ml-auto flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm font-medium text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors w-fit"
+        >
+          <Settings2 className="h-3.5 w-3.5" /> Fee Structure
+        </Link>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">

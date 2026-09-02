@@ -19,7 +19,7 @@ function Unauthorized() {
 
 export default async function InventoryPage() {
   try {
-    await requireRoleOrStaffTemplate(["admin"], ["lab_assistant"]);
+    await requireRoleOrStaffTemplate(["admin", "super_admin"], ["lab_assistant"]);
   } catch {
     return <Unauthorized />;
   }

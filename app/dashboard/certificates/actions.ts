@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
-import { getVerifiedUser } from "@/lib/auth/verified-role";
+import { resolveAuthorizedSchoolId } from "@/lib/supabase/authorized-school";
+import { getVerifiedUser, requireRole } from "@/lib/auth/verified-role";
 import type { CertType } from "./_data/certificates";
 import type { StudentOption } from "./_components/CertificatesClient";
 
@@ -85,26 +86,37 @@ export async function requestCertificate(studentId: string, certType: CertType, 
 }
 
 export async function rejectCertificateRequest(id: string) {
+  await requireRole(["admin", "super_admin"]);
+  const schoolId = await resolveAuthorizedSchoolId("certificate_requests", id);
+
   const { error } = await supabaseAdmin
     .from("certificate_requests")
     .update({ status: "rejected" })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("school_id", schoolId);
   if (error) throw new Error(error.message);
   revalidatePath("/dashboard/reports");
   revalidatePath("/dashboard/certificates");
 }
 
 export async function markCertificateReady(id: string) {
+  await requireRole(["admin", "super_admin"]);
+  const schoolId = await resolveAuthorizedSchoolId("certificate_requests", id);
+
   const { error } = await supabaseAdmin
     .from("certificate_requests")
     .update({ status: "ready" })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("school_id", schoolId);
   if (error) throw new Error(error.message);
   revalidatePath("/dashboard/reports");
   revalidatePath("/dashboard/certificates");
 }
 
 export async function markCertificateIssued(id: string) {
+  await requireRole(["admin", "super_admin"]);
+  const schoolId = await resolveAuthorizedSchoolId("certificate_requests", id);
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -124,7 +136,8 @@ export async function markCertificateIssued(id: string) {
       issued_on: new Date().toISOString().slice(0, 10),
       issued_by: staffRow?.id ?? null,
     })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("school_id", schoolId);
   if (error) throw new Error(error.message);
   revalidatePath("/dashboard/reports");
   revalidatePath("/dashboard/certificates");

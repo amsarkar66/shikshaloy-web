@@ -3,14 +3,30 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
-import { resolveAuthorizedSchoolId } from "@/lib/supabase/authorized-school";
+import { resolveAuthorizedSchoolId, assertAuthorizedSchool } from "@/lib/supabase/authorized-school";
 import { randomPassword } from "@/lib/auth/random-password";
 import { sendStaffInviteEmail } from "@/lib/email/resend";
 import { logAuditEvent } from "@/lib/audit/log";
-import { requireRole } from "@/lib/auth/verified-role";
+import { getVerifiedUser, type VerifiedProfile } from "@/lib/auth/verified-role";
+import { getOrSeedRoleTemplates } from "@/lib/settings/role-templates";
 
-async function requireSchoolAdmin() {
-  return requireRole(["admin", "super_admin"]);
+async function requireSchoolAdmin(): Promise<VerifiedProfile> {
+  const vu = await getVerifiedUser();
+  if (!vu || (vu.role !== "admin" && vu.role !== "super_admin")) throw new Error("Unauthorized");
+  return vu;
+}
+
+// Invite/import flows are reachable both from a single-school page (no
+// explicit schoolId — falls back to whichever school is "active" in the
+// school-switcher cookie) and from the institution-wide /dashboard/people
+// page (an explicit schoolId the caller picked, which must be verified as
+// theirs to act on before it's trusted).
+async function resolveTargetSchoolId(vu: VerifiedProfile, explicitSchoolId?: string): Promise<string> {
+  if (explicitSchoolId) {
+    await assertAuthorizedSchool(vu, explicitSchoolId);
+    return explicitSchoolId;
+  }
+  return getCurrentSchoolIdOrThrow();
 }
 
 // ── Permission template assignment ───────────────────────────────────────────
@@ -50,6 +66,16 @@ export async function assignStaffTemplate(
   revalidatePath(`/dashboard/staff/${staffId}`);
 }
 
+// Lets the institution-wide People page load a school's permission
+// templates on demand once the caller picks which school to invite into,
+// rather than prefetching every school's templates up front.
+export async function getStaffTemplatesForSchool(schoolId: string): Promise<{ id: string; name: string }[]> {
+  const vu = await requireSchoolAdmin();
+  await assertAuthorizedSchool(vu, schoolId);
+  const templates = await getOrSeedRoleTemplates(schoolId);
+  return templates.map((t) => ({ id: t.slug, name: t.name }));
+}
+
 // ── Invite staff member ──────────────────────────────────────────────────────
 
 export interface InviteStaffInput {
@@ -61,11 +87,12 @@ export interface InviteStaffInput {
   department: string;
   templateId: string;
   templateName: string;
+  schoolId?: string;
 }
 
 export async function inviteStaffMember(input: InviteStaffInput): Promise<void> {
-  await requireSchoolAdmin();
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const vu = await requireSchoolAdmin();
+  const schoolId = await resolveTargetSchoolId(vu, input.schoolId);
 
   const email = input.email.trim().toLowerCase();
   const fullName = input.fullName.trim();
@@ -240,9 +267,9 @@ export interface BulkImportOutcome {
   failed: Array<{ row: string; reason: string }>;
 }
 
-export async function bulkImportStaff(rows: BulkImportStaffRow[]): Promise<BulkImportOutcome> {
-  await requireSchoolAdmin();
-  const schoolId = await getCurrentSchoolIdOrThrow();
+export async function bulkImportStaff(rows: BulkImportStaffRow[], schoolIdInput?: string): Promise<BulkImportOutcome> {
+  const vu = await requireSchoolAdmin();
+  const schoolId = await resolveTargetSchoolId(vu, schoolIdInput);
   const outcome: BulkImportOutcome = { succeeded: 0, failed: [] };
 
   for (const row of rows) {
