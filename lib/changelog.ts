@@ -21,6 +21,18 @@ export interface ChangelogRelease {
 // here is all that's needed to keep both in sync.
 export const RELEASES: ChangelogRelease[] = [
   {
+    version: "0.12.0",
+    hash: "ab91b61",
+    date: "2026-09-02",
+    entries: [
+      { type: "feat", text: "Approvals — institution owners can now review and decide on leave requests, admissions, expenses, and payroll releases across every school from one page" },
+      { type: "improve", text: "Payroll, Expenses, and Certificates are now manageable by institution owners across every school, not just one at a time" },
+      { type: "improve", text: "Fee Collection and Fees merged into one page — institution owners see the cross-school view, school admins see their own school's collections and defaulters" },
+      { type: "improve", text: "Starting a new conversation in Messages now opens straight into the chat panel instead of a popup" },
+      { type: "improve", text: "Reorganized dashboard navigation for institution owners and school admins into clearer groups" },
+    ],
+  },
+  {
     version: "0.11.0",
     hash: "0820575",
     date: "2026-08-29",
