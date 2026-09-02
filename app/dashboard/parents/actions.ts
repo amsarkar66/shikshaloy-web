@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { resolveAuthorizedSchoolId } from "@/lib/supabase/authorized-school";
 import { logAuditEvent } from "@/lib/audit/log";
 import { randomPassword } from "@/lib/auth/random-password";
 import { requireRole } from "@/lib/auth/verified-role";
@@ -155,7 +156,7 @@ export interface ParentEditData {
 
 export async function getParentForEdit(parentId: string): Promise<ParentEditData> {
   await requireRole(["admin", "super_admin"]);
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("parents", parentId);
 
   const { data } = await supabaseAdmin
     .from("parents")
@@ -227,7 +228,7 @@ export interface UpdateParentInput {
 
 export async function updateParent(input: UpdateParentInput): Promise<void> {
   await requireRole(["admin", "super_admin"]);
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("parents", input.parentId);
 
   const fullName = input.fullName.trim();
   if (!fullName) throw new Error("Parent name is required");
@@ -276,7 +277,7 @@ export async function updateParent(input: UpdateParentInput): Promise<void> {
 
 export async function deleteParent(parentId: string): Promise<void> {
   await requireRole(["admin", "super_admin"]);
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("parents", parentId);
 
   const { data: parent } = await supabaseAdmin
     .from("parents")

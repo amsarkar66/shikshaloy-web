@@ -105,6 +105,7 @@ export const NAV: Record<string, NavGroup[]> = {
     {
       group: "People",
       items: [
+        { label: "People",          href: "/dashboard/people",     icon: Users2 },
         { label: "Staff",           href: "/dashboard/staff",      icon: Users },
         { label: "Leave Approvals", href: "/dashboard/leaves",     icon: CalendarOff },
         { label: "Admissions",      href: "/dashboard/admissions", icon: UserPlus },

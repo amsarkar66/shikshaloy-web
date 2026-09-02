@@ -44,7 +44,7 @@ interface StudentSectionOptionRow {
 
 export default async function StudentsPage() {
   const role = await getVerifiedRole();
-  if (role !== "admin") return <Unauthorized />;
+  if (role !== "admin" && role !== "super_admin") return <Unauthorized />;
 
   const schoolId = await getCurrentSchoolIdOrThrow();
   const academicYearId = await getCurrentAcademicYearId();

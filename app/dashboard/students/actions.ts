@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
+import { resolveAuthorizedSchoolId } from "@/lib/supabase/authorized-school";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 import { getStudentCapacity } from "@/lib/billing/plan-limits";
 import { logAuditEvent } from "@/lib/audit/log";
@@ -122,7 +123,7 @@ export interface UpdateStudentInput {
 
 export async function updateStudent(input: UpdateStudentInput): Promise<void> {
   await requireStudentAdmin();
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("students", input.studentId);
   const { error } = await supabaseAdmin
     .from("students")
     .update({
@@ -260,7 +261,7 @@ export async function updateStudentLeaveStatus(
 
 export async function setStudentActive(studentId: string, active: boolean): Promise<void> {
   await requireStudentAdmin();
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("students", studentId);
   const { data: student, error } = await supabaseAdmin
     .from("students")
     .update({ status: active ? "active" : "inactive" })
@@ -284,7 +285,7 @@ export async function setStudentActive(studentId: string, active: boolean): Prom
 
 export async function getStudentLoginEmail(studentId: string): Promise<{ email: string | null }> {
   await requireStudentAdmin();
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("students", studentId);
   const { data: student, error } = await supabaseAdmin
     .from("students")
     .select("profile_id")
@@ -302,7 +303,7 @@ export async function getStudentLoginEmail(studentId: string): Promise<{ email: 
 
 export async function resetStudentPassword(studentId: string): Promise<{ email: string; password: string }> {
   await requireStudentAdmin();
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("students", studentId);
   const { data: student, error } = await supabaseAdmin
     .from("students")
     .select("profile_id")
@@ -321,7 +322,7 @@ export async function resetStudentPassword(studentId: string): Promise<{ email: 
 
 export async function createStudentLogin(studentId: string): Promise<{ email: string; password: string }> {
   await requireStudentAdmin();
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("students", studentId);
   const result = await createLoginForExistingStudent(studentId, schoolId);
   revalidatePath("/dashboard/students");
   return result;
@@ -331,7 +332,7 @@ export async function createStudentLogin(studentId: string): Promise<{ email: st
 
 export async function uploadStudentDocument(studentId: string, category: string, formData: FormData): Promise<void> {
   await requireStudentAdmin();
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("students", studentId);
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -364,7 +365,7 @@ export async function uploadStudentDocument(studentId: string, category: string,
 
 export async function deleteStudentDocument(documentId: string, studentId: string): Promise<void> {
   await requireStudentAdmin();
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("students", studentId);
   const { error } = await supabaseAdmin
     .from("student_documents")
     .delete()
@@ -379,7 +380,7 @@ export async function deleteStudentDocument(documentId: string, studentId: strin
 
 export async function addStudentNote(studentId: string, category: string, note: string): Promise<void> {
   await requireStudentAdmin();
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("students", studentId);
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 

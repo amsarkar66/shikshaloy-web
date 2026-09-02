@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { resolveAuthorizedSchoolId } from "@/lib/supabase/authorized-school";
 import { randomPassword } from "@/lib/auth/random-password";
 import { sendStaffInviteEmail } from "@/lib/email/resend";
 import { logAuditEvent } from "@/lib/audit/log";
@@ -20,7 +21,7 @@ export async function assignStaffTemplate(
   templateName: string
 ): Promise<void> {
   await requireSchoolAdmin();
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("staff_members", staffId);
 
   const { data: staff, error } = await supabaseAdmin
     .from("staff_members")
@@ -137,7 +138,8 @@ export interface StaffEditData {
 }
 
 export async function getStaffForEdit(staffId: string): Promise<StaffEditData> {
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  await requireSchoolAdmin();
+  const schoolId = await resolveAuthorizedSchoolId("staff_members", staffId);
 
   const { data } = await supabaseAdmin
     .from("staff_members")
@@ -182,7 +184,7 @@ export interface UpdateStaffInput {
 
 export async function updateStaff(input: UpdateStaffInput): Promise<void> {
   await requireSchoolAdmin();
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("staff_members", input.staffId);
 
   const fullName = input.fullName.trim();
   if (!fullName) throw new Error("Staff name is required");

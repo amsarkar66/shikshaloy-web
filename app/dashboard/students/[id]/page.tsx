@@ -7,7 +7,7 @@ import {
 import { FancyButton } from "@/components/ui/fancy-button";
 import { getVerifiedRole } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
-import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { resolveAuthorizedSchoolId } from "@/lib/supabase/authorized-school";
 import { DAYS, type Period, type RowItem, type ClassTimetable, type Day, type Slot } from "../../timetable/_data/timetable";
 import type { LeaveType, LeaveStatus } from "../../leaves/_data/leaves";
 import StudentDetailTabs, { StudentSidebar, type Guardian, type ExamRow, type FeeRow, type LibraryIssueRow, type LeaveRow } from "../_components/StudentDetailTabs";
@@ -250,9 +250,14 @@ export default async function StudentDetailPage({
 }) {
   const { id } = await params;
   const role = await getVerifiedRole();
-  if (role !== "admin") return <Unauthorized />;
+  if (role !== "admin" && role !== "super_admin") return <Unauthorized />;
 
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  let schoolId: string;
+  try {
+    schoolId = await resolveAuthorizedSchoolId("students", id);
+  } catch {
+    return <Unauthorized />;
+  }
 
   const [
     { data: studentRow },

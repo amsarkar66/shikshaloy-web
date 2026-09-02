@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { ShieldAlert } from "lucide-react";
 import { requireRoleOrStaffTemplate } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
-import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { resolveAuthorizedSchoolId } from "@/lib/supabase/authorized-school";
 import { getDriverContext } from "@/lib/drivers/context";
 
 function Unauthorized() {
@@ -116,7 +116,12 @@ export default async function StaffDetailPage({
     return <Unauthorized />;
   }
 
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  let schoolId: string;
+  try {
+    schoolId = await resolveAuthorizedSchoolId("staff_members", id);
+  } catch {
+    return <Unauthorized />;
+  }
 
   const [
     { data: staffRow },

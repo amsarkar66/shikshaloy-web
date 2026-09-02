@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Landmark, MapPin, GraduationCap, Briefcase,
   BadgeCheck, Clock, XCircle, Plus, Search,
@@ -87,11 +88,15 @@ function MiniBar({ label, value, pct, colorClass }: { label: string; value: stri
 // ── School card ───────────────────────────────────────────────────────────────
 
 function SchoolCard({ school, onMenu, menuOpen, onRemove }: { school: School; onMenu: (id: string) => void; menuOpen: boolean; onRemove: (school: School) => void }) {
+  const router = useRouter();
   const attendanceColor = school.attendancePct >= 95 ? "bg-emerald-500" : school.attendancePct >= 90 ? "bg-blue-500" : "bg-amber-500";
   const feeColor = school.feePct >= 85 ? "bg-emerald-500" : school.feePct >= 75 ? "bg-blue-500" : "bg-amber-500";
 
   return (
-    <div className="group relative rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5 flex flex-col gap-4 transition-colors hover:bg-gray-50 dark:hover:bg-zinc-800 hover:border-violet-200 dark:hover:border-violet-500/30">
+    <div
+      onClick={() => router.push(`/dashboard/schools/${school.id}`)}
+      className="group relative rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5 flex flex-col gap-4 transition-colors hover:bg-gray-50 dark:hover:bg-zinc-800 hover:border-violet-200 dark:hover:border-violet-500/30 cursor-pointer"
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/10 text-violet-500 ring-1 ring-violet-500/20">
@@ -105,7 +110,7 @@ function SchoolCard({ school, onMenu, menuOpen, onRemove }: { school: School; on
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
           <StatusBadge status={school.status} />
           <SchoolActionsMenu schoolId={school.id} open={menuOpen} onToggle={() => onMenu(school.id)} onRemove={() => onRemove(school)} />
         </div>
@@ -466,6 +471,17 @@ export default function SchoolsClient({
       <TopStats schools={filtered} />
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <div className="relative flex-1 min-w-[200px] sm:max-w-none">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search schools, cities, principals…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-3 py-2 text-sm text-gray-900 dark:text-zinc-50 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+          />
+        </div>
+
         <div className="flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-1">
           {(["all", "active", "inactive", "pending"] as const).map((s) => (
             <button key={s} onClick={() => setStatusFilter(s)} className={`rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors ${statusFilter === s ? "bg-violet-500/10 text-violet-600 dark:text-violet-400" : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"}`}>
@@ -474,30 +490,17 @@ export default function SchoolsClient({
           ))}
         </div>
 
-        <div className="flex items-center gap-2 ml-auto">
-          <div className="relative w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search schools, cities, principals…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-3 py-2 text-sm text-gray-900 dark:text-zinc-50 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
-            />
-          </div>
-          <ViewToggle view={viewMode} onChange={setViewMode} />
+        <div className="flex items-center gap-2">
           <SortMenu sortBy={sortBy} sortDir={sortDir} open={sortOpen} onToggle={() => setSortOpen((o) => !o)} onKeyChange={handleSortKeyChange} onDirChange={handleSortDirChange} />
+          <ViewToggle view={viewMode} onChange={setViewMode} />
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        <p className="text-xs text-gray-500 dark:text-zinc-400">
-          {filtered.length} {filtered.length === 1 ? "school" : "schools"}{search && ` matching "${search}"`}
-        </p>
-        {(search || statusFilter !== "all") && (
+      {(search || statusFilter !== "all") && (
+        <div className="flex items-center gap-2">
           <button onClick={() => { setSearch(""); setStatusFilter("all"); }} className="text-xs text-violet-600 dark:text-violet-400 hover:underline">Clear filters</button>
-        )}
-      </div>
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 py-20 text-center">

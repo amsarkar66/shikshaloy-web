@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
-import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { resolveAuthorizedSchoolId } from "@/lib/supabase/authorized-school";
 import { ParentDetailActions } from "../_components/parent-detail-actions";
 
 function Unauthorized() {
@@ -100,7 +100,12 @@ export default async function ParentDetailPage({
   const verifiedUser = await getVerifiedUser();
   if (!verifiedUser || (verifiedUser.role !== "admin" && verifiedUser.role !== "super_admin")) return <Unauthorized />;
 
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  let schoolId: string;
+  try {
+    schoolId = await resolveAuthorizedSchoolId("parents", id);
+  } catch {
+    return <Unauthorized />;
+  }
 
   const { data: parentRow } = await supabaseAdmin
     .from("parents")
