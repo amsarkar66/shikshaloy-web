@@ -17,6 +17,8 @@ import {
   avatarColor, initials, totalValue, formatCurrency,
   type ItemStatus, type ItemCondition, type InventoryItem,
 } from "../_data/inventory";
+import { SchoolFilterSelect, SchoolCell, matchesSchoolFilter } from "../../_components/school-filter";
+import type { InstitutionSchool } from "@/lib/supabase/institution-context";
 
 type SortField = "name" | "category" | "totalQty" | "available" | "damaged" | "value";
 type SortDir = "asc" | "desc";
@@ -128,13 +130,14 @@ function DeleteConfirmModal({ item, onClose, onDeleted }: { item: InventoryItem;
 
 const PAGE_SIZE = 10;
 
-export default function InventoryClient({ items }: { items: InventoryItem[] }) {
+export default function InventoryClient({ items, schools = [] }: { items: InventoryItem[]; schools?: InstitutionSchool[] }) {
   const router = useRouter();
   const categories = useMemo(() => Array.from(new Set(items.map((i) => i.category))).sort(), [items]);
 
   const [query, setQuery] = useState("");
   const [catFilter, setCat] = useState<"all" | string>("all");
   const [statusFilter, setStatus] = useState<"all" | ItemStatus>("all");
+  const [schoolFilter, setSchoolFilter] = useState("all");
   const [sortField, setSortField] = useState<SortField>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [page, setPage] = useState(1);
@@ -164,7 +167,8 @@ export default function InventoryClient({ items }: { items: InventoryItem[] }) {
       const matchQ = !q || item.name.toLowerCase().includes(q) || item.location.toLowerCase().includes(q) || item.category.toLowerCase().includes(q);
       const matchCat = catFilter === "all" || item.category === catFilter;
       const matchSt = statusFilter === "all" || itemStatus(item) === statusFilter;
-      return matchQ && matchCat && matchSt;
+      const matchSchool = matchesSchoolFilter(schoolFilter, item.schoolId);
+      return matchQ && matchCat && matchSt && matchSchool;
     }).sort((a, b) => {
       let cmp = 0;
       if (sortField === "name") cmp = a.name.localeCompare(b.name);
@@ -175,13 +179,13 @@ export default function InventoryClient({ items }: { items: InventoryItem[] }) {
       if (sortField === "value") cmp = (a.totalQty * a.unitCost) - (b.totalQty * b.unitCost);
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [items, query, catFilter, statusFilter, sortField, sortDir]);
+  }, [items, query, catFilter, statusFilter, schoolFilter, sortField, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageData = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const hasFilter = query || catFilter !== "all" || statusFilter !== "all";
+  const hasFilter = query || catFilter !== "all" || statusFilter !== "all" || schoolFilter !== "all";
 
-  function clearFilters() { setQuery(""); setCat("all"); setStatus("all"); setPage(1); }
+  function clearFilters() { setQuery(""); setCat("all"); setStatus("all"); setSchoolFilter("all"); setPage(1); }
 
   function exportCsv() {
     const header = ["Name", "Category", "Location", "Total Qty", "Available", "Damaged", "Condition", "Unit Cost", "Total Value"];
@@ -247,6 +251,7 @@ export default function InventoryClient({ items }: { items: InventoryItem[] }) {
           </select>
           <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
         </div>
+        <SchoolFilterSelect schools={schools} value={schoolFilter} onChange={setSchoolFilter} />
         {hasFilter && (
           <button onClick={clearFilters} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
             <X className="h-3.5 w-3.5" /> Clear
@@ -280,6 +285,7 @@ export default function InventoryClient({ items }: { items: InventoryItem[] }) {
         <TableHead>
           <Th position="first"><button onClick={() => toggleSort("name")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Item <SortIcon active={sortField === "name"} dir={sortDir} /></button></Th>
           <Th><button onClick={() => toggleSort("category")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Category <SortIcon active={sortField === "category"} dir={sortDir} /></button></Th>
+          {schools.length > 1 && <Th>School</Th>}
           <Th><button onClick={() => toggleSort("totalQty")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Total <SortIcon active={sortField === "totalQty"} dir={sortDir} /></button></Th>
           <Th><button onClick={() => toggleSort("available")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Available <SortIcon active={sortField === "available"} dir={sortDir} /></button></Th>
           <Th><button onClick={() => toggleSort("damaged")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Damaged <SortIcon active={sortField === "damaged"} dir={sortDir} /></button></Th>
@@ -291,7 +297,7 @@ export default function InventoryClient({ items }: { items: InventoryItem[] }) {
         <TableBody>
           {pageData.length === 0 ? (
             <tr>
-              <td colSpan={9} className="py-20 text-center">
+              <td colSpan={schools.length > 1 ? 10 : 9} className="py-20 text-center">
                 <div className="flex flex-col items-center gap-2">
                   <PackageX className="h-8 w-8 text-gray-300 dark:text-zinc-600" />
                   <p className="text-sm font-medium text-gray-500 dark:text-zinc-400">No items found</p>
@@ -318,6 +324,9 @@ export default function InventoryClient({ items }: { items: InventoryItem[] }) {
                     </div>
                   </Td>
                   <Td><span className="inline-flex items-center rounded-lg bg-indigo-500/10 px-2.5 py-1 text-xs font-semibold text-indigo-700 dark:text-indigo-300">{item.category}</span></Td>
+                  {schools.length > 1 && (
+                    <Td><SchoolCell name={item.schoolName ?? "—"} /></Td>
+                  )}
                   <Td><span className="text-sm font-medium text-gray-700 dark:text-zinc-300 tabular-nums">{item.totalQty}</span></Td>
                   <Td>
                     <div className="flex items-center gap-2 min-w-[80px]">
@@ -358,6 +367,7 @@ export default function InventoryClient({ items }: { items: InventoryItem[] }) {
           categories={categories}
           onClose={() => setItemModal(null)}
           onSaved={refresh}
+          schools={schools}
         />
       )}
 

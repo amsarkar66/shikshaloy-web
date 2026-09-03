@@ -4,11 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { X, Loader2, CheckCircle2, KeyRound, Copy, ChevronDown, Search, UserPlus } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { addParent, searchStudentsForParentLink, type ParentRelationship, type AddParentResult } from "../actions";
+import type { InstitutionSchool } from "@/lib/supabase/institution-context";
 
 interface AddParentModalProps {
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
+  schools?: InstitutionSchool[];
 }
 
 const inputClass =
@@ -20,7 +22,9 @@ const selectClass =
 interface StudentOption { id: string; label: string; sublabel: string }
 interface LinkedChild extends StudentOption { relationship: ParentRelationship }
 
-export function AddParentModal({ open, onClose, onCreated }: AddParentModalProps) {
+export function AddParentModal({ open, onClose, onCreated, schools = [] }: AddParentModalProps) {
+  const multiSchool = schools.length > 1;
+  const [schoolId, setSchoolId] = useState(schools[0]?.id ?? "");
   const [form, setForm] = useState({ fullName: "", phone: "", email: "", occupation: "", address: "" });
   const [childQuery, setChildQuery] = useState("");
   const [suggestions, setSuggestions] = useState<StudentOption[]>([]);
@@ -34,11 +38,15 @@ export function AddParentModal({ open, onClose, onCreated }: AddParentModalProps
     if (searchTimer.current) clearTimeout(searchTimer.current);
     if (childQuery.trim().length < 2) { setSuggestions([]); return; }
     searchTimer.current = setTimeout(async () => {
-      const results = await searchStudentsForParentLink(childQuery);
+      const results = await searchStudentsForParentLink(childQuery, multiSchool ? schoolId : undefined);
       setSuggestions(results.filter((r) => !linkedChildren.some((c) => c.id === r.id)));
     }, 250);
     return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
-  }, [childQuery, linkedChildren]);
+  }, [childQuery, linkedChildren, multiSchool, schoolId]);
+
+  // Linked children belong to whichever school they were searched under —
+  // switching schools mid-form would leave stale, mismatched links.
+  useEffect(() => { setLinkedChildren([]); }, [schoolId]);
 
   if (!open) return null;
 
@@ -62,6 +70,7 @@ export function AddParentModal({ open, onClose, onCreated }: AddParentModalProps
 
   function reset() {
     setForm({ fullName: "", phone: "", email: "", occupation: "", address: "" });
+    setSchoolId(schools[0]?.id ?? "");
     setChildQuery("");
     setSuggestions([]);
     setLinkedChildren([]);
@@ -90,6 +99,7 @@ export function AddParentModal({ open, onClose, onCreated }: AddParentModalProps
         occupation: form.occupation || null,
         address: form.address || null,
         children: linkedChildren.map((c) => ({ studentId: c.id, relationship: c.relationship })),
+        schoolId: multiSchool ? schoolId : undefined,
       });
       setResult(res);
       onCreated();
@@ -162,6 +172,17 @@ export function AddParentModal({ open, onClose, onCreated }: AddParentModalProps
         ) : (
           <form onSubmit={handleSubmit} className="p-5 space-y-4">
             <div className="grid grid-cols-2 gap-3">
+              {multiSchool && (
+                <div className="col-span-2">
+                  <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">School</label>
+                  <div className="relative">
+                    <select className="h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" value={schoolId} onChange={(e) => setSchoolId(e.target.value)}>
+                      {schools.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+                  </div>
+                </div>
+              )}
               <div className="col-span-2">
                 <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Full Name *</label>
                 <input className={inputClass} value={form.fullName} onChange={(e) => update("fullName", e.target.value)} required autoFocus />

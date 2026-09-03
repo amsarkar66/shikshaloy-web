@@ -14,6 +14,8 @@ import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/compon
 import { AddParentModal } from "./add-parent-modal";
 import { EditParentModal } from "./edit-parent-modal";
 import { DeleteParentModal } from "./delete-parent-modal";
+import { SchoolFilterSelect, SchoolCell, matchesSchoolFilter } from "../../_components/school-filter";
+import type { InstitutionSchool } from "@/lib/supabase/institution-context";
 
 export type FeeStatus = "paid" | "partial" | "overdue";
 
@@ -34,6 +36,8 @@ export interface Parent {
   email: string;
   active: boolean;
   children: Child[];
+  schoolId?: string;
+  schoolName?: string;
 }
 
 const AVATAR_COLORS = ["bg-blue-500","bg-violet-500","bg-emerald-500","bg-rose-500","bg-amber-500","bg-teal-500","bg-indigo-500","bg-pink-500","bg-cyan-500","bg-orange-500"];
@@ -86,10 +90,11 @@ function StatsRow({ parents }: { parents: Parent[] }) {
   );
 }
 
-export default function ParentsClient({ initialParents }: { initialParents: Parent[] }) {
+export default function ParentsClient({ initialParents, schools = [] }: { initialParents: Parent[]; schools?: InstitutionSchool[] }) {
   const router = useRouter();
   const [query,     setQuery]     = useState("");
   const [feeFilter, setFee]       = useState("all");
+  const [schoolFilter, setSchoolFilter] = useState("all");
   const [sortField, setSortField] = useState<SortField>("name");
   const [sortDir,   setSortDir]   = useState<SortDir>("asc");
   const [page,      setPage]      = useState(1);
@@ -110,7 +115,8 @@ export default function ParentsClient({ initialParents }: { initialParents: Pare
       const matchQ    = !q||p.name.toLowerCase().includes(q)||p.phone.includes(q)||childText.includes(q);
       const fee       = worstFeeFromChildren(p.children);
       const matchFee  = feeFilter==="all"||fee===feeFilter;
-      return matchQ&&matchFee;
+      const matchSchool = matchesSchoolFilter(schoolFilter, p.schoolId);
+      return matchQ&&matchFee&&matchSchool;
     }).sort((a,b) => {
       let cmp=0;
       if (sortField==="name")      cmp=a.name.localeCompare(b.name);
@@ -118,12 +124,12 @@ export default function ParentsClient({ initialParents }: { initialParents: Pare
       if (sortField==="feeStatus") cmp=worstFeeFromChildren(a.children).localeCompare(worstFeeFromChildren(b.children));
       return sortDir==="asc"?cmp:-cmp;
     });
-  }, [query, feeFilter, sortField, sortDir, initialParents]);
+  }, [query, feeFilter, schoolFilter, sortField, sortDir, initialParents]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length/PAGE_SIZE));
   const pageData   = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
-  function clearFilters() { setQuery(""); setFee("all"); setPage(1); }
-  const hasFilter = query||feeFilter!=="all";
+  function clearFilters() { setQuery(""); setFee("all"); setSchoolFilter("all"); setPage(1); }
+  const hasFilter = query||feeFilter!=="all"||schoolFilter!=="all";
 
   function exportCsv() {
     const header = ["Name","Occupation","Phone","Email","Active","Children","Fee Status"];
@@ -171,6 +177,7 @@ export default function ParentsClient({ initialParents }: { initialParents: Pare
           </select>
           <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
         </div>
+        <SchoolFilterSelect schools={schools} value={schoolFilter} onChange={setSchoolFilter} />
         {hasFilter&&<button onClick={clearFilters} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><X className="h-3.5 w-3.5"/> Clear</button>}
       </div>
 
@@ -194,6 +201,7 @@ export default function ParentsClient({ initialParents }: { initialParents: Pare
       >
         <TableHead>
           <Th position="first"><button onClick={()=>toggleSort("name")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Parent <SortIcon active={sortField==="name"} dir={sortDir}/></button></Th>
+          {schools.length > 1 && <Th>School</Th>}
           <Th>Contact</Th>
           <Th><button onClick={()=>toggleSort("children")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Children <SortIcon active={sortField==="children"} dir={sortDir}/></button></Th>
           <Th><button onClick={()=>toggleSort("feeStatus")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Fee Status <SortIcon active={sortField==="feeStatus"} dir={sortDir}/></button></Th>
@@ -201,7 +209,7 @@ export default function ParentsClient({ initialParents }: { initialParents: Pare
         </TableHead>
         <TableBody>
           {pageData.length===0?(
-            <TableEmptyRow colSpan={5} icon={Users2} message="No parents found" />
+            <TableEmptyRow colSpan={schools.length > 1 ? 6 : 5} icon={Users2} message="No parents found" />
           ):pageData.map((p) => {
             const fee = worstFeeFromChildren(p.children);
             return (
@@ -216,6 +224,9 @@ export default function ParentsClient({ initialParents }: { initialParents: Pare
                     {!p.active&&<span className="ml-1 shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-zinc-700 text-gray-500 dark:text-zinc-400">Inactive</span>}
                   </div>
                 </Td>
+                {schools.length > 1 && (
+                  <Td><SchoolCell name={p.schoolName ?? "—"} /></Td>
+                )}
                 <Td>
                   <div className="space-y-0.5">
                     <p className="flex items-center gap-1.5 text-xs text-gray-700 dark:text-zinc-300"><Phone className="h-3 w-3 shrink-0 text-gray-400 dark:text-zinc-500"/> {p.phone}</p>
@@ -250,6 +261,7 @@ export default function ParentsClient({ initialParents }: { initialParents: Pare
         open={addOpen}
         onClose={() => setAddOpen(false)}
         onCreated={() => router.refresh()}
+        schools={schools}
       />
 
       <EditParentModal

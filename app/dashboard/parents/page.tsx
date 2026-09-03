@@ -2,6 +2,7 @@ import { ShieldAlert } from "lucide-react";
 import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentInstitutionIdOrThrow, getInstitutionSchools } from "@/lib/supabase/institution-context";
 import ParentsClient from "./_components/ParentsClient";
 import type { Parent, Child } from "./_components/ParentsClient";
 
@@ -24,6 +25,7 @@ interface ParentRow {
   phone: string | null;
   email: string | null;
   status: string | null;
+  school_id: string;
   student_parents: {
     students: {
       id: string;
@@ -35,50 +37,77 @@ interface ParentRow {
   }[] | null;
 }
 
+function toParent(p: ParentRow, schoolNameById?: Map<string, string>): Parent {
+  const children: Child[] = (p.student_parents ?? []).flatMap((sp) => {
+    const s = sp.students;
+    if (!s) return [];
+    return [{
+      id:        s.id,
+      name:      s.full_name ?? "Unknown",
+      rollNo:    s.roll_no ?? "",
+      class:     String(s.sections?.grades?.level ?? ""),
+      section:   s.sections?.name ?? "",
+      feeStatus: (s.fee_status ?? "overdue") as Child["feeStatus"],
+    }];
+  });
+
+  return {
+    id:         p.id,
+    name:       p.full_name ?? "Unknown",
+    occupation: p.occupation ?? "",
+    phone:      p.phone ?? "",
+    email:      p.email ?? "",
+    active:     p.status !== "inactive",
+    children,
+    schoolId: schoolNameById ? p.school_id : undefined,
+    schoolName: schoolNameById ? (schoolNameById.get(p.school_id) ?? "—") : undefined,
+  };
+}
+
+const PARENT_SELECT = `
+  id, full_name, occupation, phone, email, status, school_id,
+  student_parents (
+    students (
+      id, full_name, roll_no, fee_status,
+      sections ( name, grades ( level ) )
+    )
+  )
+`;
+
 export default async function ParentsPage() {
   const verifiedUser = await getVerifiedUser();
   if (!verifiedUser || (verifiedUser.role !== "admin" && verifiedUser.role !== "super_admin")) return <Unauthorized />;
+
+  if (verifiedUser.role === "super_admin") {
+    const institutionId = await getCurrentInstitutionIdOrThrow();
+    const schools = await getInstitutionSchools(institutionId);
+    const schoolIds = schools.map((s) => s.id);
+    const schoolNameById = new Map(schools.map((s) => [s.id, s.name]));
+
+    if (schoolIds.length === 0) {
+      return <ParentsClient initialParents={[]} schools={schools} />;
+    }
+
+    const { data: parentRows } = await supabaseAdmin
+      .from("parents")
+      .select(PARENT_SELECT)
+      .in("school_id", schoolIds)
+      .order("full_name");
+
+    const parents: Parent[] = ((parentRows ?? []) as unknown as ParentRow[]).map((p) => toParent(p, schoolNameById));
+
+    return <ParentsClient initialParents={parents} schools={schools} />;
+  }
 
   const schoolId = await getCurrentSchoolIdOrThrow();
 
   const { data: parentRows } = await supabaseAdmin
     .from("parents")
-    .select(`
-      id, full_name, occupation, phone, email, status,
-      student_parents (
-        students (
-          id, full_name, roll_no, fee_status,
-          sections ( name, grades ( level ) )
-        )
-      )
-    `)
+    .select(PARENT_SELECT)
     .eq("school_id", schoolId)
     .order("full_name");
 
-  const parents: Parent[] = ((parentRows ?? []) as unknown as ParentRow[]).map((p) => {
-    const children: Child[] = (p.student_parents ?? []).flatMap((sp) => {
-      const s = sp.students;
-      if (!s) return [];
-      return [{
-        id:        s.id,
-        name:      s.full_name ?? "Unknown",
-        rollNo:    s.roll_no ?? "",
-        class:     String(s.sections?.grades?.level ?? ""),
-        section:   s.sections?.name ?? "",
-        feeStatus: (s.fee_status ?? "overdue") as Child["feeStatus"],
-      }];
-    });
-
-    return {
-      id:         p.id,
-      name:       p.full_name ?? "Unknown",
-      occupation: p.occupation ?? "",
-      phone:      p.phone ?? "",
-      email:      p.email ?? "",
-      active:     p.status !== "inactive",
-      children,
-    };
-  });
+  const parents: Parent[] = ((parentRows ?? []) as unknown as ParentRow[]).map((p) => toParent(p));
 
   return <ParentsClient initialParents={parents} />;
 }

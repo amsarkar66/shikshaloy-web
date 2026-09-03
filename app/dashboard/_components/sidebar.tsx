@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { Info, X } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { LogoutButton } from "./logout-button";
-import { SchoolSwitcher } from "./school-switcher";
 import { RELEASES } from "@/lib/changelog";
 import { ROLE_META, getNavGroupsForRole } from "../_lib/nav-data";
 import { getVerifiedStaffTemplateId } from "../_lib/directory-search";
@@ -80,14 +79,12 @@ function ReleaseInfo() {
 }
 
 export function Sidebar({
-  role, user, open, onClose, schools, activeSchoolId,
+  role, user, open, onClose,
 }: {
   role: string;
   user: User;
   open: boolean;
   onClose: () => void;
-  schools?: { id: string; name: string }[];
-  activeSchoolId?: string | null;
 }) {
   const pathname = usePathname();
   const [staffTemplateId, setStaffTemplateId] = useState<string | undefined>(undefined);
@@ -148,12 +145,6 @@ export function Sidebar({
           <X className="h-4 w-4" />
         </button>
       </div>
-
-      {role === "super_admin" && schools && schools.length > 1 && (
-        <div className="border-b border-primary-100 dark:border-zinc-800 pt-3">
-          <SchoolSwitcher schools={schools} activeSchoolId={activeSchoolId ?? null} />
-        </div>
-      )}
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto p-3 space-y-4">

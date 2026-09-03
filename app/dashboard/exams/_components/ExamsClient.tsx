@@ -14,12 +14,21 @@ import {
 } from "../_data/exams";
 import { createExam } from "../actions";
 import { FancyButton } from "@/components/ui/fancy-button";
+import { SchoolFilterSelect, SchoolCell, matchesSchoolFilter } from "../../_components/school-filter";
+import type { InstitutionSchool } from "@/lib/supabase/institution-context";
 
 const inputClass =
   "h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20";
 
-function AddExamModal({ onClose, onCreated }: { onClose: () => void; onCreated: (examId: string) => void }) {
-  const [form, setForm] = useState({ name: "", type: "unit_test" as ExamType, startDate: "", endDate: "" });
+function AddExamModal({
+  onClose, onCreated, schools = [],
+}: {
+  onClose: () => void;
+  onCreated: (examId: string) => void;
+  schools?: InstitutionSchool[];
+}) {
+  const multiSchool = schools.length > 1;
+  const [form, setForm] = useState({ name: "", type: "unit_test" as ExamType, startDate: "", endDate: "", schoolId: schools[0]?.id ?? "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,7 +42,7 @@ function AddExamModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
     setBusy(true);
     setError(null);
     try {
-      const id = await createExam(form);
+      const id = await createExam({ ...form, schoolId: multiSchool ? form.schoolId : undefined });
       onCreated(id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create exam");
@@ -50,6 +59,14 @@ function AddExamModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200">✕</button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          {multiSchool && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">School</label>
+              <select className={inputClass} value={form.schoolId} onChange={(e) => update("schoolId", e.target.value)}>
+                {schools.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+          )}
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Exam Name *</label>
             <input className={inputClass} value={form.name} onChange={(e) => update("name", e.target.value)} placeholder="e.g. Mid-Term Exam" required autoFocus />
@@ -128,7 +145,10 @@ function ExamCard({ exam }: { exam: Exam }) {
       </div>
       <div>
         <h3 className="text-sm font-bold text-gray-900 dark:text-zinc-100">{exam.name}</h3>
-        <p className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5">{exam.academicYear}</p>
+        <p className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5 flex items-center gap-1">
+          {exam.academicYear}
+          {exam.schoolName && <> · <SchoolCell name={exam.schoolName} /></>}
+        </p>
       </div>
       <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-zinc-400">
         <CalendarDays className="h-3.5 w-3.5 shrink-0" />
@@ -162,15 +182,18 @@ const STATUS_FILTER_OPTIONS = [
   { value: "published", label: "Results Published" },
 ];
 
-export default function ExamsClient({ exams }: { exams: Exam[] }) {
+export default function ExamsClient({ exams, schools = [] }: { exams: Exam[]; schools?: InstitutionSchool[] }) {
   const router = useRouter();
   const academicYears = useMemo(() => Array.from(new Set(exams.map((e) => e.academicYear))), [exams]);
   const [yearFilter, setYearFilter] = useState(academicYears[0] ?? "");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [schoolFilter, setSchoolFilter] = useState("all");
   const [addOpen, setAddOpen] = useState(false);
 
   const yearExams = useMemo(() => exams.filter((e) => e.academicYear === yearFilter), [exams, yearFilter]);
-  const filteredExams = useMemo(() => statusFilter === "all" ? yearExams : yearExams.filter((e) => e.status === statusFilter), [yearExams, statusFilter]);
+  const filteredExams = useMemo(() => yearExams
+    .filter((e) => statusFilter === "all" || e.status === statusFilter)
+    .filter((e) => matchesSchoolFilter(schoolFilter, e.schoolId)), [yearExams, statusFilter, schoolFilter]);
 
   function exportCsv() {
     const header = ["Name", "Type", "Status", "Start Date", "End Date", "Academic Year", "Subjects"];
@@ -203,6 +226,7 @@ export default function ExamsClient({ exams }: { exams: Exam[] }) {
               <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
             </div>
           )}
+          <SchoolFilterSelect schools={schools} value={schoolFilter} onChange={setSchoolFilter} />
           <Link href="/dashboard/exams/preferences" className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><ListChecks className="h-3.5 w-3.5" /> Exam Preference</Link>
           <button onClick={exportCsv} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><Download className="h-3.5 w-3.5" /> Export</button>
           <FancyButton size="sm" onClick={() => setAddOpen(true)}><Plus className="h-4 w-4" /> New Exam</FancyButton>
@@ -237,6 +261,7 @@ export default function ExamsClient({ exams }: { exams: Exam[] }) {
         <AddExamModal
           onClose={() => setAddOpen(false)}
           onCreated={(examId) => router.push(`/dashboard/exams/${examId}`)}
+          schools={schools}
         />
       )}
     </div>

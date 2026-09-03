@@ -1,7 +1,7 @@
 import { ShieldAlert } from "lucide-react";
 import { requireRoleOrStaffTemplate } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
-import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentSchoolIdOrThrow, getSchoolPickerData } from "@/lib/supabase/school-context";
 import FrontDeskClient, {
   type VisitorEntry, type EnquiryEntry, type CallLogEntry, type GatePassEntry, type PostalEntry,
 } from "./_components/FrontDeskClient";
@@ -50,6 +50,7 @@ export default async function FrontDeskPage() {
   }
 
   const schoolId = await getCurrentSchoolIdOrThrow();
+  const { schools, activeSchoolId } = await getSchoolPickerData();
 
   const [
     { data: visitorRows },
@@ -103,6 +104,8 @@ export default async function FrontDeskPage() {
       calls={calls}
       gatePasses={gatePasses}
       postal={postal}
+      schools={schools}
+      activeSchoolId={activeSchoolId}
     />
   );
 }

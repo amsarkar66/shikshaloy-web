@@ -2,7 +2,7 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
-import { getCurrentInstitutionId } from "@/lib/supabase/institution-context";
+import { getCurrentInstitutionId, getInstitutionSchools, type InstitutionSchool } from "@/lib/supabase/institution-context";
 
 export const ACTIVE_SCHOOL_COOKIE = "active_school_id";
 
@@ -55,4 +55,24 @@ export async function getCurrentSchoolIdOrThrow(): Promise<string> {
   const schoolId = await getCurrentSchoolId();
   if (!schoolId) throw new Error("No school is associated with the current account.");
   return schoolId;
+}
+
+// Convenience for single-school workflow pages (attendance, timetable,
+// settings, …) that render a PageSchoolPicker (app/dashboard/_components/
+// page-school-picker.tsx) so a super_admin can pick which one school they're
+// operating on. Returns an empty schools list for every other role — those
+// pages already resolve to the caller's one assigned school via
+// getCurrentSchoolId(), so the picker has nothing to switch between.
+export async function getSchoolPickerData(): Promise<{ schools: InstitutionSchool[]; activeSchoolId: string | null }> {
+  const vu = await getVerifiedUser();
+  if (vu?.role !== "super_admin") return { schools: [], activeSchoolId: null };
+
+  const institutionId = await getCurrentInstitutionId();
+  if (!institutionId) return { schools: [], activeSchoolId: null };
+
+  const [schools, activeSchoolId] = await Promise.all([
+    getInstitutionSchools(institutionId),
+    getCurrentSchoolId(),
+  ]);
+  return { schools, activeSchoolId };
 }

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
-import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
+import { getCurrentInstitutionIdOrThrow, getInstitutionSchools } from "@/lib/supabase/institution-context";
 import ApprovalsClient, {
   type SchoolOption, type AdmissionApprovalRow,
   type ExpenseApprovalRow, type PayrollApprovalGroup,
@@ -72,13 +72,7 @@ export default async function ApprovalsPage() {
 
   const institutionId = await getCurrentInstitutionIdOrThrow();
 
-  const { data: schoolRows } = await supabaseAdmin
-    .from("schools")
-    .select("id, name")
-    .eq("institution_id", institutionId)
-    .order("name");
-
-  const schools: SchoolOption[] = (schoolRows ?? []).map((s) => ({ id: s.id, name: s.name ?? "" }));
+  const schools: SchoolOption[] = await getInstitutionSchools(institutionId);
   const schoolIds = schools.map((s) => s.id);
   const schoolNameById = new Map(schools.map((s) => [s.id, s.name]));
 

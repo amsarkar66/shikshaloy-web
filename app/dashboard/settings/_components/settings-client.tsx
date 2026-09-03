@@ -23,6 +23,8 @@ import {
   KeyRound,
   Globe,
 } from "lucide-react";
+import { PageSchoolPicker } from "../../_components/page-school-picker";
+import type { InstitutionSchool } from "@/lib/supabase/institution-context";
 import {
   MODULES, MODULE_GROUPS, emptyPerms,
   type Template,
@@ -1232,7 +1234,14 @@ function AccountTab({ profile, roleLabel }: { profile: SettingsData["profile"]; 
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
-export function SettingsPageClient({ role, data }: { role: string; data: SettingsData }) {
+export function SettingsPageClient({
+  role, data, schools = [], activeSchoolId = null,
+}: {
+  role: string;
+  data: SettingsData;
+  schools?: InstitutionSchool[];
+  activeSchoolId?: string | null;
+}) {
   const tabs = ROLE_TABS[role] ?? ROLE_TABS.student;
   const [activeTab, setActiveTab] = useState<Tab>(tabs[0]?.id ?? "account");
 
@@ -1245,6 +1254,11 @@ export function SettingsPageClient({ role, data }: { role: string; data: Setting
           <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Settings</h1>
           <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Account and preferences</p>
         </div>
+        {role === "super_admin" && (
+          <div className="sm:ml-auto">
+            <PageSchoolPicker schools={schools} activeSchoolId={activeSchoolId} />
+          </div>
+        )}
       </div>
 
       <div className="flex gap-1 border-b border-gray-200 dark:border-zinc-800">

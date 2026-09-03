@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
-import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentSchoolIdOrThrow, getSchoolPickerData } from "@/lib/supabase/school-context";
 import { getSiteSettings, getInstitutionDomainSummary, getWebsiteActivity } from "@/lib/site-settings/actions";
 import { listSchoolBanners } from "@/lib/schools/banner-actions";
 import { WebsiteEditorShell } from "./_components/WebsiteEditorShell";
@@ -33,7 +33,9 @@ export default async function WebsitePage({
   }));
 
   const banners = await listSchoolBanners();
-  const [domain, activity] = await Promise.all([getInstitutionDomainSummary(), getWebsiteActivity()]);
+  const [domain, activity, { schools, activeSchoolId }] = await Promise.all([
+    getInstitutionDomainSummary(), getWebsiteActivity(), getSchoolPickerData(),
+  ]);
 
   return (
     <WebsiteEditorShell
@@ -45,6 +47,8 @@ export default async function WebsitePage({
       domain={domain}
       activity={activity}
       initialSection={section}
+      schools={schools}
+      activeSchoolId={activeSchoolId}
     />
   );
 }

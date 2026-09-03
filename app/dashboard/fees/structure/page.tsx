@@ -1,7 +1,7 @@
 import { ShieldAlert } from "lucide-react";
 import { requireRoleOrStaffTemplate } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
-import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentSchoolIdOrThrow, getSchoolPickerData } from "@/lib/supabase/school-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 import FeeStructureClient from "../_components/FeeStructureClient";
 import type { FeeStructure, GradeOption } from "../_data/fees";
@@ -29,6 +29,7 @@ export default async function FeeStructurePage() {
 
   const schoolId = await getCurrentSchoolIdOrThrow();
   const academicYearId = await getCurrentAcademicYearId();
+  const { schools, activeSchoolId } = await getSchoolPickerData();
 
   const [{ data: structureRows }, { data: gradeRows }] = await Promise.all([
     supabaseAdmin
@@ -61,5 +62,5 @@ export default async function FeeStructurePage() {
     isOneTime: s.is_one_time ?? false,
   }));
 
-  return <FeeStructureClient structures={structures} grades={grades} backHref="/dashboard/fees" />;
+  return <FeeStructureClient structures={structures} grades={grades} backHref="/dashboard/fees" schools={schools} activeSchoolId={activeSchoolId} />;
 }

@@ -2,7 +2,7 @@ import { ShieldAlert } from "lucide-react";
 import { getVerifiedUser, requireRoleOrStaffTemplate } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
-import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
+import { getCurrentInstitutionIdOrThrow, getInstitutionSchools } from "@/lib/supabase/institution-context";
 import PayrollClient from "./_components/PayrollClient";
 import type { PayrollStaff, PayrollRecord } from "./_data/payroll";
 import type { SchoolOption } from "./_components/PayrollClient";
@@ -52,13 +52,7 @@ export default async function PayrollPage() {
 
   if (isSuperAdmin) {
     const institutionId = await getCurrentInstitutionIdOrThrow();
-    const { data: schoolRows } = await supabaseAdmin
-      .from("schools")
-      .select("id, name")
-      .eq("institution_id", institutionId)
-      .order("name");
-
-    const schools: SchoolOption[] = (schoolRows ?? []).map((s) => ({ id: s.id, name: s.name ?? "" }));
+    const schools: SchoolOption[] = await getInstitutionSchools(institutionId);
     const schoolIds = schools.map((s) => s.id);
     const schoolNameById = new Map(schools.map((s) => [s.id, s.name]));
 

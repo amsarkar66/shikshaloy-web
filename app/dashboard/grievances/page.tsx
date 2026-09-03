@@ -2,6 +2,7 @@ import { ShieldAlert } from "lucide-react";
 import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentInstitutionIdOrThrow, getInstitutionSchools } from "@/lib/supabase/institution-context";
 import GrievancesClient from "./_components/GrievancesClient";
 import type { Grievance } from "./_components/GrievancesClient";
 
@@ -17,18 +18,22 @@ function Unauthorized() {
   );
 }
 
-export default async function GrievancesPage() {
-  const vu = await getVerifiedUser();
-  if (!vu || (vu.role !== "admin" && vu.role !== "super_admin" && vu.role !== "kernel")) return <Unauthorized />;
+interface GrievanceRow {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  category: string | null;
+  subject: string;
+  message: string;
+  status: string | null;
+  resolution_notes: string | null;
+  created_at: string;
+  school_id: string;
+}
 
-  const schoolId = await getCurrentSchoolIdOrThrow();
-  const { data } = await supabaseAdmin
-    .from("grievances")
-    .select("id, name, email, phone, category, subject, message, status, resolution_notes, created_at")
-    .eq("school_id", schoolId)
-    .order("created_at", { ascending: false });
-
-  const grievances: Grievance[] = (data ?? []).map((g) => ({
+function toGrievance(g: GrievanceRow, schoolNameById?: Map<string, string>): Grievance {
+  return {
     id: g.id,
     name: g.name,
     email: g.email,
@@ -39,7 +44,46 @@ export default async function GrievancesPage() {
     status: (g.status ?? "open") as Grievance["status"],
     resolutionNotes: g.resolution_notes,
     createdAt: g.created_at,
-  }));
+    schoolId: schoolNameById ? g.school_id : undefined,
+    schoolName: schoolNameById ? (schoolNameById.get(g.school_id) ?? "—") : undefined,
+  };
+}
+
+const GRIEVANCE_SELECT = "id, name, email, phone, category, subject, message, status, resolution_notes, created_at, school_id";
+
+export default async function GrievancesPage() {
+  const vu = await getVerifiedUser();
+  if (!vu || (vu.role !== "admin" && vu.role !== "super_admin" && vu.role !== "kernel")) return <Unauthorized />;
+
+  if (vu.role === "super_admin") {
+    const institutionId = await getCurrentInstitutionIdOrThrow();
+    const schools = await getInstitutionSchools(institutionId);
+    const schoolIds = schools.map((s) => s.id);
+    const schoolNameById = new Map(schools.map((s) => [s.id, s.name]));
+
+    if (schoolIds.length === 0) {
+      return <GrievancesClient initialData={[]} schools={schools} />;
+    }
+
+    const { data } = await supabaseAdmin
+      .from("grievances")
+      .select(GRIEVANCE_SELECT)
+      .in("school_id", schoolIds)
+      .order("created_at", { ascending: false });
+
+    const grievances: Grievance[] = ((data ?? []) as GrievanceRow[]).map((g) => toGrievance(g, schoolNameById));
+
+    return <GrievancesClient initialData={grievances} schools={schools} />;
+  }
+
+  const schoolId = await getCurrentSchoolIdOrThrow();
+  const { data } = await supabaseAdmin
+    .from("grievances")
+    .select(GRIEVANCE_SELECT)
+    .eq("school_id", schoolId)
+    .order("created_at", { ascending: false });
+
+  const grievances: Grievance[] = ((data ?? []) as GrievanceRow[]).map((g) => toGrievance(g));
 
   return <GrievancesClient initialData={grievances} />;
 }

@@ -1,7 +1,8 @@
 import { ShieldAlert } from "lucide-react";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
-import { requireRoleOrStaffTemplate } from "@/lib/auth/verified-role";
+import { getCurrentInstitutionIdOrThrow, getInstitutionSchools } from "@/lib/supabase/institution-context";
+import { getVerifiedUser, requireRoleOrStaffTemplate } from "@/lib/auth/verified-role";
 import AdmissionsClient from "./_components/AdmissionsClient";
 import type { Application } from "./_components/AdmissionsClient";
 
@@ -29,36 +30,26 @@ interface AdmissionApplicationRow {
   sibling_studying: boolean | null; sibling_name: string | null;
   emergency_contact_name: string | null; emergency_contact_phone: string | null;
   photo_url: string | null;
+  school_id: string;
   academic_years: { name: string | null } | null;
 }
 
-export default async function AdmissionsPage() {
-  try {
-    await requireRoleOrStaffTemplate(["admin", "super_admin"], ["receptionist"]);
-  } catch {
-    return <Unauthorized />;
-  }
+const ADMISSION_SELECT = `
+  id, application_no, applicant_name, dob, gender, applying_for_grade,
+  parent_name, parent_phone, parent_email, previous_school, submitted_date,
+  status, notes, academic_year_id,
+  address, blood_group, category, nationality,
+  father_name, father_occupation, father_phone, father_email,
+  mother_name, mother_occupation, mother_phone, mother_email,
+  guardian_name, guardian_relation, guardian_phone,
+  sibling_studying, sibling_name,
+  emergency_contact_name, emergency_contact_phone,
+  photo_url, school_id,
+  academic_years ( name )
+`;
 
-  const schoolId = await getCurrentSchoolIdOrThrow();
-  const { data } = await supabaseAdmin
-    .from("admission_applications")
-    .select(`
-      id, application_no, applicant_name, dob, gender, applying_for_grade,
-      parent_name, parent_phone, parent_email, previous_school, submitted_date,
-      status, notes, academic_year_id,
-      address, blood_group, category, nationality,
-      father_name, father_occupation, father_phone, father_email,
-      mother_name, mother_occupation, mother_phone, mother_email,
-      guardian_name, guardian_relation, guardian_phone,
-      sibling_studying, sibling_name,
-      emergency_contact_name, emergency_contact_phone,
-      photo_url,
-      academic_years ( name )
-    `)
-    .eq("school_id", schoolId)
-    .order("submitted_date", { ascending: false });
-
-  const apps: Application[] = ((data ?? []) as unknown as AdmissionApplicationRow[]).map((a) => ({
+function toApplication(a: AdmissionApplicationRow, schoolNameById?: Map<string, string>): Application {
+  return {
     id:               a.id,
     applicationNo:    a.application_no ?? "",
     applicantName:    a.applicant_name ?? "",
@@ -95,7 +86,49 @@ export default async function AdmissionsPage() {
     emergencyContactName:  a.emergency_contact_name ?? undefined,
     emergencyContactPhone: a.emergency_contact_phone ?? undefined,
     photoUrl:              a.photo_url ?? undefined,
-  }));
+    schoolId: schoolNameById ? a.school_id : undefined,
+    schoolName: schoolNameById ? (schoolNameById.get(a.school_id) ?? "—") : undefined,
+  };
+}
+
+export default async function AdmissionsPage() {
+  try {
+    await requireRoleOrStaffTemplate(["admin", "super_admin"], ["receptionist"]);
+  } catch {
+    return <Unauthorized />;
+  }
+
+  const verifiedUser = await getVerifiedUser();
+
+  if (verifiedUser?.role === "super_admin") {
+    const institutionId = await getCurrentInstitutionIdOrThrow();
+    const schools = await getInstitutionSchools(institutionId);
+    const schoolIds = schools.map((s) => s.id);
+    const schoolNameById = new Map(schools.map((s) => [s.id, s.name]));
+
+    if (schoolIds.length === 0) {
+      return <AdmissionsClient initialApps={[]} schools={schools} />;
+    }
+
+    const { data } = await supabaseAdmin
+      .from("admission_applications")
+      .select(ADMISSION_SELECT)
+      .in("school_id", schoolIds)
+      .order("submitted_date", { ascending: false });
+
+    const apps: Application[] = ((data ?? []) as unknown as AdmissionApplicationRow[]).map((a) => toApplication(a, schoolNameById));
+
+    return <AdmissionsClient initialApps={apps} schools={schools} />;
+  }
+
+  const schoolId = await getCurrentSchoolIdOrThrow();
+  const { data } = await supabaseAdmin
+    .from("admission_applications")
+    .select(ADMISSION_SELECT)
+    .eq("school_id", schoolId)
+    .order("submitted_date", { ascending: false });
+
+  const apps: Application[] = ((data ?? []) as unknown as AdmissionApplicationRow[]).map((a) => toApplication(a));
 
   return <AdmissionsClient initialApps={apps} />;
 }

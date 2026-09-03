@@ -2,8 +2,7 @@ import { notFound } from "next/navigation";
 import { ShieldAlert } from "lucide-react";
 import { getVerifiedRole } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
-import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
-import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
+import { resolveAuthorizedSchoolId } from "@/lib/supabase/authorized-school";
 import { getSchoolGradeBands, getSchoolPassMarks } from "@/lib/exams/grading-data";
 import { resolveGrade } from "@/lib/exams/grading";
 import { getReportCardSettings } from "../../settings/actions";
@@ -55,8 +54,14 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
   const role = await getVerifiedRole();
   if (role !== "admin" && role !== "super_admin") return <Unauthorized />;
 
-  const schoolId = await getCurrentSchoolIdOrThrow();
-  const academicYearId = await getCurrentAcademicYearId();
+  // Resolved from the exam record itself (then authorized), rather than the
+  // "active school" cookie — a super_admin viewing the combined exams list
+  // can open an exam belonging to any of their institution's schools
+  // without first switching the active school to match.
+  const schoolId = await resolveAuthorizedSchoolId("exams", examId);
+  const { data: examMetaRow } = await supabaseAdmin.from("exams").select("academic_year_id").eq("id", examId).maybeSingle();
+  if (!examMetaRow) notFound();
+  const academicYearId = examMetaRow.academic_year_id as string;
 
   const [
     { data: examRow },
@@ -85,7 +90,7 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
     getSchoolGradeBands(schoolId),
     getSchoolPassMarks(schoolId),
     supabaseAdmin.from("schools").select("name, logo_url").eq("id", schoolId).maybeSingle(),
-    getReportCardSettings(),
+    getReportCardSettings(schoolId),
     supabaseAdmin.from("section_subjects").select("section_id, subject_id").eq("school_id", schoolId).eq("academic_year_id", academicYearId),
     listMarksEntryPermissionData(examId),
   ]);

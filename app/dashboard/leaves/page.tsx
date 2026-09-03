@@ -1,6 +1,7 @@
 import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentInstitutionIdOrThrow, getInstitutionSchools } from "@/lib/supabase/institution-context";
 import { getTeacherContext } from "@/lib/teachers/context";
 import LeavesClient from "./_components/LeavesClient";
 import type { Leave, StaffOption, StudentOption } from "./_components/LeavesClient";
@@ -16,6 +17,7 @@ interface LeaveRequestRow {
   reason: string | null;
   status: string | null;
   applied_on: string | null;
+  school_id: string;
   staff_members: { full_name: string | null; designation: string | null; department: string | null } | null;
   approver: { full_name: string | null } | null;
 }
@@ -30,6 +32,7 @@ interface StudentLeaveRequestRow {
   reason: string | null;
   status: string | null;
   applied_on: string | null;
+  school_id: string;
   students: { full_name: string | null; sections: { name: string | null; grades: { level: number | null } | null } | null } | null;
   approver: { full_name: string | null } | null;
 }
@@ -110,70 +113,15 @@ export default async function LeavesPage() {
     );
   }
 
-  const schoolId = await getCurrentSchoolIdOrThrow();
-
-  const [{ data }, { data: studentData }, { data: staffRows }, { data: studentRows }] = await Promise.all([
-    supabaseAdmin
-      .from("leave_requests")
-      .select(`
-        id, leave_type, from_date, to_date, days, reason, status, applied_on,
-        staff_members!leave_requests_staff_id_fkey ( full_name, designation, department ),
-        approver:staff_members!leave_requests_approved_by_fkey ( full_name )
-      `)
-      .eq("school_id", schoolId)
-      .order("applied_on", { ascending: false }),
-
-    supabaseAdmin
-      .from("student_leave_requests")
-      .select(`
-        id, student_id, leave_type, from_date, to_date, days, reason, status, applied_on,
-        students ( full_name, sections ( name, grades ( level ) ) ),
-        approver:staff_members!student_leave_requests_approved_by_fkey ( full_name )
-      `)
-      .eq("school_id", schoolId)
-      .order("applied_on", { ascending: false }),
-
-    supabaseAdmin
-      .from("staff_members")
-      .select("id, full_name, designation, department")
-      .eq("school_id", schoolId)
-      .eq("status", "active")
-      .order("full_name"),
-
-    supabaseAdmin
-      .from("students")
-      .select("id, full_name, sections ( name, grades ( level ) )")
-      .eq("school_id", schoolId)
-      .eq("status", "active")
-      .order("full_name"),
-  ]);
-
-  const staffLeaves: Leave[] = ((data ?? []) as unknown as LeaveRequestRow[]).map((l) => ({
-    id: l.id,
-    personType: "staff",
-    staffName: l.staff_members?.full_name ?? "Unknown",
-    role: l.staff_members?.designation ?? "",
-    department: l.staff_members?.department ?? "",
-    leaveType: l.leave_type as Leave["leaveType"],
-    from: l.from_date ?? "",
-    to: l.to_date ?? "",
-    days: l.days ?? 1,
-    reason: l.reason ?? "",
-    status: (l.status ?? "pending") as Leave["status"],
-    appliedOn: l.applied_on ?? "",
-    approvedBy: l.approver?.full_name ?? undefined,
-  }));
-
-  const studentLeaves: Leave[] = ((studentData ?? []) as unknown as StudentLeaveRequestRow[]).map((l) => {
-    const section = l.students?.sections;
-    const classLabel = section ? `${section.grades?.level ?? "—"}-${section.name ?? ""}` : "";
-    return {
+  function buildLeaves(
+    data: LeaveRequestRow[], studentData: StudentLeaveRequestRow[], schoolNameById?: Map<string, string>
+  ): Leave[] {
+    const staffLeaves: Leave[] = data.map((l) => ({
       id: l.id,
-      personType: "student",
-      studentId: l.student_id,
-      staffName: l.students?.full_name ?? "Unknown",
-      role: "Student",
-      department: classLabel,
+      personType: "staff",
+      staffName: l.staff_members?.full_name ?? "Unknown",
+      role: l.staff_members?.designation ?? "",
+      department: l.staff_members?.department ?? "",
       leaveType: l.leave_type as Leave["leaveType"],
       from: l.from_date ?? "",
       to: l.to_date ?? "",
@@ -182,10 +130,86 @@ export default async function LeavesPage() {
       status: (l.status ?? "pending") as Leave["status"],
       appliedOn: l.applied_on ?? "",
       approvedBy: l.approver?.full_name ?? undefined,
-    };
-  });
+      schoolId: schoolNameById ? l.school_id : undefined,
+      schoolName: schoolNameById ? (schoolNameById.get(l.school_id) ?? "—") : undefined,
+    }));
 
-  const leaves = [...staffLeaves, ...studentLeaves].sort((a, b) => b.appliedOn.localeCompare(a.appliedOn));
+    const studentLeaves: Leave[] = studentData.map((l) => {
+      const section = l.students?.sections;
+      const classLabel = section ? `${section.grades?.level ?? "—"}-${section.name ?? ""}` : "";
+      return {
+        id: l.id,
+        personType: "student",
+        studentId: l.student_id,
+        staffName: l.students?.full_name ?? "Unknown",
+        role: "Student",
+        department: classLabel,
+        leaveType: l.leave_type as Leave["leaveType"],
+        from: l.from_date ?? "",
+        to: l.to_date ?? "",
+        days: l.days ?? 1,
+        reason: l.reason ?? "",
+        status: (l.status ?? "pending") as Leave["status"],
+        appliedOn: l.applied_on ?? "",
+        approvedBy: l.approver?.full_name ?? undefined,
+        schoolId: schoolNameById ? l.school_id : undefined,
+        schoolName: schoolNameById ? (schoolNameById.get(l.school_id) ?? "—") : undefined,
+      };
+    });
+
+    return [...staffLeaves, ...studentLeaves].sort((a, b) => b.appliedOn.localeCompare(a.appliedOn));
+  }
+
+  const LEAVE_SELECT = `
+    id, leave_type, from_date, to_date, days, reason, status, applied_on, school_id,
+    staff_members!leave_requests_staff_id_fkey ( full_name, designation, department ),
+    approver:staff_members!leave_requests_approved_by_fkey ( full_name )
+  `;
+  const STUDENT_LEAVE_SELECT = `
+    id, student_id, leave_type, from_date, to_date, days, reason, status, applied_on, school_id,
+    students ( full_name, sections ( name, grades ( level ) ) ),
+    approver:staff_members!student_leave_requests_approved_by_fkey ( full_name )
+  `;
+
+  if (role === "super_admin") {
+    const institutionId = await getCurrentInstitutionIdOrThrow();
+    const schools = await getInstitutionSchools(institutionId);
+    const schoolIds = schools.map((s) => s.id);
+    const schoolNameById = new Map(schools.map((s) => [s.id, s.name]));
+
+    if (schoolIds.length === 0) {
+      return <LeavesClient initialLeaves={[]} staffOptions={[]} studentOptions={[]} schools={schools} />;
+    }
+
+    const [{ data }, { data: studentData }, { data: staffRows }, { data: studentRows }] = await Promise.all([
+      supabaseAdmin.from("leave_requests").select(LEAVE_SELECT).in("school_id", schoolIds).order("applied_on", { ascending: false }),
+      supabaseAdmin.from("student_leave_requests").select(STUDENT_LEAVE_SELECT).in("school_id", schoolIds).order("applied_on", { ascending: false }),
+      supabaseAdmin.from("staff_members").select("id, full_name, designation, department").in("school_id", schoolIds).eq("status", "active").order("full_name"),
+      supabaseAdmin.from("students").select("id, full_name, sections ( name, grades ( level ) )").in("school_id", schoolIds).eq("status", "active").order("full_name"),
+    ]);
+
+    const leaves = buildLeaves((data ?? []) as unknown as LeaveRequestRow[], (studentData ?? []) as unknown as StudentLeaveRequestRow[], schoolNameById);
+
+    const staffOptions: StaffOption[] = ((staffRows ?? []) as unknown as StaffPickerRow[]).map((s) => ({
+      id: s.id, name: s.full_name, role: s.designation ?? "", department: s.department ?? "",
+    }));
+    const studentOptions: StudentOption[] = ((studentRows ?? []) as unknown as StudentPickerRow[]).map((s) => ({
+      id: s.id, name: s.full_name, classLabel: s.sections ? `${s.sections.grades?.level ?? "—"}-${s.sections.name ?? ""}` : "",
+    }));
+
+    return <LeavesClient initialLeaves={leaves} staffOptions={staffOptions} studentOptions={studentOptions} schools={schools} />;
+  }
+
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
+  const [{ data }, { data: studentData }, { data: staffRows }, { data: studentRows }] = await Promise.all([
+    supabaseAdmin.from("leave_requests").select(LEAVE_SELECT).eq("school_id", schoolId).order("applied_on", { ascending: false }),
+    supabaseAdmin.from("student_leave_requests").select(STUDENT_LEAVE_SELECT).eq("school_id", schoolId).order("applied_on", { ascending: false }),
+    supabaseAdmin.from("staff_members").select("id, full_name, designation, department").eq("school_id", schoolId).eq("status", "active").order("full_name"),
+    supabaseAdmin.from("students").select("id, full_name, sections ( name, grades ( level ) )").eq("school_id", schoolId).eq("status", "active").order("full_name"),
+  ]);
+
+  const leaves = buildLeaves((data ?? []) as unknown as LeaveRequestRow[], (studentData ?? []) as unknown as StudentLeaveRequestRow[]);
 
   const staffOptions: StaffOption[] = ((staffRows ?? []) as unknown as StaffPickerRow[]).map((s) => ({
     id: s.id,

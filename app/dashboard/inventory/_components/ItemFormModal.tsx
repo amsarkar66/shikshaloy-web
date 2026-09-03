@@ -5,6 +5,7 @@ import { X, Loader2, ChevronDown } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { createItem, updateItem } from "../actions";
 import type { InventoryItem, ItemCondition } from "../_data/inventory";
+import type { InstitutionSchool } from "@/lib/supabase/institution-context";
 
 interface ItemFormModalProps {
   mode: "add" | "edit";
@@ -12,6 +13,7 @@ interface ItemFormModalProps {
   categories: string[];
   onClose: () => void;
   onSaved: () => void;
+  schools?: InstitutionSchool[];
 }
 
 const inputClass =
@@ -20,7 +22,9 @@ const inputClass =
 const selectClass =
   "h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20";
 
-export function ItemFormModal({ mode, item, categories, onClose, onSaved }: ItemFormModalProps) {
+export function ItemFormModal({ mode, item, categories, onClose, onSaved, schools = [] }: ItemFormModalProps) {
+  const multiSchool = mode === "add" && schools.length > 1;
+  const [schoolId, setSchoolId] = useState(schools[0]?.id ?? "");
   const [name, setName] = useState(item?.name ?? "");
   const [category, setCategory] = useState(item?.category ?? categories[0] ?? "__new__");
   const [customCategory, setCustomCategory] = useState("");
@@ -58,6 +62,7 @@ export function ItemFormModal({ mode, item, categories, onClose, onSaved }: Item
         damaged: damaged ? Number(damaged) : 0,
         condition,
         unitCost: unitCost ? Number(unitCost) : 0,
+        schoolId: multiSchool ? schoolId : undefined,
       };
       if (mode === "add") {
         await createItem(input);
@@ -88,6 +93,17 @@ export function ItemFormModal({ mode, item, categories, onClose, onSaved }: Item
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
+            {multiSchool && (
+              <div className="col-span-2">
+                <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">School</label>
+                <div className="relative">
+                  <select className={selectClass} value={schoolId} onChange={(e) => setSchoolId(e.target.value)}>
+                    {schools.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+                </div>
+              </div>
+            )}
             <div className="col-span-2">
               <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Item Name *</label>
               <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Whiteboard Marker" required />

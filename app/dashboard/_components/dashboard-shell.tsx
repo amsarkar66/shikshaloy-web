@@ -9,14 +9,12 @@ import { DemoBanner } from "./demo-banner";
 import { CommandMenu } from "./command-menu";
 
 export function DashboardShell({
-  role, user, orgName, orgLogoUrl, schools, activeSchoolId, children,
+  role, user, orgName, orgLogoUrl, children,
 }: {
   role: string;
   user: User;
   orgName: string | null;
   orgLogoUrl: string | null;
-  schools?: { id: string; name: string }[];
-  activeSchoolId?: string | null;
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -36,8 +34,6 @@ export function DashboardShell({
             user={user}
             open={sidebarOpen}
             onClose={() => setSidebarOpen(false)}
-            schools={schools}
-            activeSchoolId={activeSchoolId}
           />
         </div>
         <div className="flex flex-1 flex-col overflow-hidden print:overflow-visible min-w-0">

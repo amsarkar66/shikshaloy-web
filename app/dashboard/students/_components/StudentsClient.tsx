@@ -18,6 +18,8 @@ import { AddStudentModal, type SectionOption } from "./add-student-modal";
 import { StudentCredentialsDialog } from "./credentials-dialog";
 import { bulkImportStudents, setStudentActive, type BulkImportOutcome } from "../actions";
 import { PlanLimitModal } from "../../_components/plan-limit-modal";
+import { SchoolFilterSelect, SchoolCell, matchesSchoolFilter } from "../../_components/school-filter";
+import type { InstitutionSchool } from "@/lib/supabase/institution-context";
 
 export type FeeStatus = "paid" | "partial" | "overdue";
 
@@ -36,6 +38,8 @@ export interface Student {
   gender: "Male" | "Female" | "Other" | null;
   joinedDate: string | null;
   photoUrl: string | null;
+  schoolId?: string;
+  schoolName?: string;
 }
 
 const AVATAR_COLORS = [
@@ -198,7 +202,7 @@ function RowActionsMenu({
             <a href={`tel:${student.phone}`} className={menuItemClass}>
               <Phone className="h-3.5 w-3.5 shrink-0" /> Call Parent
             </a>
-            <Link href="/dashboard/id-cards" onClick={onClose} className={menuItemClass}>
+            <Link href={`/dashboard/id-cards?personId=${student.id}`} onClick={onClose} className={menuItemClass}>
               <CreditCard className="h-3.5 w-3.5 shrink-0" /> Generate ID Card
             </Link>
             <button onClick={() => { onClose(); onViewCredentials(); }} className={`w-full ${menuItemClass}`}>
@@ -266,6 +270,7 @@ function StudentCard({
             <span className="inline-flex items-center rounded-md bg-primary-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary-700 dark:text-primary-300">
               {s.class}–{s.section}
             </span>
+            {s.schoolName && <SchoolCell name={s.schoolName} />}
             {s.status === "graduated" && (
               <span className="inline-flex items-center rounded-md bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-violet-600 dark:text-violet-400">Graduated</span>
             )}
@@ -326,10 +331,11 @@ function StudentCard({
 }
 
 export default function StudentsClient({
-  students: initialStudents, sections, atStudentCapacity, maxStudents,
+  students: initialStudents, sections, schools = [], atStudentCapacity, maxStudents,
 }: {
   students: Student[];
   sections: SectionOption[];
+  schools?: InstitutionSchool[];
   atStudentCapacity?: boolean;
   maxStudents?: number | null;
 }) {
@@ -345,6 +351,7 @@ export default function StudentsClient({
   const [feeFilter,   setFee]       = useState("all");
   const [attendanceFilter, setAttendance] = useState("all");
   const [enrolledFilter,   setEnrolled]   = useState("all");
+  const [schoolFilter, setSchoolFilter] = useState("all");
   const [filterOpen,  setFilterOpen] = useState(false);
   const [sortField,   setSortField] = useState<SortField>("name");
   const [sortDir,     setSortDir]   = useState<SortDir>("asc");
@@ -407,7 +414,8 @@ export default function StudentsClient({
         enrolledFilter === "all" ? true :
         enrolledFilter === "thisMonth" ? Boolean(s.joinedDate?.startsWith(thisMonth)) :
         Boolean(s.joinedDate?.startsWith(thisYear));
-      return matchQ && matchCls && matchSec && matchGen && matchStat && matchFee && matchAtt && matchEnrolled;
+      const matchSchool = matchesSchoolFilter(schoolFilter, s.schoolId);
+      return matchQ && matchCls && matchSec && matchGen && matchStat && matchFee && matchAtt && matchEnrolled && matchSchool;
     }).sort((a, b) => {
       let cmp = 0;
       if (sortField === "name")       cmp = a.name.localeCompare(b.name);
@@ -417,7 +425,7 @@ export default function StudentsClient({
       if (sortField === "joinedDate") cmp = (a.joinedDate ?? "").localeCompare(b.joinedDate ?? "");
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [query, classFilter, sectionFilter, genderFilter, statusFilter, feeFilter, attendanceFilter, enrolledFilter, sortField, sortDir, students]);
+  }, [query, classFilter, sectionFilter, genderFilter, statusFilter, feeFilter, attendanceFilter, enrolledFilter, schoolFilter, sortField, sortDir, students]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageData   = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -512,6 +520,7 @@ export default function StudentsClient({
             className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-primary-400 dark:focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
           />
         </div>
+        <SchoolFilterSelect schools={schools} value={schoolFilter} onChange={setSchoolFilter} />
         <div className="flex h-9 items-center gap-0.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-0.5">
           <button
             onClick={() => setViewMode("table")}
@@ -761,6 +770,7 @@ export default function StudentsClient({
               Class <SortIcon field="class" active={sortField === "class"} dir={sortDir} />
             </button>
           </Th>
+          {schools.length > 1 && <Th>School</Th>}
           <Th>Gender</Th>
           <Th>Parent / Guardian</Th>
           <Th>
@@ -783,7 +793,7 @@ export default function StudentsClient({
         <TableBody>
           {pageData.length === 0 ? (
             <tr>
-              <td colSpan={8} className="py-20 text-center">
+              <td colSpan={schools.length > 1 ? 9 : 8} className="py-20 text-center">
                 <div className="flex flex-col items-center gap-2">
                   <GraduationCap className="h-8 w-8 text-gray-300 dark:text-zinc-600" />
                   <p className="text-sm font-medium text-gray-500 dark:text-zinc-400">No students found</p>
@@ -821,6 +831,9 @@ export default function StudentsClient({
                     {s.class}–{s.section}
                   </span>
                 </Td>
+                {schools.length > 1 && (
+                  <Td><SchoolCell name={s.schoolName ?? "—"} /></Td>
+                )}
                 <Td className="text-sm text-gray-700 dark:text-zinc-300">{s.gender ?? "—"}</Td>
                 <Td>
                   <p className="text-sm text-gray-700 dark:text-zinc-300 truncate max-w-[160px]">{s.parent}</p>

@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase/service";
-import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
+import { assertAuthorizedSchool } from "@/lib/supabase/authorized-school";
 import type { AdmissionDocument } from "../_components/AdmissionDetail";
 import type { Application } from "../_components/AdmissionsClient";
 
@@ -16,6 +17,7 @@ interface AdmissionApplicationRow {
   sibling_studying: boolean | null; sibling_name: string | null;
   emergency_contact_name: string | null; emergency_contact_phone: string | null;
   photo_url: string | null;
+  school_id: string;
   academic_years: { name: string | null } | null;
 }
 
@@ -25,28 +27,36 @@ export async function getAdmissionApplication(id: string): Promise<{
   schoolName: string;
   schoolLogoUrl: string | null;
 } | null> {
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const vu = await getVerifiedUser();
+  if (!vu) return null;
 
-  const [{ data }, { data: documentRows }, { data: school }] = await Promise.all([
-    supabaseAdmin
-      .from("admission_applications")
-      .select(`
-        id, application_no, applicant_name, dob, gender, applying_for_grade,
-        parent_name, parent_phone, parent_email, previous_school, submitted_date,
-        status, notes, academic_year_id, updated_at, status_reason,
-        address, blood_group, category, nationality,
-        father_name, father_occupation, father_phone, father_email,
-        mother_name, mother_occupation, mother_phone, mother_email,
-        guardian_name, guardian_relation, guardian_phone,
-        sibling_studying, sibling_name,
-        emergency_contact_name, emergency_contact_phone,
-        photo_url,
-        academic_years ( name )
-      `)
-      .eq("school_id", schoolId)
-      .eq("id", id)
-      .maybeSingle(),
+  // Resolved from the application record itself (then authorized), rather
+  // than the "active school" cookie — a super_admin viewing the combined
+  // admissions list can open an application belonging to any of their
+  // institution's schools without first switching the active school to match.
+  const { data } = await supabaseAdmin
+    .from("admission_applications")
+    .select(`
+      id, application_no, applicant_name, dob, gender, applying_for_grade,
+      parent_name, parent_phone, parent_email, previous_school, submitted_date,
+      status, notes, academic_year_id, updated_at, status_reason,
+      address, blood_group, category, nationality,
+      father_name, father_occupation, father_phone, father_email,
+      mother_name, mother_occupation, mother_phone, mother_email,
+      guardian_name, guardian_relation, guardian_phone,
+      sibling_studying, sibling_name,
+      emergency_contact_name, emergency_contact_phone,
+      photo_url, school_id,
+      academic_years ( name )
+    `)
+    .eq("id", id)
+    .maybeSingle();
 
+  if (!data) return null;
+  const schoolId = (data as unknown as AdmissionApplicationRow).school_id;
+  await assertAuthorizedSchool(vu, schoolId);
+
+  const [{ data: documentRows }, { data: school }] = await Promise.all([
     supabaseAdmin
       .from("admission_documents")
       .select("id, category, file_name, file_url, uploaded_at")
@@ -59,8 +69,6 @@ export async function getAdmissionApplication(id: string): Promise<{
       .eq("id", schoolId)
       .maybeSingle(),
   ]);
-
-  if (!data) return null;
 
   // admission-documents is a private bucket (see
   // 20260901010000_restrict_admission_documents_bucket.sql) — the stored

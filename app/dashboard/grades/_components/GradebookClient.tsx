@@ -6,6 +6,8 @@ import { scoreColor, MAX_MARKS } from "../../exams/_data/exams";
 import { resolveGrade, gradeBandStyle, type GradeBand } from "@/lib/exams/grading";
 import { saveExamResults, deleteExamResult } from "../actions";
 import { FancyButton } from "@/components/ui/fancy-button";
+import { PageSchoolPicker } from "../../_components/page-school-picker";
+import type { InstitutionSchool } from "@/lib/supabase/institution-context";
 
 export interface GradebookExam { id: string; name: string; type: string; status: string; startDate: string }
 export interface GradebookCombo { key: string; sectionId: string; subjectId: string; label: string }
@@ -15,7 +17,7 @@ export interface GradebookExisting { marks: number | null; isAbsent: boolean }
 function resultKey(examId: string, subjectId: string, studentId: string) { return `${examId}::${subjectId}::${studentId}`; }
 
 export default function GradebookClient({
-  exams, combos, rosterBySection, existingResults, gradeBands, electiveStudentIds = {},
+  exams, combos, rosterBySection, existingResults, gradeBands, electiveStudentIds = {}, schools = [], activeSchoolId = null,
 }: {
   exams: GradebookExam[];
   combos: GradebookCombo[];
@@ -23,6 +25,8 @@ export default function GradebookClient({
   existingResults: Record<string, GradebookExisting>;
   gradeBands: GradeBand[];
   electiveStudentIds?: Record<string, string[]>;
+  schools?: InstitutionSchool[];
+  activeSchoolId?: string | null;
 }) {
   const [examId, setExamId] = useState(exams[0]?.id ?? "");
   const [selectedCombo, setSelectedCombo] = useState(combos[0]?.key ?? "");
@@ -135,9 +139,14 @@ export default function GradebookClient({
 
   return (
     <div className="w-full px-6 py-6 space-y-5">
-      <div>
-        <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Gradebook</h1>
-        <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Enter and review exam marks</p>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Gradebook</h1>
+          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Enter and review exam marks</p>
+        </div>
+        <div className="sm:ml-auto">
+          <PageSchoolPicker schools={schools} activeSchoolId={activeSchoolId} />
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">

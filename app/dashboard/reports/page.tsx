@@ -1,7 +1,7 @@
 import { getUser } from "@/lib/supabase/server";
 import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
-import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentSchoolIdOrThrow, getSchoolPickerData } from "@/lib/supabase/school-context";
 import { getParentContext } from "@/lib/parents/context";
 import ReportsClient from "./_components/ReportsClient";
 import { REPORT_CATALOG } from "./_data/reports";
@@ -131,6 +131,7 @@ export default async function ReportsPage() {
   }
 
   const schoolId = await getCurrentSchoolIdOrThrow();
+  const { schools, activeSchoolId } = await getSchoolPickerData();
 
   const [{ data: rows }, { data: customRows }] = await Promise.all([
     supabaseAdmin
@@ -190,5 +191,5 @@ export default async function ReportsPage() {
 
   const reports: Report[] = [...staticReports, ...customReports];
 
-  return <ReportsClient reports={reports} recentReports={recentReports} />;
+  return <ReportsClient reports={reports} recentReports={recentReports} schools={schools} activeSchoolId={activeSchoolId} />;
 }

@@ -42,3 +42,20 @@ export async function getCurrentInstitutionIdOrThrow(): Promise<string> {
   if (!institutionId) throw new Error("No institution is associated with the current account.");
   return institutionId;
 }
+
+export interface InstitutionSchool {
+  id: string;
+  name: string;
+}
+
+// All schools under an institution, for super_admin pages that combine data
+// across schools instead of scoping to a single active school (see
+// lib/supabase/school-context.ts). Cached per-request like the ids above.
+export const getInstitutionSchools = cache(async (institutionId: string): Promise<InstitutionSchool[]> => {
+  const { data } = await supabaseAdmin
+    .from("schools")
+    .select("id, name")
+    .eq("institution_id", institutionId)
+    .order("name");
+  return (data ?? []).map((s) => ({ id: s.id, name: s.name ?? "" }));
+});

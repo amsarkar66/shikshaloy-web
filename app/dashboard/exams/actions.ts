@@ -4,10 +4,13 @@ import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
-import { requireRole } from "@/lib/auth/verified-role";
+import { getVerifiedUser, type VerifiedProfile } from "@/lib/auth/verified-role";
+import { assertAuthorizedSchool, resolveAuthorizedSchoolId } from "@/lib/supabase/authorized-school";
 
-async function requireSchoolAdmin() {
-  return requireRole(["admin", "super_admin"]);
+async function requireSchoolAdmin(): Promise<VerifiedProfile> {
+  const vu = await getVerifiedUser();
+  if (!vu || (vu.role !== "admin" && vu.role !== "super_admin")) throw new Error("Unauthorized");
+  return vu;
 }
 
 export interface CreateExamInput {
@@ -15,16 +18,32 @@ export interface CreateExamInput {
   type: "unit_test" | "mid_term" | "final";
   startDate: string;
   endDate: string;
+  schoolId?: string;
 }
 
 export async function createExam(input: CreateExamInput): Promise<string> {
-  await requireSchoolAdmin();
+  const vu = await requireSchoolAdmin();
   if (!input.name.trim()) throw new Error("Exam name is required.");
   if (!input.startDate || !input.endDate) throw new Error("Start and end dates are required.");
   if (input.endDate < input.startDate) throw new Error("End date must be on or after the start date.");
 
-  const schoolId = await getCurrentSchoolIdOrThrow();
-  const academicYearId = await getCurrentAcademicYearId();
+  let schoolId: string;
+  let academicYearId: string;
+  if (input.schoolId) {
+    await assertAuthorizedSchool(vu, input.schoolId);
+    schoolId = input.schoolId;
+    const { data: ay } = await supabaseAdmin
+      .from("academic_years")
+      .select("id")
+      .eq("school_id", schoolId)
+      .eq("is_current", true)
+      .maybeSingle();
+    if (!ay) throw new Error("No current academic year is set up for this school yet.");
+    academicYearId = ay.id;
+  } else {
+    schoolId = await getCurrentSchoolIdOrThrow();
+    academicYearId = await getCurrentAcademicYearId();
+  }
 
   const { data, error } = await supabaseAdmin
     .from("exams")
@@ -57,7 +76,7 @@ export interface ExamScheduleSlot {
 }
 
 export async function listExamSchedule(examId: string): Promise<ExamScheduleSlot[]> {
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("exams", examId);
 
   const { data } = await supabaseAdmin
     .from("exam_schedules")
@@ -94,7 +113,7 @@ export async function saveExamScheduleSlot(input: SaveScheduleSlotInput): Promis
   if (!input.startTime || !input.endTime) throw new Error("Set a start and end time.");
   if (input.endTime <= input.startTime) throw new Error("End time must be after start time.");
 
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("exams", input.examId);
   const { error } = await supabaseAdmin
     .from("exam_schedules")
     .upsert(
@@ -117,7 +136,7 @@ export async function saveExamScheduleSlot(input: SaveScheduleSlotInput): Promis
 
 export async function deleteExamScheduleSlot(id: string, examId: string): Promise<void> {
   await requireSchoolAdmin();
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("exams", examId);
 
   const { error } = await supabaseAdmin
     .from("exam_schedules")
@@ -279,8 +298,9 @@ export interface MarksEntryPermissionData {
 }
 
 export async function listMarksEntryPermissionData(examId: string): Promise<MarksEntryPermissionData> {
-  const schoolId = await getCurrentSchoolIdOrThrow();
-  const academicYearId = await getCurrentAcademicYearId();
+  const schoolId = await resolveAuthorizedSchoolId("exams", examId);
+  const { data: examRow } = await supabaseAdmin.from("exams").select("academic_year_id").eq("id", examId).maybeSingle();
+  const academicYearId = examRow?.academic_year_id as string;
 
   const [{ data: ssRows }, { data: staffRows }, { data: grantRows }] = await Promise.all([
     supabaseAdmin
@@ -329,7 +349,7 @@ export async function listMarksEntryPermissionData(examId: string): Promise<Mark
 
 export async function grantMarksEntryAccess(examId: string, sectionSubjectId: string, staffProfileId: string): Promise<void> {
   await requireSchoolAdmin();
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("exams", examId);
 
   const { error } = await supabaseAdmin
     .from("marks_entry_grants")
@@ -345,7 +365,7 @@ export async function grantMarksEntryAccess(examId: string, sectionSubjectId: st
 
 export async function revokeMarksEntryAccess(grantId: string, examId: string): Promise<void> {
   await requireSchoolAdmin();
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("exams", examId);
 
   const { error } = await supabaseAdmin
     .from("marks_entry_grants")

@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
+import { resolveAuthorizedSchoolId, assertAuthorizedSchool } from "@/lib/supabase/authorized-school";
 import type { ItemCondition } from "./_data/inventory";
 
 export interface ItemInput {
@@ -15,6 +17,7 @@ export interface ItemInput {
   condition: ItemCondition;
   unitCost: number;
   notes?: string | null;
+  schoolId?: string;
 }
 
 function validateItemInput(input: ItemInput) {
@@ -30,7 +33,15 @@ function validateItemInput(input: ItemInput) {
 
 export async function createItem(input: ItemInput): Promise<{ id: string }> {
   const name = validateItemInput(input);
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  let schoolId: string;
+  if (input.schoolId) {
+    const vu = await getVerifiedUser();
+    if (!vu) throw new Error("Unauthorized");
+    await assertAuthorizedSchool(vu, input.schoolId);
+    schoolId = input.schoolId;
+  } else {
+    schoolId = await getCurrentSchoolIdOrThrow();
+  }
 
   const { data, error } = await supabaseAdmin
     .from("inventory_items")
@@ -62,7 +73,7 @@ export interface UpdateItemInput extends ItemInput {
 
 export async function updateItem(input: UpdateItemInput): Promise<void> {
   const name = validateItemInput(input);
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("inventory_items", input.id);
 
   const { error } = await supabaseAdmin
     .from("inventory_items")
@@ -87,7 +98,7 @@ export async function updateItem(input: UpdateItemInput): Promise<void> {
 }
 
 export async function deleteItem(id: string): Promise<void> {
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("inventory_items", id);
 
   const { error } = await supabaseAdmin
     .from("inventory_items")

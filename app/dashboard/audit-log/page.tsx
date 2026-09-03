@@ -1,7 +1,7 @@
 import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
-import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
+import { getCurrentInstitutionIdOrThrow, getInstitutionSchools } from "@/lib/supabase/institution-context";
 import AuditLogClient from "./_components/AuditLogClient";
 import type { AuditEntry } from "./_data/audit-log";
 
@@ -37,13 +37,10 @@ export default async function AuditLogPage() {
 
   if (role === "super_admin") {
     const institutionId = await getCurrentInstitutionIdOrThrow();
-    const { data: schools } = await supabaseAdmin
-      .from("schools")
-      .select("id, name")
-      .eq("institution_id", institutionId);
+    const schools = await getInstitutionSchools(institutionId);
 
-    const schoolsById = new Map((schools ?? []).map((s) => [s.id, s.name]));
-    const schoolIds = (schools ?? []).map((s) => s.id);
+    const schoolsById = new Map(schools.map((s) => [s.id, s.name]));
+    const schoolIds = schools.map((s) => s.id);
 
     const { data: rows } = schoolIds.length
       ? await supabaseAdmin

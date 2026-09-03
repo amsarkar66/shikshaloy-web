@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { getUser } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
-import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentSchoolIdOrThrow, getSchoolPickerData } from "@/lib/supabase/school-context";
 import MessagesClient from "./_components/MessagesClient";
 import type { Conversation, Contact, MessageEntry, ContactRole } from "./_data/messages";
 
@@ -20,6 +20,7 @@ export default async function MessagesPage() {
 
   const myId = user.id;
   const schoolId = await getCurrentSchoolIdOrThrow();
+  const { schools, activeSchoolId } = await getSchoolPickerData();
 
   const [{ data: convRows }, { data: contactRows }] = await Promise.all([
     supabaseAdmin
@@ -91,7 +92,7 @@ export default async function MessagesPage() {
 
   return (
     <Suspense fallback={null}>
-      <MessagesClient conversations={conversations} contacts={contacts} myProfileId={myId} />
+      <MessagesClient conversations={conversations} contacts={contacts} myProfileId={myId} schools={schools} activeSchoolId={activeSchoolId} />
     </Suspense>
   );
 }

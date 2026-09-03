@@ -21,13 +21,13 @@ export default async function DashboardLayout({
   const role = (await getVerifiedRole()) ?? "";
 
   // Super admin owns an institution (which can in turn own many
-  // schools/colleges) — show the institution name and, when it has more
-  // than one school, a switcher to pick which one is "active".
+  // schools/colleges) — show the institution name. Each dashboard page that
+  // needs a specific school (see lib/supabase/school-context.ts's
+  // getSchoolPickerData and app/dashboard/_components/page-school-picker.tsx)
+  // renders its own in-page picker instead of a sidebar-level one.
   // Everyone else (admin/staff/teacher/parent/student/driver) belongs to one school.
   let orgName: string | null = null;
   let orgLogoUrl: string | null = null;
-  let schools: { id: string; name: string }[] | undefined;
-  let activeSchoolId: string | null | undefined;
 
   if (role === "super_admin") {
     const { data: institution } = await supabaseAdmin
@@ -42,14 +42,6 @@ export default async function DashboardLayout({
 
     orgName = institution.name;
     orgLogoUrl = institution.logo_url;
-
-    const { data: institutionSchools } = await supabaseAdmin
-      .from("schools")
-      .select("id, name")
-      .eq("institution_id", institution.id)
-      .order("created_at", { ascending: true });
-    schools = institutionSchools ?? [];
-    activeSchoolId = await getCurrentSchoolId();
   } else if (role !== "kernel") {
     const schoolId = await getCurrentSchoolId();
     if (schoolId) {
@@ -69,8 +61,6 @@ export default async function DashboardLayout({
       user={user}
       orgName={orgName}
       orgLogoUrl={orgLogoUrl}
-      schools={schools}
-      activeSchoolId={activeSchoolId}
     >
       {children}
     </DashboardShell>

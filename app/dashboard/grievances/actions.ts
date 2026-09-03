@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { requireRole } from "@/lib/auth/verified-role";
-import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { resolveAuthorizedSchoolId } from "@/lib/supabase/authorized-school";
 
 export type GrievanceStatus = "open" | "in_review" | "resolved";
 
@@ -25,9 +25,12 @@ export async function updateGrievanceStatus(
     .eq("id", id);
 
   // kernel isn't tied to a single school; every other role may only touch
-  // grievances belonging to their own school.
+  // grievances belonging to a school they're authorized for — resolved from
+  // the record itself (not the "active school" cookie), so a super_admin
+  // viewing grievances combined across their institution can act on any of
+  // them without first switching the active school to match.
   if (role !== "kernel") {
-    const schoolId = await getCurrentSchoolIdOrThrow();
+    const schoolId = await resolveAuthorizedSchoolId("grievances", id);
     query = query.eq("school_id", schoolId);
   }
 

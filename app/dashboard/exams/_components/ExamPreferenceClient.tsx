@@ -3,6 +3,8 @@
 import { useState, useEffect, useTransition } from "react";
 import { ChevronDown, Loader2, ListChecks, Check, Lock } from "lucide-react";
 import { getSectionPreferenceData, setStudentSubjectPreference, type SectionPreferenceData } from "../actions";
+import { PageSchoolPicker } from "../../_components/page-school-picker";
+import type { InstitutionSchool } from "@/lib/supabase/institution-context";
 
 export interface PreferenceSectionOption { id: string; label: string }
 
@@ -10,7 +12,13 @@ function cellKey(studentId: string, sectionSubjectId: string) {
   return `${studentId}::${sectionSubjectId}`;
 }
 
-export default function ExamPreferenceClient({ sections }: { sections: PreferenceSectionOption[] }) {
+export default function ExamPreferenceClient({
+  sections, schools = [], activeSchoolId = null,
+}: {
+  sections: PreferenceSectionOption[];
+  schools?: InstitutionSchool[];
+  activeSchoolId?: string | null;
+}) {
   const [sectionId, setSectionId] = useState(sections[0]?.id ?? "");
   const [data, setData] = useState<SectionPreferenceData | null>(null);
   const [isLoading, startLoad] = useTransition();
@@ -58,9 +66,14 @@ export default function ExamPreferenceClient({ sections }: { sections: Preferenc
 
   return (
     <div className="w-full px-6 py-6 space-y-5">
-      <div>
-        <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Exam Preference</h1>
-        <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Choose which elective subject each student is examined in</p>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Exam Preference</h1>
+          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Choose which elective subject each student is examined in</p>
+        </div>
+        <div className="sm:ml-auto">
+          <PageSchoolPicker schools={schools} activeSchoolId={activeSchoolId} />
+        </div>
       </div>
 
       <div className="relative max-w-xs">

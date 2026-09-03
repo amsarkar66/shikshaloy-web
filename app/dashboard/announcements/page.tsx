@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase/service";
-import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentSchoolIdOrThrow, getSchoolPickerData } from "@/lib/supabase/school-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 import AnnouncementsClient from "./_components/AnnouncementsClient";
 import type { Announcement } from "./_components/AnnouncementsClient";
@@ -30,6 +30,7 @@ interface SectionRow {
 export default async function AnnouncementsPage() {
   const schoolId = await getCurrentSchoolIdOrThrow();
   const academicYearId = await getCurrentAcademicYearId();
+  const { schools, activeSchoolId } = await getSchoolPickerData();
 
   const [{ data }, { data: sectionRows }] = await Promise.all([
     supabaseAdmin
@@ -70,5 +71,5 @@ export default async function AnnouncementsPage() {
     .map((s) => ({ id: s.id, name: s.name ?? "", gradeLevel: s.grades?.level ?? 0 }))
     .sort((a, b) => a.gradeLevel - b.gradeLevel || a.name.localeCompare(b.name));
 
-  return <AnnouncementsClient initialData={announcements} sections={sections} />;
+  return <AnnouncementsClient initialData={announcements} sections={sections} schools={schools} activeSchoolId={activeSchoolId} />;
 }

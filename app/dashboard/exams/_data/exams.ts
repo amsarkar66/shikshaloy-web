@@ -12,6 +12,8 @@ export interface Exam {
   endDate: string;
   academicYear: string;
   subjects: string[];
+  schoolId?: string;
+  schoolName?: string;
 }
 
 export interface StudentExamResult {

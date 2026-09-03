@@ -11,6 +11,8 @@ import { createFeeStructure, updateFeeStructure, deleteFeeStructure, generateMon
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
 import { MonthPicker } from "@/components/ui/date-picker";
+import { PageSchoolPicker } from "../../_components/page-school-picker";
+import type { InstitutionSchool } from "@/lib/supabase/institution-context";
 
 // ── Fee structure management ──────────────────────────────────────────────────
 
@@ -125,11 +127,13 @@ function StructureRowForm({
 }
 
 export default function FeeStructureClient({
-  structures, grades, backHref,
+  structures, grades, backHref, schools = [], activeSchoolId = null,
 }: {
   structures: FeeStructure[];
   grades: GradeOption[];
   backHref: string;
+  schools?: InstitutionSchool[];
+  activeSchoolId?: string | null;
 }) {
   const router = useRouter();
   const [rows, setRows] = useState<FeeStructure[]>(structures);
@@ -231,12 +235,17 @@ export default function FeeStructureClient({
 
   return (
     <div className="w-full px-6 py-6 space-y-5">
-      <Link
-        href={backHref}
-        className="flex items-center gap-1.5 text-sm font-medium text-gray-500 dark:text-zinc-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors w-fit"
-      >
-        <ArrowLeft className="h-4 w-4" /> Back to Fees
-      </Link>
+      <div className="flex items-center gap-3">
+        <Link
+          href={backHref}
+          className="flex items-center gap-1.5 text-sm font-medium text-gray-500 dark:text-zinc-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors w-fit"
+        >
+          <ArrowLeft className="h-4 w-4" /> Back to Fees
+        </Link>
+        <div className="ml-auto">
+          <PageSchoolPicker schools={schools} activeSchoolId={activeSchoolId} />
+        </div>
+      </div>
 
       <Table
         header={

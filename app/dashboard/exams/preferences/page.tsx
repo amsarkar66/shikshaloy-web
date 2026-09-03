@@ -1,7 +1,7 @@
 import { ShieldAlert } from "lucide-react";
 import { getVerifiedRole } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
-import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentSchoolIdOrThrow, getSchoolPickerData } from "@/lib/supabase/school-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 import ExamPreferenceClient, { type PreferenceSectionOption } from "../_components/ExamPreferenceClient";
 
@@ -23,6 +23,7 @@ export default async function ExamPreferencePage() {
 
   const schoolId = await getCurrentSchoolIdOrThrow();
   const academicYearId = await getCurrentAcademicYearId();
+  const { schools, activeSchoolId } = await getSchoolPickerData();
 
   const { data: sectionRows } = await supabaseAdmin
     .from("sections")
@@ -38,5 +39,5 @@ export default async function ExamPreferencePage() {
     })
     .sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }));
 
-  return <ExamPreferenceClient sections={sections} />;
+  return <ExamPreferenceClient sections={sections} schools={schools} activeSchoolId={activeSchoolId} />;
 }

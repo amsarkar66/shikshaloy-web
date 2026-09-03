@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getUser } from "@/lib/supabase/server";
 import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
-import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentSchoolIdOrThrow, getSchoolPickerData } from "@/lib/supabase/school-context";
 import { getOrSeedRoleTemplates } from "@/lib/settings/role-templates";
 import { listPublishKeys } from "@/lib/publish-keys/actions";
 import { listDomains } from "@/lib/domains/actions";
@@ -66,6 +66,8 @@ export default async function SettingsPage() {
     needsDomains ? listDomains() : Promise.resolve([]),
   ]);
 
+  const { schools, activeSchoolId } = await getSchoolPickerData();
+
   const data: SettingsData = {
     profile: {
       id: user.id,
@@ -111,5 +113,5 @@ export default async function SettingsPage() {
     domainCnameTarget: process.env.CLOUDFLARE_FALLBACK_ORIGIN ?? "sites.shikshaloy.com",
   };
 
-  return <SettingsPageClient role={role} data={data} />;
+  return <SettingsPageClient role={role} data={data} schools={schools} activeSchoolId={activeSchoolId} />;
 }

@@ -520,10 +520,6 @@ export default function SchoolsClient({
         <SchoolsTable schools={filtered} openMenu={openMenu} onMenu={(id) => setOpenMenu(openMenu === id ? null : id)} onRemove={setRemovingSchool} />
       )}
 
-      {viewMode === "grid" && filtered.length > 1 && (
-        <SchoolsTable schools={filtered} title="School comparison" openMenu={openMenu} onMenu={(id) => setOpenMenu(openMenu === id ? null : id)} onRemove={setRemovingSchool} />
-      )}
-
       {removingSchool && (
         <DeleteSchoolModal
           open={!!removingSchool}

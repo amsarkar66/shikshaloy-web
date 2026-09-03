@@ -229,7 +229,7 @@ export interface ApplicationDetailsPatch {
 
 export async function updateApplicationDetails(applicationId: string, patch: ApplicationDetailsPatch) {
   await requireAdmissionsAccess();
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("admission_applications", applicationId);
 
   const row: Record<string, unknown> = {};
   if (patch.applicantName    !== undefined) row.applicant_name     = patch.applicantName;

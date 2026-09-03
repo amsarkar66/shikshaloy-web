@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -13,8 +13,10 @@ import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { deptColor, formatJoinDate } from "../_data/staff";
-import { assignStaffTemplate, inviteStaffMember, bulkImportStaff, type BulkImportOutcome } from "../actions";
+import { assignStaffTemplate, inviteStaffMember, bulkImportStaff, getStaffTemplatesForSchool, type BulkImportOutcome } from "../actions";
 import { BulkImportModal, type ImportColumn } from "../../_components/bulk-import-modal";
+import { SchoolFilterSelect, SchoolCell, matchesSchoolFilter } from "../../_components/school-filter";
+import type { InstitutionSchool } from "@/lib/supabase/institution-context";
 
 const STAFF_IMPORT_COLUMNS: ImportColumn[] = [
   { key: "name",        label: "Name",        required: true },
@@ -42,6 +44,8 @@ export interface StaffMember {
   status: StaffStatus;
   permissionTemplateId?: string;
   permissionTemplateName?: string;
+  schoolId?: string;
+  schoolName?: string;
 }
 
 const AVATAR_COLORS = [
@@ -173,7 +177,17 @@ function EditPermissionModal({ staff, templates, onClose, onSave }: { staff: Sta
   );
 }
 
-function InviteStaffModal({ templates, onClose, onInvited }: { templates: PermissionTemplate[]; onClose: () => void; onInvited: () => void }) {
+function InviteStaffModal({
+  templates: singleSchoolTemplates, schools = [], onClose, onInvited,
+}: {
+  templates: PermissionTemplate[];
+  schools?: InstitutionSchool[];
+  onClose: () => void;
+  onInvited: () => void;
+}) {
+  const multiSchool = schools.length > 1;
+  const [schoolId, setSchoolId] = useState(schools[0]?.id ?? "");
+  const [templates, setTemplates] = useState<PermissionTemplate[]>(singleSchoolTemplates);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [employeeId, setEmployeeId] = useState("");
@@ -183,6 +197,14 @@ function InviteStaffModal({ templates, onClose, onInvited }: { templates: Permis
   const [templateId, setTemplateId] = useState("");
   const [status, setStatus] = useState<"idle" | "saving" | "sent" | "error">("idle");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!multiSchool || !schoolId) return;
+    let cancelled = false;
+    setTemplateId("");
+    getStaffTemplatesForSchool(schoolId).then((t) => { if (!cancelled) setTemplates(t); });
+    return () => { cancelled = true; };
+  }, [multiSchool, schoolId]);
 
   async function handleInvite() {
     if (!fullName.trim() || !email.trim()) return;
@@ -199,6 +221,7 @@ function InviteStaffModal({ templates, onClose, onInvited }: { templates: Permis
         department,
         templateId,
         templateName: template?.name ?? "",
+        schoolId: multiSchool ? schoolId : undefined,
       });
       setStatus("sent");
       onInvited();
@@ -228,6 +251,17 @@ function InviteStaffModal({ templates, onClose, onInvited }: { templates: Permis
         ) : (
           <>
             <div className="space-y-4">
+              {multiSchool && (
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-gray-600 dark:text-zinc-400">School</label>
+                  <div className="relative">
+                    <select value={schoolId} onChange={(e) => setSchoolId(e.target.value)} className="h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+                      {schools.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5 col-span-2">
                   <label className="block text-xs font-semibold text-gray-600 dark:text-zinc-400">Full Name</label>
@@ -287,12 +321,19 @@ function InviteStaffModal({ templates, onClose, onInvited }: { templates: Permis
   );
 }
 
-export default function StaffClient({ initialStaff, permissionTemplates }: { initialStaff: StaffMember[]; permissionTemplates: PermissionTemplate[] }) {
+export default function StaffClient({
+  initialStaff, permissionTemplates, schools = [],
+}: {
+  initialStaff: StaffMember[];
+  permissionTemplates: PermissionTemplate[];
+  schools?: InstitutionSchool[];
+}) {
   const router = useRouter();
   const [staffList,    setStaffList]    = useState<StaffMember[]>(initialStaff);
   const [query,        setQuery]        = useState("");
   const [typeFilter,   setType]         = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [schoolFilter, setSchoolFilter] = useState("all");
   const [sortField,    setSortField]    = useState<SortField>("name");
   const [sortDir,      setSortDir]      = useState<SortDir>("asc");
   const [page,         setPage]         = useState(1);
@@ -355,7 +396,8 @@ export default function StaffClient({ initialStaff, permissionTemplates }: { ini
       const matchQ  = !q || s.name.toLowerCase().includes(q) || s.employeeId.toLowerCase().includes(q) || s.designation.toLowerCase().includes(q);
       const matchTy = typeFilter   === "all" || s.type   === typeFilter;
       const matchSt = statusFilter === "all" || s.status === statusFilter;
-      return matchQ && matchTy && matchSt;
+      const matchSc = matchesSchoolFilter(schoolFilter, s.schoolId);
+      return matchQ && matchTy && matchSt && matchSc;
     }).sort((a, b) => {
       let cmp = 0;
       if (sortField === "name")       cmp = a.name.localeCompare(b.name);
@@ -364,12 +406,12 @@ export default function StaffClient({ initialStaff, permissionTemplates }: { ini
       if (sortField === "status")     cmp = a.status.localeCompare(b.status);
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [query, typeFilter, statusFilter, sortField, sortDir, staffList]);
+  }, [query, typeFilter, statusFilter, schoolFilter, sortField, sortDir, staffList]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageData   = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  function clearFilters() { setQuery(""); setType("all"); setStatusFilter("all"); setPage(1); }
-  const hasFilter = query || typeFilter !== "all" || statusFilter !== "all";
+  function clearFilters() { setQuery(""); setType("all"); setStatusFilter("all"); setSchoolFilter("all"); setPage(1); }
+  const hasFilter = query || typeFilter !== "all" || statusFilter !== "all" || schoolFilter !== "all";
 
   return (
     <div className="w-full px-6 py-6 space-y-5">
@@ -429,6 +471,7 @@ export default function StaffClient({ initialStaff, permissionTemplates }: { ini
           </select>
           <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
         </div>
+        <SchoolFilterSelect schools={schools} value={schoolFilter} onChange={setSchoolFilter} />
         {hasFilter && (
           <button onClick={clearFilters} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
             <X className="h-3.5 w-3.5" /> Clear
@@ -485,6 +528,7 @@ export default function StaffClient({ initialStaff, permissionTemplates }: { ini
         <TableHead>
           <Th position="first"><button onClick={() => toggleSort("name")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Staff <SortIcon field="name" active={sortField==="name"} dir={sortDir} /></button></Th>
           <Th><button onClick={() => toggleSort("department")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Department <SortIcon field="department" active={sortField==="department"} dir={sortDir} /></button></Th>
+          {schools.length > 1 && <Th>School</Th>}
           <Th>Contact</Th>
           <Th><button onClick={() => toggleSort("joinedDate")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Joined <SortIcon field="joinedDate" active={sortField==="joinedDate"} dir={sortDir} /></button></Th>
           <Th><button onClick={() => toggleSort("status")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Status <SortIcon field="status" active={sortField==="status"} dir={sortDir} /></button></Th>
@@ -493,7 +537,7 @@ export default function StaffClient({ initialStaff, permissionTemplates }: { ini
         </TableHead>
         <TableBody>
           {pageData.length === 0 ? (
-            <TableEmptyRow colSpan={7} icon={Briefcase} message="No staff members found" />
+            <TableEmptyRow colSpan={schools.length > 1 ? 8 : 7} icon={Briefcase} message="No staff members found" />
           ) : (
             pageData.map((s) => (
               <Tr key={s.id}>
@@ -510,6 +554,9 @@ export default function StaffClient({ initialStaff, permissionTemplates }: { ini
                   <p className="text-sm font-medium text-gray-800 dark:text-zinc-200 truncate max-w-[200px]">{s.designation}</p>
                   <span className={`mt-0.5 inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ${deptColor(s.department)}`}>{s.department}</span>
                 </Td>
+                {schools.length > 1 && (
+                  <Td><SchoolCell name={s.schoolName ?? "—"} /></Td>
+                )}
                 <Td>
                   <p className="text-sm text-gray-700 dark:text-zinc-300">{s.phone}</p>
                   <p className="text-xs text-gray-400 dark:text-zinc-500 truncate max-w-[180px]">{s.email}</p>
@@ -532,7 +579,7 @@ export default function StaffClient({ initialStaff, permissionTemplates }: { ini
       </Table>
 
       {editingStaff && <EditPermissionModal staff={editingStaff} templates={permissionTemplates} onClose={() => setEditingStaff(null)} onSave={handlePermissionSaved} />}
-      {showInvite && <InviteStaffModal templates={permissionTemplates} onClose={() => setShowInvite(false)} onInvited={() => router.refresh()} />}
+      {showInvite && <InviteStaffModal templates={permissionTemplates} schools={schools} onClose={() => setShowInvite(false)} onInvited={() => router.refresh()} />}
     </div>
   );
 }

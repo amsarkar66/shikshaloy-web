@@ -20,6 +20,8 @@ import {
 import { updateStudentLeaveStatus, applyStudentLeave } from "../../students/actions";
 import { Users, UserCog, GraduationCap, Briefcase } from "lucide-react";
 import Link from "next/link";
+import { SchoolFilterSelect, SchoolCell, matchesSchoolFilter } from "../../_components/school-filter";
+import type { InstitutionSchool } from "@/lib/supabase/institution-context";
 
 export type PersonType = "staff" | "student";
 
@@ -38,6 +40,8 @@ export interface Leave {
   status: LeaveStatus;
   appliedOn: string;
   approvedBy?: string;
+  schoolId?: string;
+  schoolName?: string;
 }
 
 export interface StaffOption {
@@ -472,11 +476,19 @@ const TABS: { id: TabFilter; label: string }[] = [
   { id: "all", label: "All" }, { id: "pending", label: "Pending" }, { id: "approved", label: "Approved" }, { id: "rejected", label: "Rejected" },
 ];
 
-export default function LeavesClient({ initialLeaves, staffOptions, studentOptions }: { initialLeaves: Leave[]; staffOptions: StaffOption[]; studentOptions: StudentOption[] }) {
+export default function LeavesClient({
+  initialLeaves, staffOptions, studentOptions, schools = [],
+}: {
+  initialLeaves: Leave[];
+  staffOptions: StaffOption[];
+  studentOptions: StudentOption[];
+  schools?: InstitutionSchool[];
+}) {
   const [leaves,     setLeaves]    = useState(initialLeaves);
   const [newRequestOpen, setNewRequestOpen] = useState(false);
   const [tab,        setTab]       = useState<TabFilter>("all");
   const [personFilter, setPersonFilter] = useState<PersonFilter>("all");
+  const [schoolFilter, setSchoolFilter] = useState("all");
   const [query,      setQuery]     = useState("");
   const [typeFilter, setType]      = useState<"all"|LeaveType>("all");
   const [deptFilter, setDeptFilter] = useState("all");
@@ -566,7 +578,8 @@ export default function LeavesClient({ initialLeaves, staffOptions, studentOptio
       const matchApplied = (!appliedFrom||l.appliedOn>=appliedFrom)&&(!appliedTo||l.appliedOn<=appliedTo);
       const matchLeave    = (!leaveFrom||l.to>=leaveFrom)&&(!leaveTo||l.from<=leaveTo);
       const matchQ      = !q||l.staffName.toLowerCase().includes(q)||l.department.toLowerCase().includes(q)||l.reason.toLowerCase().includes(q);
-      return matchTab&&matchPerson&&matchType&&matchDept&&matchRole&&matchApplied&&matchLeave&&matchQ;
+      const matchSchool = matchesSchoolFilter(schoolFilter, l.schoolId);
+      return matchTab&&matchPerson&&matchType&&matchDept&&matchRole&&matchApplied&&matchLeave&&matchQ&&matchSchool;
     }).sort((a,b) => {
       let cmp=0;
       if (sortField==="staffName")  cmp=a.staffName.localeCompare(b.staffName);
@@ -577,7 +590,7 @@ export default function LeavesClient({ initialLeaves, staffOptions, studentOptio
       if (sortField==="status")     cmp=a.status.localeCompare(b.status);
       return sortDir==="asc"?cmp:-cmp;
     });
-  }, [tab, personFilter, query, typeFilter, deptFilter, roleFilter, appliedFrom, appliedTo, leaveFrom, leaveTo, sortField, sortDir, leaves]);
+  }, [tab, personFilter, query, typeFilter, deptFilter, roleFilter, appliedFrom, appliedTo, leaveFrom, leaveTo, schoolFilter, sortField, sortDir, leaves]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length/PAGE_SIZE));
   const pageData   = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
@@ -640,6 +653,7 @@ export default function LeavesClient({ initialLeaves, staffOptions, studentOptio
           </select>
           <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
         </div>
+        <SchoolFilterSelect schools={schools} value={schoolFilter} onChange={setSchoolFilter} />
         <div className="flex shrink-0 gap-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 p-1">
           {([
             { id: "all" as PersonFilter, label: "All", icon: null },
@@ -774,6 +788,7 @@ export default function LeavesClient({ initialLeaves, staffOptions, studentOptio
         <TableHead>
           <Th position="first"><button onClick={()=>toggleSort("staffName")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Name <SortIcon active={sortField==="staffName"} dir={sortDir}/></button></Th>
           <Th><button onClick={()=>toggleSort("department")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Department / Class <SortIcon active={sortField==="department"} dir={sortDir}/></button></Th>
+          {schools.length > 1 && <Th>School</Th>}
           <Th>Leave Type</Th>
           <Th><button onClick={()=>toggleSort("from")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Duration <SortIcon active={sortField==="from"} dir={sortDir}/></button></Th>
           <Th><button onClick={()=>toggleSort("days")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Days <SortIcon active={sortField==="days"} dir={sortDir}/></button></Th>
@@ -783,7 +798,7 @@ export default function LeavesClient({ initialLeaves, staffOptions, studentOptio
         </TableHead>
         <TableBody>
           {pageData.length===0?(
-            <TableEmptyRow colSpan={8} icon={CalendarOff} message="No leave requests found" />
+            <TableEmptyRow colSpan={schools.length > 1 ? 9 : 8} icon={CalendarOff} message="No leave requests found" />
           ):pageData.map((leave) => {
             const statusBadge    = STATUS_BADGE[leave.status];
             const leaveTypeBadge = LEAVE_TYPE_BADGE[leave.leaveType];
@@ -800,6 +815,9 @@ export default function LeavesClient({ initialLeaves, staffOptions, studentOptio
                   </div>
                 </Td>
                 <Td className="text-sm text-gray-700 dark:text-zinc-300 whitespace-nowrap">{leave.department}</Td>
+                {schools.length > 1 && (
+                  <Td><SchoolCell name={leave.schoolName ?? "—"} /></Td>
+                )}
                 <Td><span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-semibold ${leaveTypeBadge}`}>{LEAVE_TYPE_LABEL[leave.leaveType]}</span></Td>
                 <Td><p className="text-sm font-medium text-gray-700 dark:text-zinc-300 whitespace-nowrap">{formatDate(leave.from)}</p>{leave.from!==leave.to&&<p className="text-xs text-gray-400 dark:text-zinc-500 whitespace-nowrap">→ {formatDate(leave.to)}</p>}</Td>
                 <Td><span className="inline-flex items-center justify-center h-7 w-7 rounded-full bg-primary-500/10 text-xs font-bold text-primary-700 dark:text-primary-300">{leave.days}</span></Td>

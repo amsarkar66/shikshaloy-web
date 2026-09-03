@@ -23,6 +23,8 @@ import { GallerySection, type GalleryImage } from "./sections/GallerySection";
 import { CarouselSection } from "./sections/CarouselSection";
 import { DomainSection } from "./sections/DomainSection";
 import type { SchoolBanner } from "@/lib/schools/banner-actions";
+import { PageSchoolPicker } from "../../_components/page-school-picker";
+import type { InstitutionSchool } from "@/lib/supabase/institution-context";
 
 type SectionId = "theme" | "header" | "footer" | "homepage" | "carousel" | "gallery" | "domain";
 
@@ -47,6 +49,8 @@ export function WebsiteEditorShell({
   domain,
   activity,
   initialSection,
+  schools = [],
+  activeSchoolId = null,
 }: {
   initialDraft: SiteSettings;
   published: SiteSettings | null;
@@ -56,6 +60,8 @@ export function WebsiteEditorShell({
   domain: DomainSummary | null;
   activity: WebsiteActivityEntry[];
   initialSection?: string;
+  schools?: InstitutionSchool[];
+  activeSchoolId?: string | null;
 }) {
   const [activeSection, setActiveSection] = useState<SectionId>(
     SECTION_IDS.includes(initialSection as SectionId) ? (initialSection as SectionId) : "theme"
@@ -71,6 +77,9 @@ export function WebsiteEditorShell({
           <PublishStatus draft={initialDraft} published={published} publishedAt={publishedAt} />
         </div>
         <div className="sm:ml-auto flex items-center gap-2">
+          {schools.length > 1 && (
+            <PageSchoolPicker schools={schools} activeSchoolId={activeSchoolId} />
+          )}
           <FancyButton href="/dashboard/website/preview" size="sm" variant="white">
             <Eye className="h-4 w-4" /> Live Preview
           </FancyButton>

@@ -12,6 +12,8 @@ import {
 } from "../_data/documents";
 import { uploadDocument, deleteDocument } from "../actions";
 import { uploadSchoolDocumentFile } from "@/lib/documents/document-actions";
+import { SchoolFilterSelect, SchoolCell, matchesSchoolFilter } from "../../_components/school-filter";
+import type { InstitutionSchool } from "@/lib/supabase/institution-context";
 
 const CATEGORY_ICON: Record<DocCategory, React.ElementType> = {
   Circular: Megaphone,
@@ -90,11 +92,14 @@ async function downloadDocumentFile(doc: SchoolDocument) {
 }
 
 function UploadModal({
-  onClose, onUploaded,
+  onClose, onUploaded, schools = [],
 }: {
   onClose: () => void;
   onUploaded: () => void;
+  schools?: InstitutionSchool[];
 }) {
+  const multiSchool = schools.length > 1;
+  const [schoolId, setSchoolId] = useState(schools[0]?.id ?? "");
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<DocCategory>("Circular");
   const [audience, setAudience] = useState<DocAudience>("All");
@@ -122,6 +127,7 @@ function UploadModal({
           sizeKb: Math.max(1, Math.round(file.size / 1024)),
           fileUrl,
           fileName,
+          schoolId: multiSchool ? schoolId : undefined,
         });
         onUploaded();
         onClose();
@@ -139,6 +145,17 @@ function UploadModal({
           <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200"><X className="h-4 w-4" /></button>
         </div>
         <div className="space-y-3 p-5">
+          {multiSchool && (
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">School</label>
+              <div className="relative">
+                <select value={schoolId} onChange={(e) => setSchoolId(e.target.value)} className="h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-2 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+                  {schools.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+              </div>
+            </div>
+          )}
           <div className="space-y-1">
             <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">Title</label>
             <input value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="e.g. Winter Break Circular" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
@@ -252,9 +269,10 @@ function PreviewModal({
   );
 }
 
-export default function DocumentsClient({ docs }: { docs: SchoolDocument[] }) {
+export default function DocumentsClient({ docs, schools = [] }: { docs: SchoolDocument[]; schools?: InstitutionSchool[] }) {
   const [category, setCategory] = useState<"all" | DocCategory>("all");
   const [query, setQuery] = useState("");
+  const [schoolFilter, setSchoolFilter] = useState("all");
   const [uploadOpen, setUploadOpen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<SchoolDocument | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -265,8 +283,9 @@ export default function DocumentsClient({ docs }: { docs: SchoolDocument[] }) {
     return docs
       .filter((d) => category === "all" || d.category === category)
       .filter((d) => !q || d.title.toLowerCase().includes(q))
+      .filter((d) => matchesSchoolFilter(schoolFilter, d.schoolId))
       .sort((a, b) => new Date(b.uploadedDate).getTime() - new Date(a.uploadedDate).getTime());
-  }, [docs, category, query]);
+  }, [docs, category, query, schoolFilter]);
 
   function remove(id: string) {
     startTransition(async () => { await deleteDocument(id); });
@@ -342,6 +361,12 @@ export default function DocumentsClient({ docs }: { docs: SchoolDocument[] }) {
             />
           </div>
 
+          {schools.length > 1 && (
+            <div className="flex justify-end">
+              <SchoolFilterSelect schools={schools} value={schoolFilter} onChange={setSchoolFilter} />
+            </div>
+          )}
+
           <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 divide-y divide-gray-100 dark:divide-zinc-700/50 overflow-hidden">
             {filtered.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-20 text-center">
@@ -362,8 +387,9 @@ export default function DocumentsClient({ docs }: { docs: SchoolDocument[] }) {
                     </button>
                     <button onClick={() => setPreviewDoc(d)} className="min-w-0 flex-1 text-left">
                       <p className="truncate text-sm font-medium text-gray-900 dark:text-zinc-100 hover:underline">{d.title}</p>
-                      <p className="truncate text-xs text-gray-400 dark:text-zinc-500">
+                      <p className="truncate text-xs text-gray-400 dark:text-zinc-500 flex items-center gap-1">
                         {d.category} · {d.audience} · {formatSize(d.sizeKb)} · {d.uploadedBy} · {formatDate(d.uploadedDate)}
+                        {d.schoolName && <> · <SchoolCell name={d.schoolName} /></>}
                       </p>
                     </button>
                     <div className="flex items-center gap-1 shrink-0">
@@ -388,7 +414,7 @@ export default function DocumentsClient({ docs }: { docs: SchoolDocument[] }) {
       </div>
 
       {uploadOpen && (
-        <UploadModal onClose={() => setUploadOpen(false)} onUploaded={refresh} />
+        <UploadModal onClose={() => setUploadOpen(false)} onUploaded={refresh} schools={schools} />
       )}
 
       {previewDoc && (

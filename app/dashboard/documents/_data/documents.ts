@@ -13,6 +13,8 @@ export interface SchoolDocument {
   uploadedDate: string; // ISO
   fileUrl: string | null;
   fileName: string | null;
+  schoolId?: string;
+  schoolName?: string;
 }
 
 export const CATEGORIES: DocCategory[] = ["Circular", "Policy", "Form", "Notice"];

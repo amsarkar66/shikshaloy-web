@@ -1,6 +1,6 @@
 import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
-import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentSchoolIdOrThrow, getSchoolPickerData } from "@/lib/supabase/school-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 import { getStudentContext } from "@/lib/students/context";
 import { getTeacherContext } from "@/lib/teachers/context";
@@ -156,6 +156,8 @@ async function Gradebook({ role, userId }: { role: string | undefined; userId: s
     };
   }
 
+  const { schools, activeSchoolId } = await getSchoolPickerData();
+
   return (
     <GradebookClient
       exams={exams}
@@ -164,6 +166,8 @@ async function Gradebook({ role, userId }: { role: string | undefined; userId: s
       existingResults={existingResults}
       gradeBands={gradeBands}
       electiveStudentIds={electiveStudentIds}
+      schools={schools}
+      activeSchoolId={activeSchoolId}
     />
   );
 }

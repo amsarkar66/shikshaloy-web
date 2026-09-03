@@ -14,6 +14,8 @@ import {
   type Conversation, type MessageEntry, type ContactRole, type Contact,
 } from "../_data/messages";
 import { sendMessage, startConversation, markConversationRead } from "../actions";
+import { PageSchoolPicker } from "../../_components/page-school-picker";
+import type { InstitutionSchool } from "@/lib/supabase/institution-context";
 
 function Avatar({ name, role, size = "md" }: { name: string; role: ContactRole; size?: "sm" | "md" | "lg" }) {
   const sz = { sm: "h-7 w-7 text-[10px]", md: "h-9 w-9 text-xs", lg: "h-10 w-10 text-sm" }[size];
@@ -317,11 +319,13 @@ const TABS: { value: TabValue; label: string }[] = [
 ];
 
 export default function MessagesClient({
-  conversations, contacts, myProfileId,
+  conversations, contacts, myProfileId, schools = [], activeSchoolId = null,
 }: {
   conversations: Conversation[];
   contacts: Contact[];
   myProfileId: string | null;
+  schools?: InstitutionSchool[];
+  activeSchoolId?: string | null;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -386,6 +390,11 @@ export default function MessagesClient({
           </div>
           <button onClick={() => setComposing(true)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-500 hover:bg-primary-600 text-white transition-colors shadow-sm"><Plus className="h-4 w-4" /></button>
         </div>
+        {schools.length > 1 && (
+          <div className="shrink-0 px-3 pt-3">
+            <PageSchoolPicker schools={schools} activeSchoolId={activeSchoolId} />
+          </div>
+        )}
         <div className="shrink-0 px-3 pt-3 pb-1">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400 dark:text-zinc-500" />

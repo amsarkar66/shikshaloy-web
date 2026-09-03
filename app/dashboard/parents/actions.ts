@@ -3,10 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
-import { resolveAuthorizedSchoolId } from "@/lib/supabase/authorized-school";
+import { resolveAuthorizedSchoolId, assertAuthorizedSchool } from "@/lib/supabase/authorized-school";
 import { logAuditEvent } from "@/lib/audit/log";
 import { randomPassword } from "@/lib/auth/random-password";
-import { requireRole } from "@/lib/auth/verified-role";
+import { getVerifiedUser, requireRole, type VerifiedProfile } from "@/lib/auth/verified-role";
 
 export type ParentRelationship = "father" | "mother" | "guardian";
 
@@ -17,6 +17,7 @@ export interface AddParentInput {
   occupation?: string | null;
   address?: string | null;
   children: { studentId: string; relationship: ParentRelationship }[];
+  schoolId?: string;
 }
 
 export interface AddParentResult {
@@ -24,9 +25,27 @@ export interface AddParentResult {
   login: { email: string; password: string } | null;
 }
 
+// Reachable both from the single-school Parents page (no explicit schoolId
+// — falls back to the school-switcher cookie) and, once combined across an
+// institution's schools, with an explicit schoolId the caller picked, which
+// must be verified as theirs before it's trusted.
+async function resolveTargetSchoolId(vu: VerifiedProfile, explicitSchoolId?: string): Promise<string> {
+  if (explicitSchoolId) {
+    await assertAuthorizedSchool(vu, explicitSchoolId);
+    return explicitSchoolId;
+  }
+  return getCurrentSchoolIdOrThrow();
+}
+
+async function requireParentAdmin(): Promise<VerifiedProfile> {
+  const vu = await getVerifiedUser();
+  if (!vu || (vu.role !== "admin" && vu.role !== "super_admin")) throw new Error("Unauthorized");
+  return vu;
+}
+
 export async function addParent(input: AddParentInput): Promise<AddParentResult> {
-  await requireRole(["admin", "super_admin"]);
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const vu = await requireParentAdmin();
+  const schoolId = await resolveTargetSchoolId(vu, input.schoolId);
 
   const fullName = input.fullName.trim();
   if (!fullName) throw new Error("Parent name is required");
@@ -115,10 +134,11 @@ export async function addParent(input: AddParentInput): Promise<AddParentResult>
   return { parentId: newParent.id, login };
 }
 
-export async function searchStudentsForParentLink(query: string): Promise<{ id: string; label: string; sublabel: string }[]> {
+export async function searchStudentsForParentLink(query: string, schoolIdInput?: string): Promise<{ id: string; label: string; sublabel: string }[]> {
   const q = query.trim();
   if (q.length < 2) return [];
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const vu = await requireParentAdmin();
+  const schoolId = await resolveTargetSchoolId(vu, schoolIdInput);
 
   const { data } = await supabaseAdmin
     .from("students")

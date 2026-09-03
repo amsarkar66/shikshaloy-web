@@ -22,6 +22,8 @@ import { updateApplicationStatus, enrollApplication, type EnrollResult } from ".
 import type { PaymentMode } from "../../fees/_data/fees";
 import { CredentialsDialog } from "./CredentialsDialog";
 import { EnrollFeeDialog } from "./EnrollFeeDialog";
+import { SchoolFilterSelect, SchoolCell, matchesSchoolFilter } from "../../_components/school-filter";
+import type { InstitutionSchool } from "@/lib/supabase/institution-context";
 
 export interface Application {
   id:               string;
@@ -62,6 +64,8 @@ export interface Application {
   emergencyContactName?:  string;
   emergencyContactPhone?: string;
   photoUrl?:              string;
+  schoolId?:              string;
+  schoolName?:            string;
 }
 
 const PAGE_SIZE = 10;
@@ -229,10 +233,11 @@ function RowActionsMenu({
 }
 
 function ApplicationList({
-  apps, onEnrolled,
+  apps, onEnrolled, schools = [],
 }: {
   apps: Application[];
   onEnrolled: (app: Application, result: EnrollResult) => void;
+  schools?: InstitutionSchool[];
 }) {
   const [sortField, setSortField] = useState<SortField>("submittedDate");
   const [sortDir,   setSortDir]   = useState<SortDir>("desc");
@@ -284,6 +289,7 @@ function ApplicationList({
         <SortableTh field="applicationNo" position="first">App No</SortableTh>
         <SortableTh field="applicantName">Applicant</SortableTh>
         <SortableTh field="applyingForClass">Class</SortableTh>
+        {schools.length > 1 && <Th>School</Th>}
         <Th>Parent / Guardian</Th>
         <SortableTh field="submittedDate">Submitted</SortableTh>
         <SortableTh field="status">Status</SortableTh>
@@ -291,7 +297,7 @@ function ApplicationList({
       </TableHead>
       <TableBody>
         {pageApps.length===0?(
-          <TableEmptyRow colSpan={7} icon={Users} message="No applications found" />
+          <TableEmptyRow colSpan={schools.length > 1 ? 8 : 7} icon={Users} message="No applications found" />
         ):pageApps.map((app) => (
           <Tr key={app.id}>
             <Td position="first" className="font-mono text-xs text-gray-500 dark:text-zinc-400 whitespace-nowrap">{app.applicationNo}</Td>
@@ -312,6 +318,9 @@ function ApplicationList({
               </div>
             </Td>
             <Td><span className="inline-flex items-center justify-center h-7 w-7 rounded-lg bg-primary-500/10 text-xs font-bold text-primary-600 dark:text-primary-400">{app.applyingForClass}</span></Td>
+            {schools.length > 1 && (
+              <Td><SchoolCell name={app.schoolName ?? "—"} /></Td>
+            )}
             <Td><p className="text-sm text-gray-700 dark:text-zinc-300 whitespace-nowrap">{app.parentName}</p><p className="text-xs text-gray-400 dark:text-zinc-500">{app.parentPhone}</p></Td>
             <Td className="text-xs text-gray-500 dark:text-zinc-400 whitespace-nowrap">{formatDate(app.submittedDate)}</Td>
             <Td><span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${STATUS_BADGE[app.status]}`}>{STATUS_LABEL[app.status]}</span></Td>
@@ -331,11 +340,12 @@ function ApplicationList({
   );
 }
 
-export default function AdmissionsClient({ initialApps }: { initialApps: Application[] }) {
+export default function AdmissionsClient({ initialApps, schools = [] }: { initialApps: Application[]; schools?: InstitutionSchool[] }) {
   const [query,        setQuery]    = useState("");
   const [statusFilter, setStatus]   = useState("all");
   const [classFilter,  setClass]    = useState("all");
   const [yearFilter,   setYear]     = useState("2026-27");
+  const [schoolFilter, setSchoolFilter] = useState("all");
   const [credentials,  setCredentials] = useState<{ result: EnrollResult; studentName: string } | null>(null);
 
   const yearApps = useMemo(() => initialApps.filter((a) => a.academicYear===yearFilter), [yearFilter, initialApps]);
@@ -351,12 +361,13 @@ export default function AdmissionsClient({ initialApps }: { initialApps: Applica
       const matchQ   = !q||a.applicantName.toLowerCase().includes(q)||a.applicationNo.toLowerCase().includes(q)||a.parentName.toLowerCase().includes(q)||a.parentPhone.includes(q);
       const matchSt  = statusFilter==="all"||a.status===statusFilter;
       const matchCls = classFilter==="all"||a.applyingForClass===classFilter;
-      return matchQ&&matchSt&&matchCls;
+      const matchSchool = matchesSchoolFilter(schoolFilter, a.schoolId);
+      return matchQ&&matchSt&&matchCls&&matchSchool;
     });
-  }, [yearApps, query, statusFilter, classFilter]);
+  }, [yearApps, query, statusFilter, classFilter, schoolFilter]);
 
-  const hasFilter = query||statusFilter!=="all"||classFilter!=="all";
-  const clearFilters = useCallback(() => { setQuery(""); setStatus("all"); setClass("all"); }, []);
+  const hasFilter = query||statusFilter!=="all"||classFilter!=="all"||schoolFilter!=="all";
+  const clearFilters = useCallback(() => { setQuery(""); setStatus("all"); setClass("all"); setSchoolFilter("all"); }, []);
 
   function exportCsv() {
     const header = ["Application No", "Applicant", "Class", "Status", "Parent", "Phone", "Email", "Submitted"];
@@ -418,10 +429,12 @@ export default function AdmissionsClient({ initialApps }: { initialApps: Applica
           </select>
           <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
         </div>
+        <SchoolFilterSelect schools={schools} value={schoolFilter} onChange={setSchoolFilter} />
         {hasFilter&&<button onClick={clearFilters} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"><X className="h-3.5 w-3.5"/> Clear</button>}
       </div>
       <ApplicationList
         apps={filtered}
+        schools={schools}
         onEnrolled={(app, result) => setCredentials({ result, studentName: app.applicantName })}
       />
     </div>

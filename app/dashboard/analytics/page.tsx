@@ -1,7 +1,7 @@
 import { ShieldAlert } from "lucide-react";
 import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
-import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentSchoolIdOrThrow, getSchoolPickerData } from "@/lib/supabase/school-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 import AnalyticsClient from "./_components/AnalyticsClient";
 import { GRADE_COLOR } from "./_data/analytics";
@@ -40,6 +40,7 @@ export default async function AnalyticsPage() {
 
   const schoolId = await getCurrentSchoolIdOrThrow();
   const academicYearId = await getCurrentAcademicYearId();
+  const { schools, activeSchoolId } = await getSchoolPickerData();
 
   const [
     { data: ayRow },
@@ -158,6 +159,8 @@ export default async function AnalyticsPage() {
       classAttendance={classAttendance}
       gradeDist={gradeDist}
       subjectPerf={subjectPerf}
+      schools={schools}
+      activeSchoolId={activeSchoolId}
     />
   );
 }

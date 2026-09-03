@@ -1,7 +1,8 @@
 import { ShieldAlert } from "lucide-react";
-import { requireRoleOrStaffTemplate } from "@/lib/auth/verified-role";
+import { getVerifiedUser, requireRoleOrStaffTemplate } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentInstitutionIdOrThrow, getInstitutionSchools } from "@/lib/supabase/institution-context";
 import { getOrSeedRoleTemplates } from "@/lib/settings/role-templates";
 import StaffClient from "./_components/StaffClient";
 import type { StaffMember } from "./_components/StaffClient";
@@ -18,26 +19,24 @@ function Unauthorized() {
   );
 }
 
-export default async function StaffPage() {
-  try {
-    await requireRoleOrStaffTemplate(["admin", "super_admin"], ["hr_manager"]);
-  } catch {
-    return <Unauthorized />;
-  }
+interface StaffRow {
+  id: string;
+  employee_id: string | null;
+  full_name: string;
+  phone: string | null;
+  email: string | null;
+  type: string | null;
+  designation: string | null;
+  department: string | null;
+  joined_date: string | null;
+  status: string | null;
+  permission_template_id: string | null;
+  permission_template_name: string | null;
+  school_id: string;
+}
 
-  const schoolId = await getCurrentSchoolIdOrThrow();
-  const [{ data }, templates] = await Promise.all([
-    supabaseAdmin
-      .from("staff_members")
-      .select("id, employee_id, full_name, phone, email, type, designation, department, joined_date, status, permission_template_id, permission_template_name")
-      .eq("school_id", schoolId)
-      .order("full_name"),
-    getOrSeedRoleTemplates(schoolId),
-  ]);
-
-  const permissionTemplates = templates.map((t) => ({ id: t.slug, name: t.name }));
-
-  const staff: StaffMember[] = (data ?? []).map((s) => ({
+function toStaffMember(s: StaffRow, schoolNameById?: Map<string, string>): StaffMember {
+  return {
     id: s.id,
     employeeId: s.employee_id ?? "",
     name: s.full_name,
@@ -50,7 +49,57 @@ export default async function StaffPage() {
     status: (s.status ?? "active") as StaffMember["status"],
     permissionTemplateId: s.permission_template_id ?? undefined,
     permissionTemplateName: s.permission_template_name ?? undefined,
-  }));
+    schoolId: schoolNameById ? s.school_id : undefined,
+    schoolName: schoolNameById ? (schoolNameById.get(s.school_id) ?? "—") : undefined,
+  };
+}
+
+export default async function StaffPage() {
+  try {
+    await requireRoleOrStaffTemplate(["admin", "super_admin"], ["hr_manager"]);
+  } catch {
+    return <Unauthorized />;
+  }
+
+  const verifiedUser = await getVerifiedUser();
+
+  if (verifiedUser?.role === "super_admin") {
+    const institutionId = await getCurrentInstitutionIdOrThrow();
+    const schools = await getInstitutionSchools(institutionId);
+    const schoolIds = schools.map((s) => s.id);
+    const schoolNameById = new Map(schools.map((s) => [s.id, s.name]));
+
+    if (schoolIds.length === 0) {
+      return <StaffClient initialStaff={[]} permissionTemplates={[]} schools={schools} />;
+    }
+
+    const { data } = await supabaseAdmin
+      .from("staff_members")
+      .select("id, employee_id, full_name, phone, email, type, designation, department, joined_date, status, permission_template_id, permission_template_name, school_id")
+      .in("school_id", schoolIds)
+      .order("full_name");
+
+    const staff: StaffMember[] = ((data ?? []) as unknown as StaffRow[]).map((s) => toStaffMember(s, schoolNameById));
+
+    // Permission templates are per-school; the invite modal loads them on
+    // demand once a school is picked (getStaffTemplatesForSchool), so no
+    // template list needs to be prefetched here.
+    return <StaffClient initialStaff={staff} permissionTemplates={[]} schools={schools} />;
+  }
+
+  const schoolId = await getCurrentSchoolIdOrThrow();
+  const [{ data }, templates] = await Promise.all([
+    supabaseAdmin
+      .from("staff_members")
+      .select("id, employee_id, full_name, phone, email, type, designation, department, joined_date, status, permission_template_id, permission_template_name, school_id")
+      .eq("school_id", schoolId)
+      .order("full_name"),
+    getOrSeedRoleTemplates(schoolId),
+  ]);
+
+  const permissionTemplates = templates.map((t) => ({ id: t.slug, name: t.name }));
+
+  const staff: StaffMember[] = ((data ?? []) as unknown as StaffRow[]).map((s) => toStaffMember(s));
 
   return <StaffClient initialStaff={staff} permissionTemplates={permissionTemplates} />;
 }

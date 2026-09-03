@@ -18,6 +18,8 @@ import {
 } from "../_data/reports";
 import { generateReport, downloadRecentReport, deleteCustomReport } from "../actions";
 import type { ReportTable } from "../report-data";
+import { PageSchoolPicker } from "../../_components/page-school-picker";
+import type { InstitutionSchool } from "@/lib/supabase/institution-context";
 import { downloadCsv } from "../_lib/csv";
 import { downloadReportTable } from "../_lib/download-report";
 import CustomReportBuilderModal, { type CustomReportEditTarget } from "./CustomReportBuilderModal";
@@ -506,10 +508,12 @@ function RecentReports({ recentReports }: { recentReports: RecentReport[] }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ReportsClient({
-  reports, recentReports,
+  reports, recentReports, schools = [], activeSchoolId = null,
 }: {
   reports: Report[];
   recentReports: RecentReport[];
+  schools?: InstitutionSchool[];
+  activeSchoolId?: string | null;
 }) {
   const router = useRouter();
   const [mainTab, setMainTab] = useState<MainTab>("overview");
@@ -609,7 +613,8 @@ export default function ReportsClient({
           <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Reports</h1>
           <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Analytics and summaries</p>
         </div>
-        <div className="flex gap-2 sm:ml-auto">
+        <div className="flex gap-2 sm:ml-auto items-center">
+          <PageSchoolPicker schools={schools} activeSchoolId={activeSchoolId} />
           <button
             onClick={openCreateScheduledBuilder}
             className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm font-medium text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors whitespace-nowrap"

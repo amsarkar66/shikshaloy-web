@@ -2,7 +2,7 @@ import { IndianRupee, CheckCircle2, AlertCircle } from "lucide-react";
 import { getVerifiedUser, requireRoleOrStaffTemplate } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
-import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
+import { getCurrentInstitutionIdOrThrow, getInstitutionSchools } from "@/lib/supabase/institution-context";
 import { getParentContext } from "@/lib/parents/context";
 import FeesClient from "./_components/FeesClient";
 import FeeCollectionClient, {
@@ -163,13 +163,7 @@ async function ParentFees({ userId }: { userId: string }) {
 async function SuperAdminFeeCollection() {
   const institutionId = await getCurrentInstitutionIdOrThrow();
 
-  const { data: schoolRows } = await supabaseAdmin
-    .from("schools")
-    .select("id, name")
-    .eq("institution_id", institutionId)
-    .order("name");
-
-  const schools = (schoolRows ?? []).map((s) => ({ id: s.id, name: s.name ?? "" }));
+  const schools = await getInstitutionSchools(institutionId);
   const schoolIds = schools.map((s) => s.id);
   const schoolNameById = new Map(schools.map((s) => [s.id, s.name]));
 

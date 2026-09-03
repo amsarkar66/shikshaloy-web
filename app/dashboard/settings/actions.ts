@@ -7,7 +7,8 @@ import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolId, getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { BUILTIN_DEFAULTS, type ModulePerms } from "@/lib/settings/role-template-constants";
 import { logAuditEvent } from "@/lib/audit/log";
-import { requireRole } from "@/lib/auth/verified-role";
+import { getVerifiedUser, requireRole } from "@/lib/auth/verified-role";
+import { assertAuthorizedSchool } from "@/lib/supabase/authorized-school";
 import { DEFAULT_REPORT_CARD_SETTINGS, type ReportCardSettings, type ReportCardVisibleFields } from "@/lib/report-cards/templates";
 
 // ── School Profile ────────────────────────────────────────────────────────────
@@ -183,8 +184,20 @@ export async function deleteGradeBand(id: string): Promise<void> {
 
 // ── Report card template ─────────────────────────────────────────────────────
 
-export async function getReportCardSettings(): Promise<ReportCardSettings> {
-  const schoolId = await getCurrentSchoolIdOrThrow();
+// Accepts an optional explicit schoolId for callers that already resolved
+// one from a specific record (e.g. an exam's report cards) rather than the
+// "active school" cookie — see lib/supabase/authorized-school.ts. The
+// settings page itself (no explicit schoolId) keeps using the cookie.
+export async function getReportCardSettings(explicitSchoolId?: string): Promise<ReportCardSettings> {
+  let schoolId: string;
+  if (explicitSchoolId) {
+    const vu = await getVerifiedUser();
+    if (!vu) throw new Error("Unauthorized");
+    await assertAuthorizedSchool(vu, explicitSchoolId);
+    schoolId = explicitSchoolId;
+  } else {
+    schoolId = await getCurrentSchoolIdOrThrow();
+  }
 
   const { data } = await supabaseAdmin
     .from("report_card_settings")

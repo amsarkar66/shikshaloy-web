@@ -1,7 +1,7 @@
 import { ShieldAlert } from "lucide-react";
 import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
-import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentSchoolIdOrThrow, getSchoolPickerData } from "@/lib/supabase/school-context";
 import AcademicCalendarClient from "./_components/AcademicCalendarClient";
 import type { CalendarEvent } from "./_components/AcademicCalendarClient";
 
@@ -23,6 +23,7 @@ export default async function AcademicCalendarPage() {
   if (!vu || (role !== "admin" && role !== "super_admin")) return <Unauthorized />;
 
   const schoolId = await getCurrentSchoolIdOrThrow();
+  const { schools, activeSchoolId } = await getSchoolPickerData();
   const [{ data }, { data: schoolRow }] = await Promise.all([
     supabaseAdmin
       .from("academic_calendar")
@@ -43,5 +44,5 @@ export default async function AcademicCalendarPage() {
     classes:     e.classes ?? undefined,
   }));
 
-  return <AcademicCalendarClient initialEvents={events} schoolName={schoolRow?.name ?? "Shikshaloy"} />;
+  return <AcademicCalendarClient initialEvents={events} schoolName={schoolRow?.name ?? "Shikshaloy"} schools={schools} activeSchoolId={activeSchoolId} />;
 }

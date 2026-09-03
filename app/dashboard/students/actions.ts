@@ -5,20 +5,22 @@ import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
-import { resolveAuthorizedSchoolId } from "@/lib/supabase/authorized-school";
+import { resolveAuthorizedSchoolId, assertAuthorizedSchool } from "@/lib/supabase/authorized-school";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 import { getStudentCapacity } from "@/lib/billing/plan-limits";
 import { logAuditEvent } from "@/lib/audit/log";
 import { enrollStudent, createLoginForExistingStudent, type EnrollStudentResult } from "@/lib/students/enroll";
 import { randomPassword } from "@/lib/auth/random-password";
-import { requireRole, requireRoleOrStaffTemplate } from "@/lib/auth/verified-role";
+import { getVerifiedUser, requireRoleOrStaffTemplate, type VerifiedProfile } from "@/lib/auth/verified-role";
 import type { LeaveType } from "../leaves/_data/leaves";
 
 // Student records hold sensitive PII (contacts, medical info, login
 // credentials) and student/parent/driver accounts must never be able to
 // read or mutate another student's record — only admins manage students.
-async function requireStudentAdmin() {
-  return requireRole(["admin", "super_admin"]);
+async function requireStudentAdmin(): Promise<VerifiedProfile> {
+  const vu = await getVerifiedUser();
+  if (!vu || (vu.role !== "admin" && vu.role !== "super_admin")) throw new Error("Unauthorized");
+  return vu;
 }
 
 export interface AddStudentInput {
@@ -48,18 +50,31 @@ export interface AddStudentInput {
 }
 
 export async function addStudentManual(input: AddStudentInput): Promise<EnrollStudentResult> {
-  await requireStudentAdmin();
+  const vu = await requireStudentAdmin();
   const { maxStudents, atCapacity } = await getStudentCapacity(await getCurrentInstitutionIdOrThrow());
   if (atCapacity) throw new Error(`Your plan allows up to ${maxStudents} students. Upgrade your plan to add more.`);
 
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  // Derive the school/academic year from the chosen section itself, rather
+  // than the "active school" cookie — the section the caller picked already
+  // pins both, which is what lets a super_admin add a student into any of
+  // their institution's schools from a combined students view without first
+  // switching the active school to match (see lib/supabase/authorized-school.ts).
+  const { data: section } = await supabaseAdmin
+    .from("sections")
+    .select("school_id, academic_year_id")
+    .eq("id", input.sectionId)
+    .maybeSingle();
+  if (!section) throw new Error("Please choose a valid class/section.");
+  await assertAuthorizedSchool(vu, section.school_id);
+
+  const schoolId = section.school_id;
   const result = await enrollStudent({
     schoolId,
     fullName: input.fullName,
     dob: input.dob,
     gender: input.gender,
     gradeLevel: input.gradeLevel,
-    academicYearId: await getCurrentAcademicYearId(),
+    academicYearId: section.academic_year_id,
     sectionId: input.sectionId,
     admissionNo: input.admissionNo,
     phone: input.phone,

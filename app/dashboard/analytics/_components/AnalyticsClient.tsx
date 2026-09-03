@@ -5,6 +5,8 @@ import {
   Download, BarChart3, BookOpen,
 } from "lucide-react";
 import type { FeeMonth, ClassAttendance, SubjectPerf, GradeSlice } from "../_data/analytics";
+import { PageSchoolPicker } from "../../_components/page-school-picker";
+import type { InstitutionSchool } from "@/lib/supabase/institution-context";
 
 // ── Chart: grouped bar (fee collection) ───────────────────────────────────────
 // Same hand-rolled SVG + HTML-label-overlay style as the fee-collection
@@ -245,7 +247,7 @@ function SubjectTable({ data }: { data: SubjectPerf[] }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AnalyticsClient({
-  academicYear, kpi, feeMonths, classAttendance, gradeDist, subjectPerf,
+  academicYear, kpi, feeMonths, classAttendance, gradeDist, subjectPerf, schools = [], activeSchoolId = null,
 }: {
   academicYear: string;
   kpi: { totalStudents: number; avgAttendance: number; feeCollectionRate: number; overallPassRate: number };
@@ -253,6 +255,8 @@ export default function AnalyticsClient({
   classAttendance: ClassAttendance[];
   gradeDist: GradeSlice[];
   subjectPerf: SubjectPerf[];
+  schools?: InstitutionSchool[];
+  activeSchoolId?: string | null;
 }) {
   function exportCsv() {
     const esc = (cell: string | number) => `"${String(cell).replace(/"/g,'""')}"`;
@@ -292,7 +296,8 @@ export default function AnalyticsClient({
           <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Trends and performance insights</p>
         </div>
 
-        <div className="flex gap-2 sm:ml-auto">
+        <div className="flex gap-2 sm:ml-auto items-center">
+          <PageSchoolPicker schools={schools} activeSchoolId={activeSchoolId} />
           <button onClick={exportCsv} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
             <Download className="h-3.5 w-3.5" /> Export
           </button>

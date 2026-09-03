@@ -12,6 +12,8 @@ export interface SectionOption {
   id: string;
   name: string;
   gradeLevel: number;
+  schoolId?: string;
+  schoolName?: string;
 }
 
 interface AddStudentModalProps {
@@ -26,6 +28,18 @@ const inputClass =
 
 const selectClass =
   "h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20";
+
+// When sections span more than one school (institution-wide view), group
+// the options under a per-school <optgroup> instead of just listing every
+// section flat, so it's clear which school each class/section belongs to.
+function groupSectionsBySchool(sections: SectionOption[]): Map<string, SectionOption[]> {
+  const groups = new Map<string, SectionOption[]>();
+  for (const s of sections) {
+    const key = s.schoolName ?? "";
+    groups.set(key, [...(groups.get(key) ?? []), s]);
+  }
+  return groups;
+}
 
 export function AddStudentModal({ open, onClose, sections, onCreated }: AddStudentModalProps) {
   const [form, setForm] = useState({
@@ -215,9 +229,19 @@ export function AddStudentModal({ open, onClose, sections, onCreated }: AddStude
                 <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Class / Section *</label>
                 <div className="relative">
                   <select className={selectClass} value={form.sectionId} onChange={(e) => update("sectionId", e.target.value)} required>
-                    {sections.map((s) => (
-                      <option key={s.id} value={s.id}>Class {s.gradeLevel}-{s.name}</option>
-                    ))}
+                    {sections.some((s) => s.schoolName) ? (
+                      Array.from(groupSectionsBySchool(sections)).map(([schoolName, group]) => (
+                        <optgroup key={schoolName} label={schoolName}>
+                          {group.map((s) => (
+                            <option key={s.id} value={s.id}>Class {s.gradeLevel}-{s.name}</option>
+                          ))}
+                        </optgroup>
+                      ))
+                    ) : (
+                      sections.map((s) => (
+                        <option key={s.id} value={s.id}>Class {s.gradeLevel}-{s.name}</option>
+                      ))
+                    )}
                   </select>
                   <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
                 </div>

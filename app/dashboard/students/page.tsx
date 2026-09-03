@@ -3,7 +3,7 @@ import { getVerifiedRole } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
-import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
+import { getCurrentInstitutionIdOrThrow, getInstitutionSchools } from "@/lib/supabase/institution-context";
 import { getStudentCapacity } from "@/lib/billing/plan-limits";
 import StudentsClient from "./_components/StudentsClient";
 import type { Student } from "./_components/StudentsClient";
@@ -32,6 +32,7 @@ interface StudentListRow {
   phone: string | null;
   joined_date: string | null;
   photo_url: string | null;
+  school_id: string;
   sections: { name: string | null; grades: { level: number | null } | null } | null;
   student_parents: { parents: { full_name: string | null } | null }[] | null;
 }
@@ -39,38 +40,12 @@ interface StudentListRow {
 interface StudentSectionOptionRow {
   id: string;
   name: string | null;
+  school_id: string;
   grades: { level: number | null } | null;
 }
 
-export default async function StudentsPage() {
-  const role = await getVerifiedRole();
-  if (role !== "admin" && role !== "super_admin") return <Unauthorized />;
-
-  const schoolId = await getCurrentSchoolIdOrThrow();
-  const academicYearId = await getCurrentAcademicYearId();
-  const institutionId = await getCurrentInstitutionIdOrThrow();
-  const { maxStudents, atCapacity: atStudentCapacity } = await getStudentCapacity(institutionId);
-
-  const [{ data }, { data: sectionRows }] = await Promise.all([
-    supabaseAdmin
-      .from("students")
-      .select(`
-        id, full_name, roll_no, attendance_pct, fee_status, status, gender, phone, joined_date, photo_url,
-        sections ( name, grades ( level ) ),
-        student_parents ( parents ( full_name ) )
-      `)
-      .eq("school_id", schoolId)
-      .order("full_name"),
-
-    supabaseAdmin
-      .from("sections")
-      .select("id, name, grades ( level )")
-      .eq("school_id", schoolId)
-      .eq("academic_year_id", academicYearId)
-      .order("name"),
-  ]);
-
-  const students: Student[] = ((data ?? []) as unknown as StudentListRow[]).map((s) => ({
+function toStudent(s: StudentListRow, schoolNameById?: Map<string, string>): Student {
+  return {
     id: s.id,
     name: s.full_name,
     rollNo: s.roll_no ?? "",
@@ -85,7 +60,95 @@ export default async function StudentsPage() {
     gender: (s.gender ?? null) as Student["gender"],
     joinedDate: s.joined_date ?? null,
     photoUrl: s.photo_url ?? null,
-  }));
+    schoolId: schoolNameById ? s.school_id : undefined,
+    schoolName: schoolNameById ? (schoolNameById.get(s.school_id) ?? "—") : undefined,
+  };
+}
+
+export default async function StudentsPage() {
+  const role = await getVerifiedRole();
+  if (role !== "admin" && role !== "super_admin") return <Unauthorized />;
+
+  const institutionId = await getCurrentInstitutionIdOrThrow();
+  const { maxStudents, atCapacity: atStudentCapacity } = await getStudentCapacity(institutionId);
+
+  if (role === "super_admin") {
+    const schools = await getInstitutionSchools(institutionId);
+    const schoolIds = schools.map((s) => s.id);
+    const schoolNameById = new Map(schools.map((s) => [s.id, s.name]));
+
+    if (schoolIds.length === 0) {
+      return <StudentsClient students={[]} sections={[]} schools={schools} atStudentCapacity={atStudentCapacity} maxStudents={maxStudents} />;
+    }
+
+    const { data: currentYearRows } = await supabaseAdmin
+      .from("academic_years")
+      .select("id, school_id")
+      .in("school_id", schoolIds)
+      .eq("is_current", true);
+    const currentYearIds = (currentYearRows ?? []).map((y) => y.id);
+
+    const [{ data }, { data: sectionRows }] = await Promise.all([
+      supabaseAdmin
+        .from("students")
+        .select(`
+          id, full_name, roll_no, attendance_pct, fee_status, status, gender, phone, joined_date, photo_url, school_id,
+          sections ( name, grades ( level ) ),
+          student_parents ( parents ( full_name ) )
+        `)
+        .in("school_id", schoolIds)
+        .order("full_name"),
+
+      currentYearIds.length
+        ? supabaseAdmin
+            .from("sections")
+            .select("id, name, school_id, grades ( level )")
+            .in("school_id", schoolIds)
+            .in("academic_year_id", currentYearIds)
+            .order("name")
+        : Promise.resolve({ data: [] as StudentSectionOptionRow[] }),
+    ]);
+
+    const students: Student[] = ((data ?? []) as unknown as StudentListRow[]).map((s) => toStudent(s, schoolNameById));
+
+    const sections: SectionOption[] = ((sectionRows ?? []) as unknown as StudentSectionOptionRow[])
+      .map((s) => ({ id: s.id, name: s.name ?? "", gradeLevel: s.grades?.level ?? 0, schoolId: s.school_id, schoolName: schoolNameById.get(s.school_id) ?? "—" }))
+      .sort((a, b) => (a.schoolName ?? "").localeCompare(b.schoolName ?? "") || a.gradeLevel - b.gradeLevel || a.name.localeCompare(b.name));
+
+    return (
+      <StudentsClient
+        students={students}
+        sections={sections}
+        schools={schools}
+        atStudentCapacity={atStudentCapacity}
+        maxStudents={maxStudents}
+      />
+    );
+  }
+
+  const schoolId = await getCurrentSchoolIdOrThrow();
+  const academicYearId = await getCurrentAcademicYearId();
+
+  const [{ data }, { data: sectionRows }] = await Promise.all([
+    supabaseAdmin
+      .from("students")
+      .select(`
+        id, full_name, roll_no, attendance_pct, fee_status, status, gender, phone, joined_date, photo_url, school_id,
+        sections ( name, grades ( level ) ),
+        student_parents ( parents ( full_name ) )
+      `)
+      .eq("school_id", schoolId)
+      .order("full_name"),
+
+    supabaseAdmin
+      .from("sections")
+      .select("id, name, school_id, grades ( level )")
+      .eq("school_id", schoolId)
+      .eq("academic_year_id", academicYearId)
+      .order("name"),
+  ]);
+
+  const students: Student[] = ((data ?? []) as unknown as StudentListRow[]).map((s) => toStudent(s));
 
   const sections: SectionOption[] = ((sectionRows ?? []) as unknown as StudentSectionOptionRow[])
     .map((s) => ({ id: s.id, name: s.name ?? "", gradeLevel: s.grades?.level ?? 0 }))

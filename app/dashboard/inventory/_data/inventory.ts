@@ -12,6 +12,8 @@ export interface InventoryItem {
   condition: ItemCondition;
   unitCost: number;
   lastUpdated: string;
+  schoolId?: string;
+  schoolName?: string;
 }
 
 export function availableQty(item: InventoryItem): number {

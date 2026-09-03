@@ -14,6 +14,8 @@ import PrintableYearCalendar from "./PrintableYearCalendar";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import { PageSchoolPicker } from "../../_components/page-school-picker";
+import type { InstitutionSchool } from "@/lib/supabase/institution-context";
 
 export type { CalendarEvent };
 
@@ -272,7 +274,14 @@ const TYPE_TABS: { id: "all"|EventType; label: string }[] = [
   { id: "vacation", label: "Vacations" },
 ];
 
-export default function AcademicCalendarClient({ initialEvents, schoolName }: { initialEvents: CalendarEvent[]; schoolName: string }) {
+export default function AcademicCalendarClient({
+  initialEvents, schoolName, schools = [], activeSchoolId = null,
+}: {
+  initialEvents: CalendarEvent[];
+  schoolName: string;
+  schools?: InstitutionSchool[];
+  activeSchoolId?: string | null;
+}) {
   const [typeFilter, setTypeFilter] = useState<"all"|EventType>("all");
   const [viewMode, setViewMode] = useState<"list"|"grid">("list");
   const [pdfCapturing, setPdfCapturing] = useState(false);
@@ -333,7 +342,8 @@ export default function AcademicCalendarClient({ initialEvents, schoolName }: { 
           <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Academic Calendar</h1>
           <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Terms, holidays, and exam windows</p>
         </div>
-        <div className="flex gap-2 sm:ml-auto">
+        <div className="flex gap-2 sm:ml-auto items-center">
+          <PageSchoolPicker schools={schools} activeSchoolId={activeSchoolId} />
           <DropdownMenu>
             <DropdownMenuTrigger className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors disabled:opacity-50" disabled={pdfGenerating}>
               <Download className="h-3.5 w-3.5"/> {pdfGenerating ? "Generating…" : "Export Calendar"}

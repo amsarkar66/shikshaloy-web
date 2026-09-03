@@ -7,6 +7,8 @@ import EnquiriesTab from "./EnquiriesTab";
 import CallLogTab from "./CallLogTab";
 import GatePassTab from "./GatePassTab";
 import PostalTab from "./PostalTab";
+import { PageSchoolPicker } from "../../_components/page-school-picker";
+import type { InstitutionSchool } from "@/lib/supabase/institution-context";
 
 export interface VisitorEntry {
   id: string; visitorName: string; phone: string | null; purpose: string;
@@ -41,21 +43,28 @@ const TABS: { value: Tab; label: string; icon: React.ElementType }[] = [
 ];
 
 export default function FrontDeskClient({
-  visitors, enquiries, calls, gatePasses, postal,
+  visitors, enquiries, calls, gatePasses, postal, schools = [], activeSchoolId = null,
 }: {
   visitors: VisitorEntry[];
   enquiries: EnquiryEntry[];
   calls: CallLogEntry[];
   gatePasses: GatePassEntry[];
   postal: PostalEntry[];
+  schools?: InstitutionSchool[];
+  activeSchoolId?: string | null;
 }) {
   const [tab, setTab] = useState<Tab>("visitors");
 
   return (
     <div className="w-full px-6 py-6 space-y-5">
-      <div>
-        <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Front Desk</h1>
-        <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Visitors, enquiries, calls, gate passes, and postal register</p>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Front Desk</h1>
+          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Visitors, enquiries, calls, gate passes, and postal register</p>
+        </div>
+        <div className="sm:ml-auto">
+          <PageSchoolPicker schools={schools} activeSchoolId={activeSchoolId} />
+        </div>
       </div>
 
       <div className="flex gap-1 border-b border-gray-200 dark:border-zinc-800 overflow-x-auto">

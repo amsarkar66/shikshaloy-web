@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
-import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
+import { getCurrentInstitutionIdOrThrow, getInstitutionSchools } from "@/lib/supabase/institution-context";
 import PrincipalsClient, { type Principal } from "./_components/PrincipalsClient";
 
 export default async function PrincipalsPage() {
@@ -11,13 +11,7 @@ export default async function PrincipalsPage() {
 
   const institutionId = await getCurrentInstitutionIdOrThrow();
 
-  const { data: schoolRows } = await supabaseAdmin
-    .from("schools")
-    .select("id, name")
-    .eq("institution_id", institutionId)
-    .order("name");
-
-  const schools = (schoolRows ?? []).map((s) => ({ id: s.id, name: s.name ?? "" }));
+  const schools = await getInstitutionSchools(institutionId);
   const schoolIds = schools.map((s) => s.id);
   const schoolNameById = new Map(schools.map((s) => [s.id, s.name]));
 
