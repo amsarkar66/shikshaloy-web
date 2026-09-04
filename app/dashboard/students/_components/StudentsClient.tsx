@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -188,7 +189,7 @@ function RowActionsMenu({
         <MoreHorizontal className="h-3.5 w-3.5" />
       </button>
 
-      {open && pos && (
+      {open && pos && createPortal(
         <>
           <div className="fixed inset-0 z-40" onClick={onClose} />
           <div
@@ -228,7 +229,8 @@ function RowActionsMenu({
               {student.active ? "Deactivate Student" : "Activate Student"}
             </button>
           </div>
-        </>
+        </>,
+        document.body
       )}
     </div>
   );
@@ -279,7 +281,7 @@ function StudentCard({
             )}
           </div>
         </div>
-        <div className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+        <div className={`transition-opacity ${open ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}>
           <RowActionsMenu
             student={s}
             open={open}
@@ -331,13 +333,14 @@ function StudentCard({
 }
 
 export default function StudentsClient({
-  students: initialStudents, sections, schools = [], atStudentCapacity, maxStudents,
+  students: initialStudents, sections, schools = [], atStudentCapacity, maxStudents, defaultCountry,
 }: {
   students: Student[];
   sections: SectionOption[];
   schools?: InstitutionSchool[];
   atStudentCapacity?: boolean;
   maxStudents?: number | null;
+  defaultCountry?: string;
 }) {
   const router = useRouter();
   const [students,    setStudents]  = useState(initialStudents);
@@ -727,6 +730,7 @@ export default function StudentsClient({
         onClose={() => setAddOpen(false)}
         sections={sections}
         onCreated={() => router.refresh()}
+        defaultCountry={defaultCountry}
       />
 
       <BulkImportModal

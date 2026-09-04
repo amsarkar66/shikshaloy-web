@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/lib/supabase/service";
 import { randomPassword } from "@/lib/auth/random-password";
 import { pickGradeApplicable } from "@/lib/fees/resolve";
 import { recomputeStudentFeeStatus } from "@/lib/fees/recompute-status";
+import { addressForStorage, type StructuredAddress } from "@/lib/students/address";
 
 export type AdmissionPaymentMode = "online" | "cash" | "cheque" | "upi";
 
@@ -17,10 +18,13 @@ export interface EnrollStudentInput {
   rollNo?: string | null;
   admissionNo?: string | null;
   phone?: string | null;
-  address?: string | null;
+  presentAddress?: Partial<StructuredAddress> | null;
+  permanentAddress?: Partial<StructuredAddress> | null;
   parentName?: string | null;
   parentPhone?: string | null;
   parentEmail?: string | null;
+  parentOccupation?: string | null;
+  parentQualification?: string | null;
   photoUrl?: string | null;
   bloodGroup?: string | null;
   category?: string | null;
@@ -116,6 +120,8 @@ async function ensureParentAccount(input: {
   parentName: string;
   parentEmail: string;
   parentPhone: string | null;
+  parentOccupation: string | null;
+  parentQualification: string | null;
 }): Promise<{ parentId: string; login: ParentLogin | null }> {
   const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const SERVICE_KEY = process.env.SUPABASE_SECRET_KEY!;
@@ -172,6 +178,8 @@ async function ensureParentAccount(input: {
         full_name: input.parentName,
         phone: input.parentPhone,
         email: input.parentEmail,
+        occupation: input.parentOccupation,
+        qualification: input.parentQualification,
         status: "active",
         joined_date: new Date().toISOString().slice(0, 10),
       })
@@ -280,6 +288,10 @@ async function billOneTimeFees(
 }
 
 export async function enrollStudent(input: EnrollStudentInput): Promise<EnrollStudentResult> {
+  if (input.parentName && (!input.parentPhone || !input.parentEmail)) {
+    throw new Error("Parent phone and email are required");
+  }
+
   const section = input.sectionId
     ? (await supabaseAdmin.from("sections").select("id, name, grade_id").eq("id", input.sectionId).single()).data
     : await pickSection(input.schoolId, input.gradeLevel, input.academicYearId, input.sectionName);
@@ -328,7 +340,8 @@ export async function enrollStudent(input: EnrollStudentInput): Promise<EnrollSt
       full_name: input.fullName,
       dob: input.dob,
       gender: input.gender,
-      address: input.address ?? null,
+      present_address: addressForStorage(input.presentAddress),
+      permanent_address: addressForStorage(input.permanentAddress),
       phone: input.phone ?? null,
       photo_url: input.photoUrl ?? null,
       blood_group: input.bloodGroup ?? null,
@@ -382,6 +395,8 @@ export async function enrollStudent(input: EnrollStudentInput): Promise<EnrollSt
         parentName: input.parentName,
         parentEmail: input.parentEmail,
         parentPhone: input.parentPhone ?? null,
+        parentOccupation: input.parentOccupation ?? null,
+        parentQualification: input.parentQualification ?? null,
       });
       parentId = result.parentId;
       parentLogin = result.login;
@@ -393,6 +408,8 @@ export async function enrollStudent(input: EnrollStudentInput): Promise<EnrollSt
           full_name: input.parentName,
           phone: input.parentPhone ?? null,
           email: null,
+          occupation: input.parentOccupation ?? null,
+          qualification: input.parentQualification ?? null,
           status: "active",
           joined_date: new Date().toISOString().slice(0, 10),
         })

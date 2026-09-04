@@ -23,6 +23,7 @@ import { StatusReasonDialog } from "./StatusReasonDialog";
 import { EnrollFeeDialog } from "./EnrollFeeDialog";
 import type { Application } from "./AdmissionsClient";
 import { AdmissionFormPrint } from "./AdmissionFormPrint";
+import { formatAddress } from "@/lib/students/address";
 
 export interface AdmissionDocument {
   id: string;
@@ -238,7 +239,8 @@ export function AdmissionDetail({
               { label:"Blood Group",     value:initial.bloodGroup??"—" },
               { label:"Category",        value:initial.category??"—" },
               { label:"Nationality",     value:initial.nationality??"—" },
-              { label:"Address",         value:initial.address??"—" },
+              { label:"Present Address",   value:formatAddress(initial.presentAddress) || "—" },
+              { label:"Permanent Address", value:formatAddress(initial.permanentAddress) || "—" },
             ].map((row)=>(
               <div key={row.label} className="flex items-start gap-3">
                 <span className="w-32 shrink-0 text-xs text-gray-400 dark:text-zinc-500 pt-0.5">{row.label}</span>
@@ -253,6 +255,8 @@ export function AdmissionDetail({
             <div className="flex items-start gap-3"><span className="w-32 shrink-0 text-xs text-gray-400 dark:text-zinc-500 pt-0.5">Full Name</span><span className="text-sm font-medium text-gray-800 dark:text-zinc-200">{initial.parentName}</span></div>
             <div className="flex items-center gap-3"><span className="w-32 shrink-0 text-xs text-gray-400 dark:text-zinc-500">Phone</span><a href={`tel:${initial.parentPhone}`} className="flex items-center gap-1.5 text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline"><Phone className="h-3.5 w-3.5"/>{initial.parentPhone}</a></div>
             <div className="flex items-center gap-3"><span className="w-32 shrink-0 text-xs text-gray-400 dark:text-zinc-500">Email</span><a href={`mailto:${initial.parentEmail}`} className="flex items-center gap-1.5 text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline truncate"><Mail className="h-3.5 w-3.5 shrink-0"/>{initial.parentEmail}</a></div>
+            {initial.parentQualification && <div className="flex items-start gap-3"><span className="w-32 shrink-0 text-xs text-gray-400 dark:text-zinc-500 pt-0.5">Qualification</span><span className="text-sm font-medium text-gray-800 dark:text-zinc-200">{initial.parentQualification}</span></div>}
+            {initial.parentOccupation && <div className="flex items-start gap-3"><span className="w-32 shrink-0 text-xs text-gray-400 dark:text-zinc-500 pt-0.5">Occupation</span><span className="text-sm font-medium text-gray-800 dark:text-zinc-200">{initial.parentOccupation}</span></div>}
           </div>
           <div className="pt-3 border-t border-gray-100 dark:border-zinc-700/50">
             <p className="text-xs font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wider mb-2.5">Documents</p>
@@ -304,6 +308,7 @@ export function AdmissionDetail({
               <div>
                 <p className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5">Father</p>
                 <p className="text-sm font-medium text-gray-800 dark:text-zinc-200">{initial.fatherName}</p>
+                {initial.fatherQualification&&<p className="text-xs text-gray-400 dark:text-zinc-500">{initial.fatherQualification}</p>}
                 {initial.fatherOccupation&&<p className="text-xs text-gray-400 dark:text-zinc-500">{initial.fatherOccupation}</p>}
                 {initial.fatherPhone&&<p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">{initial.fatherPhone}</p>}
                 {initial.fatherEmail&&<p className="text-xs text-gray-500 dark:text-zinc-400 truncate">{initial.fatherEmail}</p>}
@@ -313,6 +318,7 @@ export function AdmissionDetail({
               <div>
                 <p className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5">Mother</p>
                 <p className="text-sm font-medium text-gray-800 dark:text-zinc-200">{initial.motherName}</p>
+                {initial.motherQualification&&<p className="text-xs text-gray-400 dark:text-zinc-500">{initial.motherQualification}</p>}
                 {initial.motherOccupation&&<p className="text-xs text-gray-400 dark:text-zinc-500">{initial.motherOccupation}</p>}
                 {initial.motherPhone&&<p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">{initial.motherPhone}</p>}
                 {initial.motherEmail&&<p className="text-xs text-gray-500 dark:text-zinc-400 truncate">{initial.motherEmail}</p>}
@@ -323,7 +329,10 @@ export function AdmissionDetail({
                 <p className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5">Guardian</p>
                 <p className="text-sm font-medium text-gray-800 dark:text-zinc-200">{initial.guardianName}</p>
                 {initial.guardianRelation&&<p className="text-xs text-gray-400 dark:text-zinc-500">{initial.guardianRelation}</p>}
+                {initial.guardianQualification&&<p className="text-xs text-gray-400 dark:text-zinc-500">{initial.guardianQualification}</p>}
+                {initial.guardianOccupation&&<p className="text-xs text-gray-400 dark:text-zinc-500">{initial.guardianOccupation}</p>}
                 {initial.guardianPhone&&<p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">{initial.guardianPhone}</p>}
+                {initial.guardianEmail&&<p className="text-xs text-gray-500 dark:text-zinc-400 truncate">{initial.guardianEmail}</p>}
               </div>
             )}
           </div>

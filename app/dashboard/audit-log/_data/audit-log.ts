@@ -8,7 +8,7 @@ export interface AuditEntry {
   module: string;
   description: string;
   timestamp: string; // ISO datetime
-  ipAddress: string;
+  ipAddress?: string; // present only for kernel (platform-level) role
   schoolName?: string; // present when viewed platform-wide (kernel role)
 }
 

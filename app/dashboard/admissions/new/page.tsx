@@ -1,6 +1,7 @@
 import { ShieldAlert } from "lucide-react";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
 import { requireRoleOrStaffTemplate } from "@/lib/auth/verified-role";
 import NewApplicationForm, { type AcademicYearOption, type GradeOption } from "../_components/NewApplicationForm";
 
@@ -24,7 +25,8 @@ export default async function NewApplicationPage() {
   }
 
   const schoolId = await getCurrentSchoolIdOrThrow();
-  const [{ data: yearRows }, { data: gradeRows }] = await Promise.all([
+  const institutionId = await getCurrentInstitutionIdOrThrow();
+  const [{ data: yearRows }, { data: gradeRows }, { data: institution }] = await Promise.all([
     supabaseAdmin
       .from("academic_years")
       .select("id, name")
@@ -35,10 +37,15 @@ export default async function NewApplicationPage() {
       .select("id, name, level")
       .eq("school_id", schoolId)
       .order("level"),
+    supabaseAdmin
+      .from("institutions")
+      .select("country")
+      .eq("id", institutionId)
+      .maybeSingle(),
   ]);
 
   const academicYears: AcademicYearOption[] = (yearRows ?? []).map((y) => ({ id: y.id, name: y.name }));
   const grades: GradeOption[] = (gradeRows ?? []).map((g) => ({ id: g.id, name: g.name }));
 
-  return <NewApplicationForm academicYears={academicYears} grades={grades} />;
+  return <NewApplicationForm academicYears={academicYears} grades={grades} defaultCountry={institution?.country ?? "India"} />;
 }

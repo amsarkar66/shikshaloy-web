@@ -2,6 +2,7 @@
 
 import { Download } from "lucide-react";
 import type { Guardian, ExamRow, FeeRow } from "./StudentDetailTabs";
+import { formatAddress, type StructuredAddress } from "@/lib/students/address";
 
 export interface StudentReportData {
   name: string;
@@ -11,7 +12,8 @@ export interface StudentReportData {
   dob: string;
   gender: string;
   phone: string;
-  address: string;
+  presentAddress: StructuredAddress;
+  permanentAddress: StructuredAddress;
   joinedDate: string;
   overallAtt: number;
   totalPresent: number;
@@ -92,7 +94,8 @@ function printStudentReport(d: StudentReportData) {
         <dt>Date of Birth</dt><dd>${esc(d.dob)}</dd>
         <dt>Gender</dt><dd>${esc(d.gender)}</dd>
         <dt>Phone</dt><dd>${esc(d.phone)}</dd>
-        <dt>Address</dt><dd>${esc(d.address)}</dd>
+        <dt>Present Address</dt><dd>${esc(formatAddress(d.presentAddress) || "—")}</dd>
+        <dt>Permanent Address</dt><dd>${esc(formatAddress(d.permanentAddress) || "—")}</dd>
       </dl>
 
       <h2>Parents / Guardians</h2>

@@ -13,6 +13,7 @@ import type { LeaveType, LeaveStatus } from "../../leaves/_data/leaves";
 import StudentDetailTabs, { StudentSidebar, type Guardian, type ExamRow, type FeeRow, type LibraryIssueRow, type LeaveRow } from "../_components/StudentDetailTabs";
 import AttendanceCredentialsCard from "../../attendance/_components/AttendanceCredentialsCard";
 import { StudentReportButton } from "../_components/StudentReportButton";
+import { parseAddress } from "@/lib/students/address";
 import { StudentQuickStats } from "../_components/StudentQuickStats";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -66,7 +67,8 @@ interface StudentDetailRow {
   admission_no: string | null;
   dob: string | null;
   gender: string | null;
-  address: string | null;
+  present_address: unknown;
+  permanent_address: unknown;
   phone: string | null;
   photo_url: string | null;
   attendance_pct: number | null;
@@ -277,7 +279,7 @@ export default async function StudentDetailPage({
     supabaseAdmin
       .from("students")
       .select(`
-        id, full_name, roll_no, admission_no, dob, gender, address, phone, photo_url,
+        id, full_name, roll_no, admission_no, dob, gender, present_address, permanent_address, phone, photo_url,
         attendance_pct, fee_status, status, joined_date, section_id, academic_year_id, profile_id,
         blood_group, category, religion, caste, mother_tongue, language,
         emergency_contact_name, emergency_contact_phone, emergency_contact_relation,
@@ -455,7 +457,8 @@ export default async function StudentDetailPage({
     phone: s.phone ?? "—",
     dob: formatDate(s.dob),
     gender: s.gender ?? "—",
-    address: s.address ?? "—",
+    presentAddress: parseAddress(s.present_address),
+    permanentAddress: parseAddress(s.permanent_address),
     bloodGroup: s.blood_group ?? "—",
     category: s.category ?? "—",
     religion: s.religion ?? "—",
@@ -691,7 +694,8 @@ export default async function StudentDetailPage({
               dob: student.dob,
               gender: student.gender,
               phone: student.phone,
-              address: student.address,
+              presentAddress: student.presentAddress,
+              permanentAddress: student.permanentAddress,
               joinedDate: student.joinedDate,
               overallAtt,
               totalPresent,
@@ -745,7 +749,8 @@ export default async function StudentDetailPage({
               admissionNo: student.admissionNo,
               dob: student.dob,
               gender: student.gender,
-              address: student.address,
+              presentAddress: student.presentAddress,
+              permanentAddress: student.permanentAddress,
               bloodGroup: student.bloodGroup,
               category: student.category,
               religion: student.religion,

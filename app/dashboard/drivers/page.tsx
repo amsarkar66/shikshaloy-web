@@ -26,6 +26,7 @@ interface ProfileRow {
 interface StaffRow {
   id: string;
   profile_id: string | null;
+  full_name: string | null;
   employee_id: string | null;
   phone: string | null;
   email: string | null;
@@ -49,7 +50,7 @@ export default async function DriversPage() {
 
     supabaseAdmin
       .from("staff_members")
-      .select("id, profile_id, employee_id, phone, email, joined_date, status")
+      .select("id, profile_id, full_name, employee_id, phone, email, joined_date, status")
       .eq("school_id", schoolId)
       .eq("designation", "Driver"),
 
@@ -89,7 +90,7 @@ export default async function DriversPage() {
     return {
       id: p.id,
       staffId: staff?.id ?? null,
-      name: p.full_name ?? "Unnamed Driver",
+      name: staff?.full_name ?? p.full_name ?? "Unnamed Driver",
       phone: staff?.phone ?? p.phone ?? "",
       email: staff?.email ?? "",
       employeeId: staff?.employee_id ?? "",

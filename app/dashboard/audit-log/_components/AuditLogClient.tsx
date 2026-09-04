@@ -51,9 +51,10 @@ export default function AuditLogClient({ entries }: { entries: AuditEntry[] }) {
   function clearFilters() { setQuery(""); setModuleFilter("all"); setActionFilter("all"); setPage(1); }
 
   function exportCsv() {
-    const header = ["Timestamp", "Actor", "Role", "Action", "Module", "Description", "IP Address", ...(showSchool ? ["School"] : [])];
+    const header = ["Timestamp", "Actor", "Role", "Action", "Module", "Description", ...(showIp ? ["IP Address"] : []), ...(showSchool ? ["School"] : [])];
     const rows = filtered.map((e) => [
-      formatDateTime(e.timestamp), e.actor, e.actorRole, e.action, e.module, e.description, e.ipAddress,
+      formatDateTime(e.timestamp), e.actor, e.actorRole, e.action, e.module, e.description,
+      ...(showIp ? [e.ipAddress ?? ""] : []),
       ...(showSchool ? [e.schoolName ?? ""] : []),
     ]);
     const csv = [header, ...rows]
@@ -69,6 +70,7 @@ export default function AuditLogClient({ entries }: { entries: AuditEntry[] }) {
   }
 
   const showSchool = entries.some((e) => e.schoolName);
+  const showIp = entries.some((e) => e.ipAddress !== undefined);
 
   return (
     <div className="w-full px-6 py-6 space-y-5">
@@ -169,12 +171,12 @@ export default function AuditLogClient({ entries }: { entries: AuditEntry[] }) {
           <Th>Action</Th>
           <Th>Module</Th>
           <Th>Description</Th>
-          <Th>Timestamp</Th>
-          <Th position="last">IP</Th>
+          <Th position={showIp ? undefined : "last"}>Timestamp</Th>
+          {showIp && <Th position="last">IP</Th>}
         </TableHead>
         <TableBody>
           {pageData.length === 0 ? (
-            <TableEmptyRow colSpan={showSchool ? 7 : 6} icon={History} message="No matching entries" />
+            <TableEmptyRow colSpan={5 + (showSchool ? 1 : 0) + (showIp ? 1 : 0)} icon={History} message="No matching entries" />
           ) : (
             pageData.map((e) => {
               const badge = ACTION_BADGE[e.action];
@@ -200,8 +202,10 @@ export default function AuditLogClient({ entries }: { entries: AuditEntry[] }) {
                   </Td>
                   <Td className="text-sm text-gray-700 dark:text-zinc-300 whitespace-nowrap">{e.module}</Td>
                   <Td className="text-sm text-gray-600 dark:text-zinc-400 max-w-[320px]">{e.description}</Td>
-                  <Td className="text-xs text-gray-500 dark:text-zinc-400 whitespace-nowrap">{formatDateTime(e.timestamp)}</Td>
-                  <Td position="last" className="text-xs text-gray-400 dark:text-zinc-500 whitespace-nowrap">{e.ipAddress}</Td>
+                  <Td position={showIp ? undefined : "last"} className="text-xs text-gray-500 dark:text-zinc-400 whitespace-nowrap">{formatDateTime(e.timestamp)}</Td>
+                  {showIp && (
+                    <Td position="last" className="text-xs text-gray-400 dark:text-zinc-500 whitespace-nowrap">{e.ipAddress}</Td>
+                  )}
                 </Tr>
               );
             })

@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { KeyRound, Copy, RefreshCw, Loader2, UserPlus, Eye } from "lucide-react";
 import { AnimatedCheckCircle } from "@/components/auth/auth-ui";
 import { FancyButton } from "@/components/ui/fancy-button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getStudentLoginEmail, resetStudentPassword, createStudentLogin } from "../actions";
 
 export function StudentCredentialsDialog({
@@ -75,9 +76,23 @@ export function StudentCredentialsDialog({
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-5 w-5 animate-spin text-gray-400 dark:text-zinc-500" />
-          </div>
+          <>
+            <div className="mt-3 space-y-2 rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/50 p-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 dark:text-zinc-400 w-16 shrink-0">Email</span>
+                <Skeleton className="h-3.5 w-36" />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 dark:text-zinc-400 w-16 shrink-0">Password</span>
+                <Skeleton className="h-3.5 w-24" />
+              </div>
+            </div>
+            <Skeleton className="mt-3 h-3 w-3/4" />
+            <div className="mt-4 flex gap-2">
+              <Skeleton className="h-9 flex-1 rounded-lg" />
+              <Skeleton className="h-9 flex-1 rounded-lg" />
+            </div>
+          </>
         ) : (
           <>
             <div className="mt-3 space-y-2 rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/50 p-3">

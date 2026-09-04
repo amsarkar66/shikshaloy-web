@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
-  Search, CheckSquare, Square, ChevronDown, Users, Briefcase, Eye, Filter,
+  Search, CheckSquare, Square, ChevronDown, Users, Briefcase, Eye, Filter, Loader2,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
@@ -15,7 +15,7 @@ const selectClass =
   "h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-2.5 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20";
 
 export function PersonPickerTable({
-  people, type, selected, onToggle, onSelectMany, onClear, onInvert, onGenerate,
+  people, type, selected, onToggle, onSelectMany, onClear, onInvert, onGenerate, generating,
 }: {
   people: CardPerson[];
   type: PersonType;
@@ -25,6 +25,7 @@ export function PersonPickerTable({
   onClear: () => void;
   onInvert: (ids: string[]) => void;
   onGenerate: () => void;
+  generating?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [classFilter, setClassFilter] = useState("all");
@@ -162,7 +163,7 @@ export function PersonPickerTable({
           <thead className="sticky top-0 bg-gray-50 dark:bg-zinc-800 z-10">
             <tr className="border-b border-gray-200 dark:border-zinc-700">
               <th className="w-8 py-2 pl-3" />
-              <th className="py-2 pr-3 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
+              <th className="w-56 py-2 pr-3 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
                 {type === "student" ? "Student Name" : "Staff Name"}
               </th>
               <th className="py-2 pr-3 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
@@ -221,10 +222,11 @@ export function PersonPickerTable({
         </div>
         <FancyButton
           onClick={onGenerate}
-          disabled={selectedCount === 0}
+          disabled={selectedCount === 0 || generating}
           size="sm"
         >
-          <Eye className="h-3.5 w-3.5" /> Generate {selectedCount > 0 ? `${selectedCount} ` : ""}Card{selectedCount === 1 ? "" : "s"}
+          {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
+          Generate {selectedCount > 0 ? `${selectedCount} ` : ""}Card{selectedCount === 1 ? "" : "s"}
         </FancyButton>
       </div>
     </div>

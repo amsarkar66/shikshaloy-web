@@ -56,7 +56,7 @@ async function main() {
       email_confirm: true,
       user_metadata: {
         role: "driver",
-        full_name: "Shikshaloy Driver",
+        full_name: "Daniel Brooks",
         status: "active",
       },
     }),

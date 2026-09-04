@@ -206,6 +206,7 @@ export default async function StaffDetailPage({
   const totalDays    = monthly.reduce((sum, m) => sum + m.total, 0);
   const attendance: StaffAttendanceSummary = {
     monthly,
+    days: ((attRows ?? []) as unknown as StaffAttendanceRow[]).map((r) => ({ date: r.date, status: r.status })),
     overallPct: totalDays ? Math.round((totalPresent / totalDays) * 100) : 0,
     totalPresent,
     totalDays,

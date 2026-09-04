@@ -2,7 +2,8 @@
 
 import { Sun, Moon } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 
 const VARIANT_CLASSES = {
   // Floating glass pill — for auth/onboarding screens over decorative backgrounds.
@@ -16,6 +17,7 @@ const VARIANT_CLASSES = {
 export function ThemeToggle({ variant = "glass" }: { variant?: keyof typeof VARIANT_CLASSES }) {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => setMounted(true), []);
 
@@ -23,10 +25,55 @@ export function ThemeToggle({ variant = "glass" }: { variant?: keyof typeof VARI
 
   const isDark = resolvedTheme === "dark";
 
+  const toggleTheme = () => {
+    const next = isDark ? "light" : "dark";
+
+    const canAnimate =
+      typeof document.startViewTransition === "function" &&
+      !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (!canAnimate) {
+      setTheme(next);
+      return;
+    }
+
+    const rect = buttonRef.current?.getBoundingClientRect();
+    const x = rect ? rect.left + rect.width / 2 : window.innerWidth / 2;
+    const y = rect ? rect.top + rect.height / 2 : window.innerHeight / 2;
+    const endRadius = Math.hypot(
+      Math.max(x, window.innerWidth - x),
+      Math.max(y, window.innerHeight - y)
+    );
+
+    const transition = document.startViewTransition!(() => {
+      flushSync(() => setTheme(next));
+    });
+
+    transition.ready
+      .then(() => {
+        document.documentElement.animate(
+          {
+            clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${endRadius}px at ${x}px ${y}px)`],
+          },
+          {
+            duration: 600,
+            easing: "ease-in-out",
+            pseudoElement: "::view-transition-new(root)",
+          }
+        );
+      })
+      // The browser can abort a transition for reasons outside our control
+      // (tab visibility change, another extension mutating the DOM, etc).
+      // The theme has already been applied via flushSync above either way,
+      // so there's nothing to recover — just avoid an unhandled rejection.
+      .catch(() => {});
+  };
+
   return (
     <button
+      ref={buttonRef}
       type="button"
-      onClick={() => setTheme(isDark ? "light" : "dark")}
+      onClick={toggleTheme}
       title={isDark ? "Switch to light mode" : "Switch to dark mode"}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
       className={`flex h-8 w-8 items-center justify-center transition-colors ${VARIANT_CLASSES[variant]}`}

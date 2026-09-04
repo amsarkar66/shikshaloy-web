@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase/service";
+import { addressForStorage } from "@/lib/students/address";
 
 export type PrimaryContact = "father" | "mother" | "guardian";
 
@@ -86,7 +87,8 @@ export async function submitPublicAdmission(input: PublicAdmissionInput): Promis
       parent_phone: primary.phone || "",
       parent_email: primary.email || "",
       previous_school: input.previousSchool || null,
-      address: input.address || null,
+      present_address: addressForStorage({ line1: input.address }),
+      permanent_address: addressForStorage({ line1: input.address }),
       blood_group: input.bloodGroup || null,
       category: input.category || null,
       nationality: input.nationality || "Indian",

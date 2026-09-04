@@ -10,6 +10,7 @@ import { getVerifiedUser } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { resolveAuthorizedSchoolId } from "@/lib/supabase/authorized-school";
 import { ParentDetailActions } from "../_components/parent-detail-actions";
+import { formatAddress, parseAddress } from "@/lib/students/address";
 
 function Unauthorized() {
   return (
@@ -63,7 +64,7 @@ interface ParentDetailRow {
   phone: string | null;
   email: string | null;
   occupation: string | null;
-  address: string | null;
+  qualification: string | null;
   status: string | null;
   joined_date: string | null;
   profile_id: string | null;
@@ -72,6 +73,7 @@ interface ParentDetailRow {
       id: string;
       full_name: string;
       roll_no: string | null;
+      present_address: unknown;
       attendance_pct: number | null;
       fee_status: string | null;
       status: string | null;
@@ -110,9 +112,9 @@ export default async function ParentDetailPage({
   const { data: parentRow } = await supabaseAdmin
     .from("parents")
     .select(`
-      id, full_name, phone, email, occupation, address, status, joined_date, profile_id,
+      id, full_name, phone, email, occupation, qualification, status, joined_date, profile_id,
       student_parents (
-        students ( id, full_name, roll_no, attendance_pct, fee_status, status, sections ( name, grades ( level ) ) )
+        students ( id, full_name, roll_no, present_address, attendance_pct, fee_status, status, sections ( name, grades ( level ) ) )
       )
     `)
     .eq("school_id", schoolId)
@@ -128,7 +130,7 @@ export default async function ParentDetailPage({
     phone: p.phone ?? "—",
     email: p.email ?? "—",
     occupation: p.occupation ?? "—",
-    address: p.address ?? "—",
+    qualification: p.qualification ?? "—",
     joinedDate: formatDate(p.joined_date),
     active: p.status === "active",
   };
@@ -140,6 +142,7 @@ export default async function ParentDetailPage({
       id: c.id,
       name: c.full_name,
       rollNo: c.roll_no ?? "",
+      address: formatAddress(parseAddress(c.present_address)) || null,
       classNum: String(c.sections?.grades?.level ?? "—"),
       section: c.sections?.name ?? "—",
       attendance: Math.round(Number(c.attendance_pct ?? 0)),
@@ -148,6 +151,9 @@ export default async function ParentDetailPage({
     }));
 
   const childIds = children.map((c) => c.id);
+  // Parents don't have their own address on file — it's assumed to match
+  // their child's, so the contact card shows whichever linked child has one.
+  const parentAddress = children.find((c) => c.address)?.address ?? "—";
 
   const [{ data: feeRows }, { data: convRows }] = await Promise.all([
     childIds.length
@@ -281,7 +287,7 @@ export default async function ParentDetailPage({
         <p className="mb-4 text-sm font-semibold text-gray-900 dark:text-zinc-50 flex items-center gap-2">
           <Phone className="h-4 w-4 text-primary-500" /> Contact Information
         </p>
-        <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+        <dl className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-sm">
           <div>
             <dt className="text-xs text-gray-400 dark:text-zinc-500 flex items-center gap-1 mb-0.5"><Phone className="h-3 w-3" /> Phone</dt>
             <dd className="font-medium text-gray-800 dark:text-zinc-200">{parent.phone}</dd>
@@ -291,8 +297,12 @@ export default async function ParentDetailPage({
             <dd className="font-medium text-gray-800 dark:text-zinc-200 truncate">{parent.email}</dd>
           </div>
           <div>
+            <dt className="text-xs text-gray-400 dark:text-zinc-500 flex items-center gap-1 mb-0.5"><GraduationCap className="h-3 w-3" /> Qualification</dt>
+            <dd className="font-medium text-gray-800 dark:text-zinc-200">{parent.qualification}</dd>
+          </div>
+          <div>
             <dt className="text-xs text-gray-400 dark:text-zinc-500 flex items-center gap-1 mb-0.5"><MapPin className="h-3 w-3" /> Address</dt>
-            <dd className="font-medium text-gray-800 dark:text-zinc-200">{parent.address}</dd>
+            <dd className="font-medium text-gray-800 dark:text-zinc-200">{parentAddress}<span className="block text-[10px] font-normal text-gray-400 dark:text-zinc-500">Same as student&apos;s address</span></dd>
           </div>
         </dl>
       </div>

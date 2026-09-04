@@ -218,3 +218,21 @@ html {
   transition-timing-function: ease;
 }
 }
+
+/* Circular reveal for the dark/light toggle, driven via the View Transitions
+   API (see components/theme-toggle.tsx). The browser's default cross-fade is
+   disabled on both snapshots so only our clip-path circle animation — applied
+   to the new-state snapshot from JS — is visible. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  z-index: 2;
+}

@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { X, Loader2, CheckCircle2, KeyRound, Copy, ChevronDown, Search, UserPlus } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
+import { QualificationSelect } from "@/components/ui/qualification-select";
+import { OccupationSelect } from "@/components/ui/occupation-select";
 import { addParent, searchStudentsForParentLink, type ParentRelationship, type AddParentResult } from "../actions";
 import type { InstitutionSchool } from "@/lib/supabase/institution-context";
 
@@ -19,13 +21,16 @@ const inputClass =
 const selectClass =
   "h-8 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-2.5 pr-7 text-xs text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20";
 
+const fieldSelectClass =
+  "h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20";
+
 interface StudentOption { id: string; label: string; sublabel: string }
 interface LinkedChild extends StudentOption { relationship: ParentRelationship }
 
 export function AddParentModal({ open, onClose, onCreated, schools = [] }: AddParentModalProps) {
   const multiSchool = schools.length > 1;
   const [schoolId, setSchoolId] = useState(schools[0]?.id ?? "");
-  const [form, setForm] = useState({ fullName: "", phone: "", email: "", occupation: "", address: "" });
+  const [form, setForm] = useState({ fullName: "", phone: "", email: "", qualification: "", occupation: "" });
   const [childQuery, setChildQuery] = useState("");
   const [suggestions, setSuggestions] = useState<StudentOption[]>([]);
   const [linkedChildren, setLinkedChildren] = useState<LinkedChild[]>([]);
@@ -69,7 +74,7 @@ export function AddParentModal({ open, onClose, onCreated, schools = [] }: AddPa
   }
 
   function reset() {
-    setForm({ fullName: "", phone: "", email: "", occupation: "", address: "" });
+    setForm({ fullName: "", phone: "", email: "", qualification: "", occupation: "" });
     setSchoolId(schools[0]?.id ?? "");
     setChildQuery("");
     setSuggestions([]);
@@ -89,6 +94,10 @@ export function AddParentModal({ open, onClose, onCreated, schools = [] }: AddPa
       setError("Parent name is required.");
       return;
     }
+    if (!form.phone.trim() || !form.email.trim()) {
+      setError("Phone and email are required — the parent needs these to receive updates from the school.");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -97,7 +106,7 @@ export function AddParentModal({ open, onClose, onCreated, schools = [] }: AddPa
         phone: form.phone || null,
         email: form.email || null,
         occupation: form.occupation || null,
-        address: form.address || null,
+        qualification: form.qualification || null,
         children: linkedChildren.map((c) => ({ studentId: c.id, relationship: c.relationship })),
         schoolId: multiSchool ? schoolId : undefined,
       });
@@ -188,20 +197,28 @@ export function AddParentModal({ open, onClose, onCreated, schools = [] }: AddPa
                 <input className={inputClass} value={form.fullName} onChange={(e) => update("fullName", e.target.value)} required autoFocus />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Phone</label>
-                <input className={inputClass} value={form.phone} onChange={(e) => update("phone", e.target.value)} />
+                <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Phone *</label>
+                <input className={inputClass} value={form.phone} onChange={(e) => update("phone", e.target.value)} required />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Email</label>
-                <input type="email" className={inputClass} value={form.email} onChange={(e) => update("email", e.target.value)} />
+                <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Email *</label>
+                <input type="email" className={inputClass} value={form.email} onChange={(e) => update("email", e.target.value)} required />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Qualification</label>
+                <QualificationSelect
+                  value={form.qualification}
+                  onChange={(v) => update("qualification", v)}
+                  selectClassName={fieldSelectClass}
+                />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Occupation</label>
-                <input className={inputClass} value={form.occupation} onChange={(e) => update("occupation", e.target.value)} />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Address</label>
-                <input className={inputClass} value={form.address} onChange={(e) => update("address", e.target.value)} />
+                <OccupationSelect
+                  value={form.occupation}
+                  onChange={(v) => update("occupation", v)}
+                  selectClassName={fieldSelectClass}
+                />
               </div>
             </div>
 

@@ -8,6 +8,7 @@ import {
   IndianRupee, CheckCircle2, AlertCircle, TrendingUp, Shield,
   Droplet, ClipboardList, IdCard, LayoutGrid, CalendarCheck, FileText,
   Bus, MapPin, Users, Wrench, Siren, Home, AlertTriangle,
+  ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import {
@@ -17,7 +18,7 @@ import {
   type PayrollRecord,
 } from "../../../payroll/_data/payroll";
 import { LEAVE_TYPE_LABEL, STATUS_BADGE as LEAVE_STATUS_BADGE, type LeaveStatus } from "../../../leaves/_data/leaves";
-import { FUEL_ICON, VEHICLE_STATUS_BADGE, FEE_BADGE, type FuelType, type TransportFeeStatus } from "../../../transport/_data/transport";
+import { VEHICLE_STATUS_BADGE, FEE_BADGE, type TransportFeeStatus } from "../../../transport/_data/transport";
 import AttendanceCredentialsCard from "../../../attendance/_components/AttendanceCredentialsCard";
 import { EditStaffModal } from "./edit-staff-modal";
 import type { DriverRoute } from "@/lib/drivers/context";
@@ -62,6 +63,7 @@ export interface StaffLeave {
 
 export interface StaffAttendanceSummary {
   monthly: { month: string; present: number; total: number }[];
+  days: { date: string; status: string }[];
   overallPct: number;
   totalPresent: number;
   totalDays: number;
@@ -88,6 +90,48 @@ function attColor(pct: number) {
   if (pct >= 90) return { bar: "bg-emerald-500", text: "text-emerald-600 dark:text-emerald-400" };
   if (pct >= 80) return { bar: "bg-amber-500",   text: "text-amber-600 dark:text-amber-400" };
   return           { bar: "bg-red-500",     text: "text-red-600 dark:text-red-400" };
+}
+
+// ── Attendance heatmap ───────────────────────────────────────────────────────
+
+const WEEKDAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
+
+const HEATMAP_STATUS: Record<string, { dot: string; label: string }> = {
+  present:  { dot: "bg-emerald-500",                            label: "Present" },
+  late:     { dot: "bg-amber-400",                              label: "Late" },
+  on_leave: { dot: "bg-violet-400",                             label: "On Leave" },
+  absent:   { dot: "bg-red-500",                                label: "Absent" },
+};
+const HEATMAP_EMPTY = "bg-gray-100 dark:bg-zinc-800";
+
+interface DayCell { day: number; dateStr: string; status: string | null; otherMonth?: boolean }
+interface MonthGroup { key: string; label: string; cells: DayCell[] }
+
+function buildMonthGroups(days: { date: string; status: string }[]): MonthGroup[] {
+  const statusByDate = new Map(days.map((d) => [d.date, d.status]));
+  const monthKeys = Array.from(new Set(days.map((d) => d.date.slice(0, 7)))).sort().reverse();
+
+  return monthKeys.map((key) => {
+    const [year, month] = key.split("-").map(Number);
+    const firstWeekday = new Date(year, month - 1, 1).getDay();
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const prevMonthDays = new Date(year, month - 1, 0).getDate();
+
+    const cells: DayCell[] = [];
+    for (let i = firstWeekday - 1; i >= 0; i--) {
+      const day = prevMonthDays - i;
+      cells.push({ day, dateStr: "", status: null, otherMonth: true });
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${key}-${String(d).padStart(2, "0")}`;
+      cells.push({ day: d, dateStr, status: statusByDate.get(dateStr) ?? null });
+    }
+    return {
+      key,
+      label: new Date(year, month - 1, 1).toLocaleDateString("en-IN", { month: "long", year: "numeric" }),
+      cells,
+    };
+  });
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -141,11 +185,19 @@ export default function StaffDetailClient({
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("overview");
   const [editOpen, setEditOpen] = useState(false);
+  const [monthIdx, setMonthIdx] = useState(0);
 
   const pendingLeaves = leaves.filter((l) => l.status === "pending").length;
   const latestPayroll = payroll[0];
   const ac = attColor(attendance.overallPct);
-  const chartMax = Math.max(1, ...attendance.monthly.map((m) => m.total));
+  const monthGroups = buildMonthGroups(attendance.days);
+  const activeMonth = monthGroups[monthIdx];
+  const activeMonthPct = (() => {
+    if (!activeMonth) return null;
+    const recorded = activeMonth.cells.filter((c) => !c.otherMonth && !!c.status);
+    const present = recorded.filter((c) => c.status === "present" || c.status === "late").length;
+    return recorded.length ? Math.round((present / recorded.length) * 100) : null;
+  })();
   const tabs = staff.isDriver ? [...BASE_TABS, TRANSPORT_TAB] : BASE_TABS;
   const license = licenseStatus(staff.licenseExpiry);
   const totalStudents = routes.reduce((sum, r) => sum + r.roster.length, 0);
@@ -160,10 +212,10 @@ export default function StaffDetailClient({
       {/* Top bar */}
       <div className="flex items-center justify-between gap-4">
         <Link
-          href="/dashboard/staff"
+          href={staff.isDriver ? "/dashboard/drivers" : "/dashboard/staff"}
           className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"
         >
-          <ArrowLeft className="h-4 w-4" /> Back to Staff
+          <ArrowLeft className="h-4 w-4" /> {staff.isDriver ? "Back to Drivers" : "Back to Staff"}
         </Link>
       </div>
 
@@ -415,32 +467,81 @@ export default function StaffDetailClient({
           {/* Attendance */}
           {tab === "attendance" && (
             <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Monthly Attendance</p>
-                {attendance.monthly.length > 0 && (
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${ac.text} bg-emerald-500/10`}>
-                    {attendance.overallPct}% overall
-                  </span>
+              <div className="mb-5 flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Monthly Attendance</p>
+                  {activeMonthPct !== null && (
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${attColor(activeMonthPct).text} bg-emerald-500/10`}>
+                      {activeMonthPct}%
+                    </span>
+                  )}
+                </div>
+                {activeMonth && (
+                  <div className="flex items-center gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setMonthIdx((i) => Math.min(i + 1, monthGroups.length - 1))}
+                      disabled={monthIdx >= monthGroups.length - 1}
+                      className="flex h-5 w-5 items-center justify-center rounded-full text-gray-500 dark:text-zinc-400 hover:bg-gray-200 dark:hover:bg-zinc-700 disabled:opacity-30 disabled:hover:bg-transparent"
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                    </button>
+                    <span className="px-1.5 text-xs font-semibold tabular-nums text-gray-800 dark:text-zinc-200 whitespace-nowrap">{activeMonth.label}</span>
+                    <button
+                      type="button"
+                      onClick={() => setMonthIdx((i) => Math.max(i - 1, 0))}
+                      disabled={monthIdx <= 0}
+                      className="flex h-5 w-5 items-center justify-center rounded-full text-gray-500 dark:text-zinc-400 hover:bg-gray-200 dark:hover:bg-zinc-700 disabled:opacity-30 disabled:hover:bg-transparent"
+                    >
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 )}
               </div>
-              {attendance.monthly.length === 0 ? (
+
+              {!activeMonth ? (
                 <p className="text-sm text-gray-400 dark:text-zinc-500 py-6 text-center">No attendance records yet.</p>
               ) : (
-                <div className="flex items-end gap-2" style={{ height: 100 }}>
-                  {attendance.monthly.map((m) => {
-                    const pct = m.total ? Math.round((m.present / m.total) * 100) : 0;
-                    const barH = Math.round((m.present / chartMax) * 72);
-                    const c = attColor(pct);
-                    return (
-                      <div key={m.month} className="flex flex-1 flex-col items-center gap-1">
-                        <span className={`text-[10px] font-semibold tabular-nums ${c.text}`}>{pct}%</span>
-                        <div className="w-full flex flex-col justify-end" style={{ height: 72 }}>
-                          <div className={`w-full rounded-t-md ${c.bar}`} style={{ height: barH || 3 }} />
+                <div>
+                  <div className="grid grid-cols-7 gap-1 mb-1">
+                    {WEEKDAY_LABELS.map((w, i) => (
+                      <span key={i} className="flex items-center justify-center rounded-[4px] py-1 text-[10px] font-medium text-gray-500 dark:text-zinc-400 bg-gray-100 dark:bg-zinc-700/50">{w}</span>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7 gap-1">
+                    {activeMonth.cells.map((c, i) => {
+                      if (c.otherMonth) {
+                        return (
+                          <div key={i} className="aspect-square rounded-[4px] flex items-center justify-center text-[11px] font-semibold bg-gray-50 dark:bg-zinc-800/40 text-gray-300 dark:text-zinc-600 opacity-60">
+                            {c.day}
+                          </div>
+                        );
+                      }
+                      const cfg = c.status ? HEATMAP_STATUS[c.status] : null;
+                      return (
+                        <div
+                          key={i}
+                          title={`${new Date(c.dateStr).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}${cfg ? ` — ${cfg.label}` : ""}`}
+                          className={`aspect-square rounded-[4px] flex items-center justify-center text-[11px] font-semibold ${cfg ? `${cfg.dot} text-white/90` : `${HEATMAP_EMPTY} text-gray-300 dark:text-zinc-600`}`}
+                        >
+                          {c.day}
                         </div>
-                        <span className="text-[10px] text-gray-400 dark:text-zinc-500 font-medium">{m.month}</span>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-5 pt-4 border-t border-gray-100 dark:border-zinc-700/50 flex items-center gap-4 flex-wrap">
+                    {Object.entries(HEATMAP_STATUS).map(([key, v]) => (
+                      <div key={key} className="flex items-center gap-1.5">
+                        <span className={`h-2.5 w-2.5 rounded-sm ${v.dot}`} />
+                        <span className="text-[11px] text-gray-500 dark:text-zinc-400">{v.label}</span>
                       </div>
-                    );
-                  })}
+                    ))}
+                    <div className="flex items-center gap-1.5">
+                      <span className={`h-2.5 w-2.5 rounded-sm ${HEATMAP_EMPTY}`} />
+                      <span className="text-[11px] text-gray-500 dark:text-zinc-400">No record</span>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -618,7 +719,7 @@ export default function StaffDetailClient({
                                 <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${vehicleBadge}`}>{v.status}</span>
                               </div>
                               <p className="text-xs text-gray-500 dark:text-zinc-400">
-                                {v.model} · {v.capacity} seats · {FUEL_ICON[v.fuelType as FuelType] ?? "⛽"} {v.fuelType}{v.year ? ` · ${v.year}` : ""}
+                                {v.model} · {v.capacity} seats · {v.fuelType}{v.year ? ` · ${v.year}` : ""}
                               </p>
                               {v.nextService && (
                                 <p className={`text-xs mt-0.5 ${dueDays !== null && dueDays <= 14 ? "text-amber-600 dark:text-amber-400 font-medium" : "text-gray-400 dark:text-zinc-500"}`}>

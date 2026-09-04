@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Printer, Download, Share2, Star, Info, Users, Briefcase, IdCard as IdCardIcon, MoreHorizontal,
 } from "lucide-react";
@@ -27,15 +28,28 @@ export default function IdCardsClient({
   schoolName: string;
   schoolLogoUrl: string | null;
 }) {
+  const searchParams = useSearchParams();
   const [personType, setPersonType] = useState<PersonType>("student");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [generated, setGenerated] = useState(false);
+
+  useEffect(() => {
+    const personId = searchParams.get("personId");
+    if (!personId) return;
+    const person = people.find((p) => p.id === personId);
+    if (!person) return;
+    setPersonType(person.type);
+    setSelected(new Set([person.id]));
+    setGenerated(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const [settings, setSettings] = useState<IdCardSettings>(DEFAULT_ID_CARD_SETTINGS);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [shareMessage, setShareMessage] = useState<string | null>(null);
   const [capturing, setCapturing] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     try {
@@ -46,8 +60,6 @@ export default function IdCardsClient({
     }
   }, []);
 
-  useEffect(() => { if (selected.size === 0) setGenerated(false); }, [selected]);
-
   const peopleOfType = useMemo(() => people.filter((p) => p.type === personType), [people, personType]);
   const activeTemplate = ID_CARD_TEMPLATES.find((t) => t.id === settings.templateId) ?? ID_CARD_TEMPLATES[0];
   const activeCardSize = CARD_SIZES.find((s) => s.id === settings.cardSizeId) ?? CARD_SIZES[0];
@@ -57,6 +69,7 @@ export default function IdCardsClient({
   const printHeightMm = settings.orientation === "vertical" ? longSideMm : shortSideMm;
 
   function toggle(id: string) {
+    setGenerated(false);
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
@@ -64,25 +77,38 @@ export default function IdCardsClient({
     });
   }
   function selectMany(ids: string[]) {
+    setGenerated(false);
     setSelected((prev) => { const next = new Set(prev); ids.forEach((id) => next.add(id)); return next; });
   }
   function invert(ids: string[]) {
+    setGenerated(false);
     setSelected((prev) => {
       const next = new Set(prev);
       ids.forEach((id) => (next.has(id) ? next.delete(id) : next.add(id)));
       return next;
     });
   }
-  function clearSelection() { setSelected(new Set()); }
+  function clearSelection() { setGenerated(false); setSelected(new Set()); }
 
   const selectedPeople = useMemo(() => people.filter((p) => selected.has(p.id)), [people, selected]);
   const isBulk = selectedPeople.length > 1;
 
+  const [previewFocusId, setPreviewFocusId] = useState<string | null>(null);
   const previewPeople = generated ? selectedPeople : [];
-  const samplePerson = previewPeople[0] ?? null;
-  const restPeople = previewPeople.slice(1);
+  const samplePerson = previewPeople.find((p) => p.id === previewFocusId) ?? previewPeople[0] ?? null;
+  const restPeople = previewPeople.filter((p) => p.id !== samplePerson?.id);
   const thumbs = restPeople.slice(0, 4);
   const moreCount = restPeople.length - thumbs.length;
+
+  function handleGenerate() {
+    if (selected.size === 0 || generating) return;
+    setGenerating(true);
+    setTimeout(() => {
+      setPreviewFocusId(null);
+      setGenerated(true);
+      setGenerating(false);
+    }, 500);
+  }
 
   function handlePrint() { window.print(); }
 
@@ -108,6 +134,14 @@ export default function IdCardsClient({
       const gapMm = 4;
 
       const doc = new jsPDF({ unit: "mm", format: "a4" });
+      // jsPDF leaves a page's margins/gaps unpainted rather than white, and some
+      // PDF viewers render that unpainted space as black instead of white paper —
+      // so every page needs an explicit white fill before any card images land on it.
+      const paintPageWhite = () => {
+        doc.setFillColor(255, 255, 255);
+        doc.rect(0, 0, pageWidthMm, pageHeightMm, "F");
+      };
+      paintPageWhite();
       let x = marginMm;
       let y = marginMm;
       let rowHeight = 0;
@@ -123,6 +157,7 @@ export default function IdCardsClient({
         }
         if (y + printHeightMm > pageHeightMm - marginMm) {
           doc.addPage();
+          paintPageWhite();
           x = marginMm;
           y = marginMm;
           rowHeight = 0;
@@ -163,7 +198,7 @@ export default function IdCardsClient({
   }
 
   return (
-    <div className="w-full px-6 py-6 lg:h-full lg:flex lg:flex-col print:h-auto print:p-0">
+    <div className="w-full px-6 py-6 lg:h-full lg:flex lg:flex-col print:h-auto print:p-0 print:bg-white">
       <div className="print:hidden flex flex-col gap-5 lg:flex-1 lg:min-h-0">
         <div className="shrink-0 space-y-1.5">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
@@ -212,7 +247,7 @@ export default function IdCardsClient({
               {(["student", "staff"] as PersonType[]).map((t) => (
                 <button
                   key={t}
-                  onClick={() => { setPersonType(t); setSelected(new Set()); }}
+                  onClick={() => { setPersonType(t); setSelected(new Set()); setGenerated(false); }}
                   className={`flex flex-1 items-center justify-center gap-1.5 py-2.5 text-sm font-medium transition-colors ${
                     personType === t
                       ? "border-b-2 border-primary-500 text-primary-600 dark:text-primary-400"
@@ -234,7 +269,8 @@ export default function IdCardsClient({
                 onSelectMany={selectMany}
                 onClear={clearSelection}
                 onInvert={invert}
-                onGenerate={() => setGenerated(true)}
+                onGenerate={handleGenerate}
+                generating={generating}
               />
             </div>
           </div>
@@ -279,21 +315,28 @@ export default function IdCardsClient({
                   <div className="mt-4">
                     <div className="flex flex-wrap items-stretch justify-center gap-2">
                       {thumbs.map((p) => (
-                        <IdCard
+                        <button
                           key={p.id}
-                          person={p}
-                          template={activeTemplate}
-                          orientation={settings.orientation}
-                          layout={settings.layoutId}
-                          widthMm={printWidthMm}
-                          heightMm={printHeightMm}
-                          showBarcode={settings.showBarcode}
-                          showQr={settings.showQr}
-                          visibleFields={settings.visibleFields}
-                          schoolName={schoolName}
-                          schoolLogoUrl={schoolLogoUrl}
-                          variant="mini"
-                        />
+                          type="button"
+                          onClick={() => setPreviewFocusId(p.id)}
+                          title={`Preview ${p.name}`}
+                          className="shrink-0 rounded-lg transition-opacity hover:opacity-80"
+                        >
+                          <IdCard
+                            person={p}
+                            template={activeTemplate}
+                            orientation={settings.orientation}
+                            layout={settings.layoutId}
+                            widthMm={printWidthMm}
+                            heightMm={printHeightMm}
+                            showBarcode={settings.showBarcode}
+                            showQr={settings.showQr}
+                            visibleFields={settings.visibleFields}
+                            schoolName={schoolName}
+                            schoolLogoUrl={schoolLogoUrl}
+                            variant="mini"
+                          />
+                        </button>
                       ))}
                       {moreCount > 0 && (
                         <div className="flex w-24 shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-gray-300 dark:border-zinc-600 px-1.5 text-center text-gray-400 dark:text-zinc-500">
@@ -376,7 +419,12 @@ export default function IdCardsClient({
 
       <style>{`
         @media print {
-          @page { margin: 8mm; size: auto; }
+          html, body, .dashboard-shell {
+            background: #fff !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          @page { size: A4; margin: 8mm; }
           .print-card-frame .id-card { transform: scale(${PRINT_SCALE}); transform-origin: top left; }
           /* Push a card that doesn't fully fit on the current page to the next
              one instead of letting the page boundary slice it in half. */

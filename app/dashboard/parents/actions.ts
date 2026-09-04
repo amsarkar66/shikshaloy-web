@@ -15,7 +15,7 @@ export interface AddParentInput {
   phone?: string | null;
   email?: string | null;
   occupation?: string | null;
-  address?: string | null;
+  qualification?: string | null;
   children: { studentId: string; relationship: ParentRelationship }[];
   schoolId?: string;
 }
@@ -52,6 +52,7 @@ export async function addParent(input: AddParentInput): Promise<AddParentResult>
 
   const email = input.email?.trim() || null;
   const phone = input.phone?.trim() || null;
+  if (!email || !phone) throw new Error("Parent phone and email are required");
 
   let profileId: string | null = null;
   let login: { email: string; password: string } | null = null;
@@ -101,7 +102,7 @@ export async function addParent(input: AddParentInput): Promise<AddParentResult>
       phone,
       email,
       occupation: input.occupation?.trim() || null,
-      address: input.address?.trim() || null,
+      qualification: input.qualification?.trim() || null,
       status: "active",
       joined_date: new Date().toISOString().slice(0, 10),
     })
@@ -169,7 +170,7 @@ export interface ParentEditData {
   phone: string;
   email: string;
   occupation: string;
-  address: string;
+  qualification: string;
   active: boolean;
   children: { id: string; label: string; sublabel: string; relationship: ParentRelationship }[];
 }
@@ -181,7 +182,7 @@ export async function getParentForEdit(parentId: string): Promise<ParentEditData
   const { data } = await supabaseAdmin
     .from("parents")
     .select(`
-      id, full_name, phone, email, occupation, address, status,
+      id, full_name, phone, email, occupation, qualification, status,
       student_parents (
         relationship,
         students ( id, full_name, roll_no, sections ( name, grades ( level ) ) )
@@ -199,7 +200,7 @@ export async function getParentForEdit(parentId: string): Promise<ParentEditData
     phone: string | null;
     email: string | null;
     occupation: string | null;
-    address: string | null;
+    qualification: string | null;
     status: string | null;
     student_parents: {
       relationship: string | null;
@@ -230,7 +231,7 @@ export async function getParentForEdit(parentId: string): Promise<ParentEditData
     phone: row.phone ?? "",
     email: row.email ?? "",
     occupation: row.occupation ?? "",
-    address: row.address ?? "",
+    qualification: row.qualification ?? "",
     active: row.status !== "inactive",
     children,
   };
@@ -241,7 +242,7 @@ export interface UpdateParentInput {
   fullName: string;
   phone?: string | null;
   occupation?: string | null;
-  address?: string | null;
+  qualification?: string | null;
   active: boolean;
   children: { studentId: string; relationship: ParentRelationship }[];
 }
@@ -252,14 +253,16 @@ export async function updateParent(input: UpdateParentInput): Promise<void> {
 
   const fullName = input.fullName.trim();
   if (!fullName) throw new Error("Parent name is required");
+  const phone = input.phone?.trim() || null;
+  if (!phone) throw new Error("Parent phone is required");
 
   const { error: updateError } = await supabaseAdmin
     .from("parents")
     .update({
       full_name: fullName,
-      phone: input.phone?.trim() || null,
+      phone,
       occupation: input.occupation?.trim() || null,
-      address: input.address?.trim() || null,
+      qualification: input.qualification?.trim() || null,
       status: input.active ? "active" : "inactive",
     })
     .eq("school_id", schoolId)

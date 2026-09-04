@@ -45,10 +45,10 @@ export default async function AuditLogPage() {
     const { data: rows } = schoolIds.length
       ? await supabaseAdmin
           .from("audit_log")
-          .select("id, school_id, actor_name, actor_role, action, module, description, created_at, ip_address")
+          .select("id, school_id, actor_name, actor_role, action, module, description, created_at")
           .in("school_id", schoolIds)
           .order("created_at", { ascending: false })
-      : { data: [] as { id: string; school_id: string; actor_name: string; actor_role: string; action: string; module: string; description: string | null; created_at: string; ip_address: string | null }[] };
+      : { data: [] as { id: string; school_id: string; actor_name: string; actor_role: string; action: string; module: string; description: string | null; created_at: string }[] };
 
     const entries: AuditEntry[] = (rows ?? []).map((e) => ({
       id: e.id,
@@ -58,7 +58,6 @@ export default async function AuditLogPage() {
       module: e.module,
       description: e.description,
       timestamp: e.created_at,
-      ipAddress: e.ip_address ?? "—",
       schoolName: schoolsById.get(e.school_id) ?? "—",
     }));
 
@@ -79,7 +78,7 @@ export default async function AuditLogPage() {
   const schoolId = await getCurrentSchoolIdOrThrow();
   const { data: rows } = await supabaseAdmin
     .from("audit_log")
-    .select("id, actor_name, actor_role, action, module, description, created_at, ip_address")
+    .select("id, actor_name, actor_role, action, module, description, created_at")
     .eq("school_id", schoolId)
     .order("created_at", { ascending: false });
 
@@ -91,7 +90,6 @@ export default async function AuditLogPage() {
     module: e.module,
     description: e.description,
     timestamp: e.created_at,
-    ipAddress: e.ip_address ?? "—",
   }));
 
   return <AuditLogClient entries={entries} />;

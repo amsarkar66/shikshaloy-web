@@ -50,8 +50,8 @@ export const ID_CARD_TEMPLATES: IdCardTemplate[] = [
   {
     id: "modern-blue",
     name: "Modern Blue",
-    swatch: "bg-gradient-to-br from-indigo-600 to-blue-500",
-    header: "bg-gradient-to-r from-indigo-600 to-blue-600",
+    swatch: "bg-blue-600",
+    header: "bg-blue-600",
     headerText: "text-white",
     headerSubtext: "text-indigo-100",
     crestBox: "bg-white/15",
@@ -70,8 +70,8 @@ export const ID_CARD_TEMPLATES: IdCardTemplate[] = [
   {
     id: "green-wave",
     name: "Green Wave",
-    swatch: "bg-gradient-to-br from-emerald-600 to-teal-500",
-    header: "bg-gradient-to-r from-emerald-600 to-teal-500",
+    swatch: "bg-emerald-600",
+    header: "bg-emerald-600",
     headerText: "text-white",
     headerSubtext: "text-emerald-100",
     crestBox: "bg-white/15",
@@ -90,8 +90,8 @@ export const ID_CARD_TEMPLATES: IdCardTemplate[] = [
   {
     id: "royal-purple",
     name: "Royal Purple",
-    swatch: "bg-gradient-to-br from-violet-700 to-fuchsia-600",
-    header: "bg-gradient-to-r from-violet-700 to-fuchsia-600",
+    swatch: "bg-violet-700",
+    header: "bg-violet-700",
     headerText: "text-white",
     headerSubtext: "text-violet-100",
     crestBox: "bg-white/15",
@@ -131,8 +131,8 @@ export const ID_CARD_TEMPLATES: IdCardTemplate[] = [
   {
     id: "dark-navy",
     name: "Dark Navy",
-    swatch: "bg-gradient-to-br from-slate-900 to-slate-700",
-    header: "bg-gradient-to-r from-slate-900 to-slate-800",
+    swatch: "bg-slate-900",
+    header: "bg-slate-900",
     headerText: "text-white",
     headerSubtext: "text-slate-300",
     crestBox: "bg-white/10",

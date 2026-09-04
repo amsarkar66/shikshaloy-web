@@ -6,8 +6,13 @@ import Link from "next/link";
 import { ArrowLeft, Loader2, User, BookOpen, Users, ChevronDown, Siren, HeartPulse } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { DatePicker } from "@/components/ui/date-picker";
+import { QualificationSelect } from "@/components/ui/qualification-select";
+import { OccupationSelect } from "@/components/ui/occupation-select";
+import { DualAddressFields } from "@/components/ui/dual-address-fields";
+import { ReligionSelect } from "@/components/ui/religion-select";
 import { updateStudent } from "../actions";
 import { PhotoUpload } from "../../_components/photo-upload";
+import { addressesEqual, type StructuredAddress } from "@/lib/students/address";
 import type { SectionOption } from "./add-student-modal";
 
 export interface EditableStudent {
@@ -17,7 +22,8 @@ export interface EditableStudent {
   admissionNo: string;
   dob: string;
   gender: "Male" | "Female" | "Other";
-  address: string;
+  presentAddress: StructuredAddress;
+  permanentAddress: StructuredAddress;
   phone: string;
   photoUrl: string | null;
   active: boolean;
@@ -26,6 +32,8 @@ export interface EditableStudent {
   parentName: string;
   parentPhone: string;
   parentEmail: string;
+  parentQualification: string;
+  parentOccupation: string;
   bloodGroup: string;
   category: string;
   religion: string;
@@ -51,7 +59,10 @@ const cardTitleClass = "mb-4 text-sm font-semibold text-gray-900 dark:text-zinc-
 
 export function EditStudentForm({ student, sections }: { student: EditableStudent; sections: SectionOption[] }) {
   const router = useRouter();
-  const [form, setForm] = useState({ ...student });
+  const [form, setForm] = useState({
+    ...student,
+    permanentSameAsPresent: addressesEqual(student.presentAddress, student.permanentAddress),
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,6 +74,10 @@ export function EditStudentForm({ student, sections }: { student: EditableStuden
     e.preventDefault();
     if (!form.fullName || !form.sectionId) {
       setError("Name and class/section are required.");
+      return;
+    }
+    if (form.parentId && (!form.parentName || !form.parentPhone || !form.parentEmail)) {
+      setError("Parent/guardian name, phone, and email are required — they need these to receive updates from the school.");
       return;
     }
     setBusy(true);
@@ -77,13 +92,16 @@ export function EditStudentForm({ student, sections }: { student: EditableStuden
         gender: form.gender,
         sectionId: form.sectionId,
         phone: form.phone || null,
-        address: form.address || null,
+        presentAddress: form.presentAddress,
+        permanentAddress: form.permanentSameAsPresent ? form.presentAddress : form.permanentAddress,
         photoUrl: form.photoUrl,
         active: form.active,
         parentId: form.parentId,
         parentName: form.parentName || null,
         parentPhone: form.parentPhone || null,
         parentEmail: form.parentEmail || null,
+        parentOccupation: form.parentOccupation || null,
+        parentQualification: form.parentQualification || null,
         bloodGroup: form.bloodGroup || null,
         category: form.category || null,
         religion: form.religion || null,
@@ -192,8 +210,16 @@ export function EditStudentForm({ student, sections }: { student: EditableStuden
               <input className={inputClass} value={form.phone} onChange={(e) => update("phone", e.target.value)} />
             </div>
             <div className="col-span-2">
-              <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Address</label>
-              <input className={inputClass} value={form.address} onChange={(e) => update("address", e.target.value)} />
+              <DualAddressFields
+                presentValue={form.presentAddress}
+                permanentValue={form.permanentAddress}
+                sameAsPresent={form.permanentSameAsPresent}
+                onPresentChange={(v) => update("presentAddress", v)}
+                onPermanentChange={(v) => update("permanentAddress", v)}
+                onSameAsPresentChange={(v) => update("permanentSameAsPresent", v)}
+                inputClassName={inputClass}
+                selectClassName={selectClass}
+              />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Blood Group</label>
@@ -211,7 +237,11 @@ export function EditStudentForm({ student, sections }: { student: EditableStuden
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Religion</label>
-              <input className={inputClass} value={form.religion} onChange={(e) => update("religion", e.target.value)} />
+              <ReligionSelect
+                value={form.religion}
+                onChange={(v) => update("religion", v)}
+                selectClassName={selectClass}
+              />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Caste</label>
@@ -310,30 +340,51 @@ export function EditStudentForm({ student, sections }: { student: EditableStuden
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Name</label>
+            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Name{form.parentId ? " *" : ""}</label>
             <input
               className={inputClass}
               value={form.parentName}
               onChange={(e) => update("parentName", e.target.value)}
               disabled={!form.parentId}
+              required={!!form.parentId}
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Phone</label>
+            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Phone{form.parentId ? " *" : ""}</label>
             <input
               className={inputClass}
               value={form.parentPhone}
               onChange={(e) => update("parentPhone", e.target.value)}
               disabled={!form.parentId}
+              required={!!form.parentId}
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Email</label>
+            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Email{form.parentId ? " *" : ""}</label>
             <input
               type="email"
               className={inputClass}
               value={form.parentEmail}
               onChange={(e) => update("parentEmail", e.target.value)}
+              disabled={!form.parentId}
+              required={!!form.parentId}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Qualification</label>
+            <QualificationSelect
+              value={form.parentQualification}
+              onChange={(v) => update("parentQualification", v)}
+              selectClassName={selectClass}
+              disabled={!form.parentId}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Occupation</label>
+            <OccupationSelect
+              value={form.parentOccupation}
+              onChange={(v) => update("parentOccupation", v)}
+              selectClassName={selectClass}
               disabled={!form.parentId}
             />
           </div>

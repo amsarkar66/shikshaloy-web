@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { ShieldAlert } from "lucide-react";
 import { requireRole } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
@@ -107,10 +108,12 @@ export default async function IdCardsPage() {
   }));
 
   return (
-    <IdCardsClient
-      people={[...students, ...staff]}
-      schoolName={schoolRow?.name ?? "Shikshaloy"}
-      schoolLogoUrl={schoolRow?.logo_url ?? null}
-    />
+    <Suspense fallback={null}>
+      <IdCardsClient
+        people={[...students, ...staff]}
+        schoolName={schoolRow?.name ?? "Shikshaloy"}
+        schoolLogoUrl={schoolRow?.logo_url ?? null}
+      />
+    </Suspense>
   );
 }

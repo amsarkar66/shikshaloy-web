@@ -24,6 +24,7 @@ import { CredentialsDialog } from "./CredentialsDialog";
 import { EnrollFeeDialog } from "./EnrollFeeDialog";
 import { SchoolFilterSelect, SchoolCell, matchesSchoolFilter } from "../../_components/school-filter";
 import type { InstitutionSchool } from "@/lib/supabase/institution-context";
+import type { StructuredAddress } from "@/lib/students/address";
 
 export interface Application {
   id:               string;
@@ -35,6 +36,8 @@ export interface Application {
   parentName:       string;
   parentPhone:      string;
   parentEmail:      string;
+  parentOccupation?:      string;
+  parentQualification?:   string;
   previousSchool?:  string;
   submittedDate:    string;
   updatedAt?:       string;
@@ -44,21 +47,27 @@ export interface Application {
   academicYearId:   string;
   notes?:           string;
 
-  address?:               string;
+  presentAddress?:        StructuredAddress;
+  permanentAddress?:      StructuredAddress;
   bloodGroup?:            string;
   category?:              string;
   nationality?:           string;
   fatherName?:            string;
   fatherOccupation?:      string;
+  fatherQualification?:   string;
   fatherPhone?:           string;
   fatherEmail?:           string;
   motherName?:            string;
   motherOccupation?:      string;
+  motherQualification?:   string;
   motherPhone?:           string;
   motherEmail?:           string;
   guardianName?:          string;
   guardianRelation?:      string;
+  guardianOccupation?:    string;
+  guardianQualification?: string;
   guardianPhone?:         string;
+  guardianEmail?:         string;
   siblingStudying?:       boolean;
   siblingName?:           string;
   emergencyContactName?:  string;

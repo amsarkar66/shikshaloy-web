@@ -11,7 +11,7 @@ type FancyButtonSize = "xs" | "sm" | "default" | "lg";
 // the same button family instead of mixing a flat style with a chunky
 // offset-shadow "gummy" style.
 const base =
-  "group/fancy relative inline-flex shrink-0 select-none items-center justify-center gap-1.5 font-medium whitespace-nowrap outline-none transition-[transform,filter,box-shadow] duration-150 ease-out active:translate-y-px disabled:pointer-events-none disabled:opacity-50 focus-visible:ring-3 focus-visible:ring-primary-400/50 box-content border-[0.8px] bg-clip-padding before:pointer-events-none before:absolute before:inset-0 before:z-10 before:bg-gradient-to-b before:from-white/[.16] before:to-transparent before:p-[0.6px] before:[mask-clip:content-box,border-box] before:[mask-composite:exclude] before:[mask-image:linear-gradient(#fff_0_0),linear-gradient(#fff_0_0)] after:pointer-events-none after:absolute after:inset-0 after:bg-gradient-to-b after:from-white after:to-transparent after:opacity-0 after:transition-opacity after:duration-200 after:ease-out hover:after:opacity-[.14] active:after:opacity-[.06]";
+  "group/fancy relative inline-flex shrink-0 select-none items-center justify-center gap-1.5 font-medium whitespace-nowrap outline-none transition-[transform,filter,box-shadow] duration-150 ease-out active:translate-y-px disabled:pointer-events-none disabled:opacity-50 focus-visible:ring-3 focus-visible:ring-primary-400/50 border-[0.8px] bg-clip-padding before:pointer-events-none before:absolute before:inset-0 before:z-10 before:bg-gradient-to-b before:from-white/[.16] before:to-transparent before:p-[0.6px] before:[mask-clip:content-box,border-box] before:[mask-composite:exclude] before:[mask-image:linear-gradient(#fff_0_0),linear-gradient(#fff_0_0)] after:pointer-events-none after:absolute after:inset-0 after:bg-gradient-to-b after:from-white after:to-transparent after:opacity-0 after:transition-opacity after:duration-200 after:ease-out hover:after:opacity-[.14] active:after:opacity-[.06]";
 
 const variants: Record<FancyButtonVariant, string> = {
   primary:
@@ -29,11 +29,11 @@ const variants: Record<FancyButtonVariant, string> = {
 // move together if the theme's base --radius ever changes.
 const sizes: Record<FancyButtonSize, string> = {
   // Dashboard densities — icon-leading action buttons (New, Save, Upload…).
-  xs: "h-[calc(2rem-1.6px)] rounded-md px-3 text-xs before:rounded-[calc(var(--radius-md)-0.8px)] after:rounded-[calc(var(--radius-md)-0.8px)]",
-  sm: "h-[calc(2.25rem-1.6px)] rounded-lg px-4 text-sm before:rounded-[calc(var(--radius-lg)-0.8px)] after:rounded-[calc(var(--radius-lg)-0.8px)]",
+  xs: "h-8 rounded-md px-3 text-xs before:rounded-[calc(var(--radius-md)-0.8px)] after:rounded-[calc(var(--radius-md)-0.8px)]",
+  sm: "h-9 rounded-lg px-4 text-sm before:rounded-[calc(var(--radius-lg)-0.8px)] after:rounded-[calc(var(--radius-lg)-0.8px)]",
   // Marketing densities — bigger, icon-trailing CTAs.
-  default: "h-[calc(2.5rem-1.6px)] rounded-lg pl-5 pr-4 text-sm before:rounded-[calc(var(--radius-lg)-0.8px)] after:rounded-[calc(var(--radius-lg)-0.8px)]",
-  lg: "h-[calc(3rem-1.6px)] rounded-xl pl-7 pr-6 text-base before:rounded-[calc(var(--radius-xl)-0.8px)] after:rounded-[calc(var(--radius-xl)-0.8px)]",
+  default: "h-10 rounded-lg pl-5 pr-4 text-sm before:rounded-[calc(var(--radius-lg)-0.8px)] after:rounded-[calc(var(--radius-lg)-0.8px)]",
+  lg: "h-12 rounded-xl pl-7 pr-6 text-base before:rounded-[calc(var(--radius-xl)-0.8px)] after:rounded-[calc(var(--radius-xl)-0.8px)]",
 };
 
 interface FancyButtonProps

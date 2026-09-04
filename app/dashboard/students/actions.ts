@@ -10,6 +10,7 @@ import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 import { getStudentCapacity } from "@/lib/billing/plan-limits";
 import { logAuditEvent } from "@/lib/audit/log";
 import { enrollStudent, createLoginForExistingStudent, type EnrollStudentResult } from "@/lib/students/enroll";
+import { addressForStorage, type StructuredAddress } from "@/lib/students/address";
 import { randomPassword } from "@/lib/auth/random-password";
 import { getVerifiedUser, requireRoleOrStaffTemplate, type VerifiedProfile } from "@/lib/auth/verified-role";
 import type { LeaveType } from "../leaves/_data/leaves";
@@ -31,10 +32,13 @@ export interface AddStudentInput {
   gradeLevel: number;
   admissionNo?: string | null;
   phone?: string | null;
-  address?: string | null;
+  presentAddress?: Partial<StructuredAddress> | null;
+  permanentAddress?: Partial<StructuredAddress> | null;
   parentName?: string | null;
   parentPhone?: string | null;
   parentEmail?: string | null;
+  parentOccupation?: string | null;
+  parentQualification?: string | null;
   photoUrl?: string | null;
   bloodGroup?: string | null;
   category?: string | null;
@@ -78,10 +82,13 @@ export async function addStudentManual(input: AddStudentInput): Promise<EnrollSt
     sectionId: input.sectionId,
     admissionNo: input.admissionNo,
     phone: input.phone,
-    address: input.address,
+    presentAddress: input.presentAddress,
+    permanentAddress: input.permanentAddress,
     parentName: input.parentName,
     parentPhone: input.parentPhone,
     parentEmail: input.parentEmail,
+    parentOccupation: input.parentOccupation,
+    parentQualification: input.parentQualification,
     photoUrl: input.photoUrl,
     bloodGroup: input.bloodGroup,
     category: input.category,
@@ -116,13 +123,16 @@ export interface UpdateStudentInput {
   gender: "Male" | "Female" | "Other" | null;
   sectionId: string;
   phone?: string | null;
-  address?: string | null;
+  presentAddress?: Partial<StructuredAddress> | null;
+  permanentAddress?: Partial<StructuredAddress> | null;
   photoUrl?: string | null;
   active: boolean;
   parentId?: string | null;
   parentName?: string | null;
   parentPhone?: string | null;
   parentEmail?: string | null;
+  parentOccupation?: string | null;
+  parentQualification?: string | null;
   bloodGroup?: string | null;
   category?: string | null;
   religion?: string | null;
@@ -149,7 +159,8 @@ export async function updateStudent(input: UpdateStudentInput): Promise<void> {
       gender: input.gender,
       section_id: input.sectionId,
       phone: input.phone || null,
-      address: input.address || null,
+      present_address: addressForStorage(input.presentAddress),
+      permanent_address: addressForStorage(input.permanentAddress),
       photo_url: input.photoUrl || null,
       status: input.active ? "active" : "inactive",
       blood_group: input.bloodGroup || null,
@@ -170,6 +181,9 @@ export async function updateStudent(input: UpdateStudentInput): Promise<void> {
   if (error) throw new Error(`Failed to update student: ${error.message}`);
 
   if (input.parentId && input.parentName) {
+    if (!input.parentPhone || !input.parentEmail) {
+      throw new Error("Parent phone and email are required");
+    }
     const { data: link } = await supabaseAdmin
       .from("student_parents")
       .select("parent_id")
@@ -184,6 +198,8 @@ export async function updateStudent(input: UpdateStudentInput): Promise<void> {
         full_name: input.parentName,
         phone: input.parentPhone || null,
         email: input.parentEmail || null,
+        occupation: input.parentOccupation || null,
+        qualification: input.parentQualification || null,
       })
       .eq("id", input.parentId)
       .eq("school_id", schoolId);

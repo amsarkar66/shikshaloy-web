@@ -11,6 +11,7 @@ import { logAuditEvent } from "@/lib/audit/log";
 import { notifyRoles } from "@/lib/notifications/create";
 import { getUser } from "@/lib/supabase/server";
 import { requireRoleOrStaffTemplate } from "@/lib/auth/verified-role";
+import { addressForStorage, parseAddress, type StructuredAddress } from "@/lib/students/address";
 import type { AdmissionStatus } from "./_data/admissions";
 
 // Admissions review/decision actions are admin/receptionist work, matching
@@ -28,24 +29,30 @@ export interface NewApplicationInput {
   applyingForGrade: string;
   academicYearId: string;
   previousSchool?: string;
-  address?: string;
+  presentAddress?: Partial<StructuredAddress>;
+  permanentAddress?: Partial<StructuredAddress>;
   bloodGroup?: string;
   category?: string;
   nationality?: string;
 
   fatherName?: string;
   fatherOccupation?: string;
+  fatherQualification?: string;
   fatherPhone?: string;
   fatherEmail?: string;
 
   motherName?: string;
   motherOccupation?: string;
+  motherQualification?: string;
   motherPhone?: string;
   motherEmail?: string;
 
   guardianName?: string;
   guardianRelation?: string;
+  guardianOccupation?: string;
+  guardianQualification?: string;
   guardianPhone?: string;
+  guardianEmail?: string;
 
   primaryContact: PrimaryContact;
 
@@ -82,10 +89,14 @@ export async function createApplication(input: NewApplicationInput): Promise<str
   const applicationNo = `ADM-${admYear}-${seq}`;
 
   const primary = input.primaryContact === "father"
-    ? { name: input.fatherName, phone: input.fatherPhone, email: input.fatherEmail }
+    ? { name: input.fatherName, phone: input.fatherPhone, email: input.fatherEmail, occupation: input.fatherOccupation, qualification: input.fatherQualification }
     : input.primaryContact === "mother"
-    ? { name: input.motherName, phone: input.motherPhone, email: input.motherEmail }
-    : { name: input.guardianName, phone: input.guardianPhone, email: undefined };
+    ? { name: input.motherName, phone: input.motherPhone, email: input.motherEmail, occupation: input.motherOccupation, qualification: input.motherQualification }
+    : { name: input.guardianName, phone: input.guardianPhone, email: input.guardianEmail, occupation: input.guardianOccupation, qualification: input.guardianQualification };
+
+  if (!primary.phone || !primary.email) {
+    throw new Error("Primary contact's phone and email are required");
+  }
 
   const { data, error } = await supabaseAdmin
     .from("admission_applications")
@@ -100,22 +111,30 @@ export async function createApplication(input: NewApplicationInput): Promise<str
       parent_name: primary.name || "",
       parent_phone: primary.phone || "",
       parent_email: primary.email || "",
+      parent_occupation: primary.occupation || null,
+      parent_qualification: primary.qualification || null,
       previous_school: input.previousSchool || null,
-      address: input.address || null,
+      present_address: addressForStorage(input.presentAddress),
+      permanent_address: addressForStorage(input.permanentAddress),
       blood_group: input.bloodGroup || null,
       category: input.category || null,
       nationality: input.nationality || "Indian",
       father_name: input.fatherName || null,
       father_occupation: input.fatherOccupation || null,
+      father_qualification: input.fatherQualification || null,
       father_phone: input.fatherPhone || null,
       father_email: input.fatherEmail || null,
       mother_name: input.motherName || null,
       mother_occupation: input.motherOccupation || null,
+      mother_qualification: input.motherQualification || null,
       mother_phone: input.motherPhone || null,
       mother_email: input.motherEmail || null,
       guardian_name: input.guardianName || null,
       guardian_relation: input.guardianRelation || null,
+      guardian_occupation: input.guardianOccupation || null,
+      guardian_qualification: input.guardianQualification || null,
       guardian_phone: input.guardianPhone || null,
+      guardian_email: input.guardianEmail || null,
       sibling_studying: input.siblingStudying ?? false,
       sibling_name: input.siblingName || null,
       emergency_contact_name: input.emergencyContactName || null,
@@ -195,7 +214,8 @@ export interface ApplicationDetailsPatch {
   gender?: "Male" | "Female" | "Other";
   applyingForGrade?: string;
   previousSchool?: string | null;
-  address?: string | null;
+  presentAddress?: Partial<StructuredAddress> | null;
+  permanentAddress?: Partial<StructuredAddress> | null;
   bloodGroup?: string | null;
   category?: string | null;
   nationality?: string | null;
@@ -203,20 +223,27 @@ export interface ApplicationDetailsPatch {
   parentName?: string;
   parentPhone?: string;
   parentEmail?: string;
+  parentOccupation?: string | null;
+  parentQualification?: string | null;
 
   fatherName?: string | null;
   fatherOccupation?: string | null;
+  fatherQualification?: string | null;
   fatherPhone?: string | null;
   fatherEmail?: string | null;
 
   motherName?: string | null;
   motherOccupation?: string | null;
+  motherQualification?: string | null;
   motherPhone?: string | null;
   motherEmail?: string | null;
 
   guardianName?: string | null;
   guardianRelation?: string | null;
+  guardianOccupation?: string | null;
+  guardianQualification?: string | null;
   guardianPhone?: string | null;
+  guardianEmail?: string | null;
 
   siblingStudying?: boolean;
   siblingName?: string | null;
@@ -231,34 +258,49 @@ export async function updateApplicationDetails(applicationId: string, patch: App
   await requireAdmissionsAccess();
   const schoolId = await resolveAuthorizedSchoolId("admission_applications", applicationId);
 
+  if (
+    (patch.parentPhone !== undefined && !patch.parentPhone) ||
+    (patch.parentEmail !== undefined && !patch.parentEmail)
+  ) {
+    throw new Error("Parent/guardian phone and email are required");
+  }
+
   const row: Record<string, unknown> = {};
   if (patch.applicantName    !== undefined) row.applicant_name     = patch.applicantName;
   if (patch.dob              !== undefined) row.dob                = patch.dob;
   if (patch.gender           !== undefined) row.gender             = patch.gender;
   if (patch.applyingForGrade !== undefined) row.applying_for_grade = patch.applyingForGrade;
   if (patch.previousSchool   !== undefined) row.previous_school    = patch.previousSchool;
-  if (patch.address          !== undefined) row.address            = patch.address;
+  if (patch.presentAddress   !== undefined) row.present_address    = addressForStorage(patch.presentAddress);
+  if (patch.permanentAddress !== undefined) row.permanent_address  = addressForStorage(patch.permanentAddress);
   if (patch.bloodGroup       !== undefined) row.blood_group        = patch.bloodGroup;
   if (patch.category         !== undefined) row.category           = patch.category;
   if (patch.nationality      !== undefined) row.nationality        = patch.nationality;
 
-  if (patch.parentName  !== undefined) row.parent_name  = patch.parentName;
-  if (patch.parentPhone !== undefined) row.parent_phone = patch.parentPhone;
-  if (patch.parentEmail !== undefined) row.parent_email = patch.parentEmail;
+  if (patch.parentName        !== undefined) row.parent_name          = patch.parentName;
+  if (patch.parentPhone       !== undefined) row.parent_phone         = patch.parentPhone;
+  if (patch.parentEmail       !== undefined) row.parent_email         = patch.parentEmail;
+  if (patch.parentOccupation  !== undefined) row.parent_occupation    = patch.parentOccupation;
+  if (patch.parentQualification !== undefined) row.parent_qualification = patch.parentQualification;
 
-  if (patch.fatherName       !== undefined) row.father_name       = patch.fatherName;
-  if (patch.fatherOccupation !== undefined) row.father_occupation = patch.fatherOccupation;
-  if (patch.fatherPhone      !== undefined) row.father_phone      = patch.fatherPhone;
-  if (patch.fatherEmail      !== undefined) row.father_email      = patch.fatherEmail;
+  if (patch.fatherName          !== undefined) row.father_name          = patch.fatherName;
+  if (patch.fatherOccupation    !== undefined) row.father_occupation    = patch.fatherOccupation;
+  if (patch.fatherQualification !== undefined) row.father_qualification = patch.fatherQualification;
+  if (patch.fatherPhone         !== undefined) row.father_phone         = patch.fatherPhone;
+  if (patch.fatherEmail         !== undefined) row.father_email         = patch.fatherEmail;
 
-  if (patch.motherName       !== undefined) row.mother_name       = patch.motherName;
-  if (patch.motherOccupation !== undefined) row.mother_occupation = patch.motherOccupation;
-  if (patch.motherPhone      !== undefined) row.mother_phone      = patch.motherPhone;
-  if (patch.motherEmail      !== undefined) row.mother_email      = patch.motherEmail;
+  if (patch.motherName          !== undefined) row.mother_name          = patch.motherName;
+  if (patch.motherOccupation    !== undefined) row.mother_occupation    = patch.motherOccupation;
+  if (patch.motherQualification !== undefined) row.mother_qualification = patch.motherQualification;
+  if (patch.motherPhone         !== undefined) row.mother_phone         = patch.motherPhone;
+  if (patch.motherEmail         !== undefined) row.mother_email         = patch.motherEmail;
 
-  if (patch.guardianName     !== undefined) row.guardian_name     = patch.guardianName;
-  if (patch.guardianRelation !== undefined) row.guardian_relation = patch.guardianRelation;
-  if (patch.guardianPhone    !== undefined) row.guardian_phone    = patch.guardianPhone;
+  if (patch.guardianName          !== undefined) row.guardian_name          = patch.guardianName;
+  if (patch.guardianRelation      !== undefined) row.guardian_relation      = patch.guardianRelation;
+  if (patch.guardianOccupation    !== undefined) row.guardian_occupation    = patch.guardianOccupation;
+  if (patch.guardianQualification !== undefined) row.guardian_qualification = patch.guardianQualification;
+  if (patch.guardianPhone         !== undefined) row.guardian_phone         = patch.guardianPhone;
+  if (patch.guardianEmail         !== undefined) row.guardian_email         = patch.guardianEmail;
 
   if (patch.siblingStudying !== undefined) row.sibling_studying = patch.siblingStudying;
   if (patch.siblingName     !== undefined) row.sibling_name     = patch.siblingName;
@@ -325,7 +367,7 @@ export async function enrollApplication(applicationId: string, fee?: AdmissionFe
 
   const { data: app, error: fetchError } = await supabaseAdmin
     .from("admission_applications")
-    .select("applicant_name, dob, gender, applying_for_grade, academic_year_id, parent_name, parent_phone, parent_email, photo_url")
+    .select("applicant_name, dob, gender, applying_for_grade, academic_year_id, parent_name, parent_phone, parent_email, parent_occupation, parent_qualification, present_address, permanent_address, photo_url")
     .eq("id", applicationId)
     .eq("school_id", schoolId)
     .single();
@@ -345,6 +387,10 @@ export async function enrollApplication(applicationId: string, fee?: AdmissionFe
     parentName: app.parent_name,
     parentPhone: app.parent_phone,
     parentEmail: app.parent_email,
+    parentOccupation: app.parent_occupation,
+    parentQualification: app.parent_qualification,
+    presentAddress: parseAddress(app.present_address),
+    permanentAddress: parseAddress(app.permanent_address),
     photoUrl: app.photo_url,
     admissionFeeCollected: fee?.collectedAmount,
     admissionFeePaymentMode: fee?.paymentMode,

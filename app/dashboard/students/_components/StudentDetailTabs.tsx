@@ -20,6 +20,7 @@ import { requestCertificate } from "../../certificates/actions";
 import { CERT_TYPE_LABEL, STATUS_BADGE as CERT_STATUS_BADGE, type CertType } from "../../certificates/_data/certificates";
 import { StudentHomeworkList, type StudentHomeworkItem } from "../../homework/_components/StudentHomeworkList";
 import { BOOKING_STATUS_BADGE } from "../../ptm/_data/ptm";
+import { formatAddress, type StructuredAddress } from "@/lib/students/address";
 
 export interface Guardian {
   relationship: string;
@@ -73,7 +74,8 @@ interface PersonalInfo {
   admissionNo: string;
   dob: string;
   gender: string;
-  address: string;
+  presentAddress: StructuredAddress;
+  permanentAddress: StructuredAddress;
   bloodGroup: string;
   category: string;
   religion: string;
@@ -572,8 +574,12 @@ export function StudentSidebar({
             </div>
           )}
           <div className="border-t border-gray-100 dark:border-zinc-700/50 pt-3">
-            <dt className="text-gray-400 dark:text-zinc-500 flex items-center gap-1 mb-1"><MapPin className="h-3.5 w-3.5" /> Address</dt>
-            <dd className="font-medium text-gray-800 dark:text-zinc-200">{personal.address}</dd>
+            <dt className="text-gray-400 dark:text-zinc-500 flex items-center gap-1 mb-1"><MapPin className="h-3.5 w-3.5" /> Present Address</dt>
+            <dd className="font-medium text-gray-800 dark:text-zinc-200">{formatAddress(personal.presentAddress) || "—"}</dd>
+          </div>
+          <div className="pt-1">
+            <dt className="text-gray-400 dark:text-zinc-500 flex items-center gap-1 mb-1"><MapPin className="h-3.5 w-3.5" /> Permanent Address</dt>
+            <dd className="font-medium text-gray-800 dark:text-zinc-200">{formatAddress(personal.permanentAddress) || "—"}</dd>
           </div>
         </dl>
       </div>

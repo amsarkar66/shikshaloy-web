@@ -13,6 +13,7 @@ const links = [
   { label: "Features", href: "/features" },
   { label: "Pricing", href: "/pricing" },
   { label: "Live Demo", href: "/demo" },
+  { label: "Docs", href: "/docs" },
   { label: "About", href: "/about" },
   { label: "Contact", href: "/contact" },
 ];

@@ -70,7 +70,11 @@ export default async function StudentsPage() {
   if (role !== "admin" && role !== "super_admin") return <Unauthorized />;
 
   const institutionId = await getCurrentInstitutionIdOrThrow();
-  const { maxStudents, atCapacity: atStudentCapacity } = await getStudentCapacity(institutionId);
+  const [{ maxStudents, atCapacity: atStudentCapacity }, { data: institution }] = await Promise.all([
+    getStudentCapacity(institutionId),
+    supabaseAdmin.from("institutions").select("country").eq("id", institutionId).maybeSingle(),
+  ]);
+  const defaultCountry = institution?.country ?? "India";
 
   if (role === "super_admin") {
     const schools = await getInstitutionSchools(institutionId);
@@ -78,7 +82,7 @@ export default async function StudentsPage() {
     const schoolNameById = new Map(schools.map((s) => [s.id, s.name]));
 
     if (schoolIds.length === 0) {
-      return <StudentsClient students={[]} sections={[]} schools={schools} atStudentCapacity={atStudentCapacity} maxStudents={maxStudents} />;
+      return <StudentsClient students={[]} sections={[]} schools={schools} atStudentCapacity={atStudentCapacity} maxStudents={maxStudents} defaultCountry={defaultCountry} />;
     }
 
     const { data: currentYearRows } = await supabaseAdmin
@@ -122,6 +126,7 @@ export default async function StudentsPage() {
         schools={schools}
         atStudentCapacity={atStudentCapacity}
         maxStudents={maxStudents}
+        defaultCountry={defaultCountry}
       />
     );
   }
@@ -160,6 +165,7 @@ export default async function StudentsPage() {
       sections={sections}
       atStudentCapacity={atStudentCapacity}
       maxStudents={maxStudents}
+      defaultCountry={defaultCountry}
     />
   );
 }

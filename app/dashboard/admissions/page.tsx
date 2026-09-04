@@ -5,6 +5,7 @@ import { getCurrentInstitutionIdOrThrow, getInstitutionSchools } from "@/lib/sup
 import { getVerifiedUser, requireRoleOrStaffTemplate } from "@/lib/auth/verified-role";
 import AdmissionsClient from "./_components/AdmissionsClient";
 import type { Application } from "./_components/AdmissionsClient";
+import { parseAddress } from "@/lib/students/address";
 
 function Unauthorized() {
   return (
@@ -23,7 +24,7 @@ interface AdmissionApplicationRow {
   gender: string | null; applying_for_grade: number | null; parent_name: string | null;
   parent_phone: string | null; parent_email: string | null; previous_school: string | null;
   submitted_date: string | null; status: string | null; notes: string | null; academic_year_id: string | null;
-  address: string | null; blood_group: string | null; category: string | null; nationality: string | null;
+  present_address: unknown; permanent_address: unknown; blood_group: string | null; category: string | null; nationality: string | null;
   father_name: string | null; father_occupation: string | null; father_phone: string | null; father_email: string | null;
   mother_name: string | null; mother_occupation: string | null; mother_phone: string | null; mother_email: string | null;
   guardian_name: string | null; guardian_relation: string | null; guardian_phone: string | null;
@@ -38,7 +39,7 @@ const ADMISSION_SELECT = `
   id, application_no, applicant_name, dob, gender, applying_for_grade,
   parent_name, parent_phone, parent_email, previous_school, submitted_date,
   status, notes, academic_year_id,
-  address, blood_group, category, nationality,
+  present_address, permanent_address, blood_group, category, nationality,
   father_name, father_occupation, father_phone, father_email,
   mother_name, mother_occupation, mother_phone, mother_email,
   guardian_name, guardian_relation, guardian_phone,
@@ -66,7 +67,8 @@ function toApplication(a: AdmissionApplicationRow, schoolNameById?: Map<string, 
     academicYearId:   a.academic_year_id ?? "",
     notes:            a.notes ?? undefined,
 
-    address:               a.address ?? undefined,
+    presentAddress:        parseAddress(a.present_address),
+    permanentAddress:      parseAddress(a.permanent_address),
     bloodGroup:            a.blood_group ?? undefined,
     category:              a.category ?? undefined,
     nationality:           a.nationality ?? undefined,

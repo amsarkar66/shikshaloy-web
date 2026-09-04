@@ -8,8 +8,12 @@ import {
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { DatePicker } from "@/components/ui/date-picker";
+import { QualificationSelect } from "@/components/ui/qualification-select";
+import { OccupationSelect } from "@/components/ui/occupation-select";
+import { DualAddressFields } from "@/components/ui/dual-address-fields";
 import { createApplication, type NewApplicationInput, type PrimaryContact } from "../actions";
 import { PhotoUpload } from "../../_components/photo-upload";
+import { EMPTY_ADDRESS } from "@/lib/students/address";
 import { DocumentsUpload, type DocEntry } from "./DocumentsUpload";
 
 export interface AcademicYearOption {
@@ -47,11 +51,12 @@ function Section({
 const BLANK_FORM = {
   applicantName: "", dob: "", gender: "Male" as "Male" | "Female" | "Other",
   applyingForGrade: "", academicYearId: "",
-  previousSchool: "", address: "", bloodGroup: "", category: "", nationality: "Indian",
+  previousSchool: "", presentAddress: EMPTY_ADDRESS, permanentAddress: EMPTY_ADDRESS, permanentSameAsPresent: true,
+  bloodGroup: "", category: "", nationality: "Indian",
 
-  fatherName: "", fatherOccupation: "", fatherPhone: "", fatherEmail: "",
-  motherName: "", motherOccupation: "", motherPhone: "", motherEmail: "",
-  guardianName: "", guardianRelation: "", guardianPhone: "",
+  fatherName: "", fatherQualification: "", fatherOccupation: "", fatherPhone: "", fatherEmail: "",
+  motherName: "", motherQualification: "", motherOccupation: "", motherPhone: "", motherEmail: "",
+  guardianName: "", guardianRelation: "", guardianQualification: "", guardianOccupation: "", guardianPhone: "", guardianEmail: "",
   primaryContact: "father" as PrimaryContact,
 
   siblingStudying: false, siblingName: "",
@@ -61,9 +66,20 @@ const BLANK_FORM = {
   notes: "",
 };
 
-export default function NewApplicationForm({ academicYears, grades }: { academicYears: AcademicYearOption[]; grades: GradeOption[] }) {
+export default function NewApplicationForm({
+  academicYears, grades, defaultCountry,
+}: {
+  academicYears: AcademicYearOption[]; grades: GradeOption[]; defaultCountry?: string;
+}) {
   const router = useRouter();
-  const [form, setForm] = useState({ ...BLANK_FORM, academicYearId: academicYears[0]?.id ?? "", applyingForGrade: grades[0]?.name ?? "" });
+  const initialAddress = { ...EMPTY_ADDRESS, country: defaultCountry ?? "" };
+  const [form, setForm] = useState({
+    ...BLANK_FORM,
+    presentAddress: initialAddress,
+    permanentAddress: initialAddress,
+    academicYearId: academicYears[0]?.id ?? "",
+    applyingForGrade: grades[0]?.name ?? "",
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,19 +93,25 @@ export default function NewApplicationForm({ academicYears, grades }: { academic
       setError("Applicant name and academic year are required.");
       return;
     }
-    const primaryHasName =
-      (form.primaryContact === "father" && form.fatherName) ||
-      (form.primaryContact === "mother" && form.motherName) ||
-      (form.primaryContact === "guardian" && form.guardianName);
-    if (!primaryHasName) {
-      setError(`Please fill in the ${form.primaryContact}'s name — they're set as the primary contact.`);
+    const primary =
+      form.primaryContact === "father"
+        ? { name: form.fatherName, phone: form.fatherPhone, email: form.fatherEmail }
+        : form.primaryContact === "mother"
+        ? { name: form.motherName, phone: form.motherPhone, email: form.motherEmail }
+        : { name: form.guardianName, phone: form.guardianPhone, email: form.guardianEmail };
+    if (!primary.name || !primary.phone || !primary.email) {
+      setError(`Please fill in the ${form.primaryContact}'s name, phone, and email — they're the primary contact and need these to receive updates from the school.`);
       return;
     }
 
     setBusy(true);
     setError(null);
     try {
-      const input: NewApplicationInput = { ...form };
+      const { permanentSameAsPresent, ...rest } = form;
+      const input: NewApplicationInput = {
+        ...rest,
+        permanentAddress: permanentSameAsPresent ? form.presentAddress : form.permanentAddress,
+      };
       await createApplication(input);
       router.push("/dashboard/admissions");
       router.refresh();
@@ -160,7 +182,13 @@ export default function NewApplicationForm({ academicYears, grades }: { academic
           </div>
           <div>
             <label className={labelClass}>Blood Group</label>
-            <input className={inputClass} placeholder="e.g. O+" value={form.bloodGroup} onChange={(e) => update("bloodGroup", e.target.value)} />
+            <div className="relative">
+              <select className={selectClass} value={form.bloodGroup} onChange={(e) => update("bloodGroup", e.target.value)}>
+                <option value="">Select</option>
+                {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((bg) => <option key={bg} value={bg}>{bg}</option>)}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+            </div>
           </div>
           <div>
             <label className={labelClass}>Category</label>
@@ -181,8 +209,16 @@ export default function NewApplicationForm({ academicYears, grades }: { academic
             <input className={inputClass} value={form.nationality} onChange={(e) => update("nationality", e.target.value)} />
           </div>
           <div className="col-span-full">
-            <label className={labelClass}>Address</label>
-            <input className={inputClass} value={form.address} onChange={(e) => update("address", e.target.value)} />
+            <DualAddressFields
+              presentValue={form.presentAddress}
+              permanentValue={form.permanentAddress}
+              sameAsPresent={form.permanentSameAsPresent}
+              onPresentChange={(v) => update("presentAddress", v)}
+              onPermanentChange={(v) => update("permanentAddress", v)}
+              onSameAsPresentChange={(v) => update("permanentSameAsPresent", v)}
+              inputClassName={inputClass}
+              selectClassName={selectClass}
+            />
           </div>
         </Section>
 
@@ -193,15 +229,27 @@ export default function NewApplicationForm({ academicYears, grades }: { academic
               <input className={inputClass} value={form.fatherName} onChange={(e) => update("fatherName", e.target.value)} />
             </div>
             <div>
-              <label className={labelClass}>Occupation</label>
-              <input className={inputClass} value={form.fatherOccupation} onChange={(e) => update("fatherOccupation", e.target.value)} />
+              <label className={labelClass}>Qualification</label>
+              <QualificationSelect
+                value={form.fatherQualification}
+                onChange={(v) => update("fatherQualification", v)}
+                selectClassName={selectClass}
+              />
             </div>
             <div>
-              <label className={labelClass}>Phone</label>
+              <label className={labelClass}>Occupation</label>
+              <OccupationSelect
+                value={form.fatherOccupation}
+                onChange={(v) => update("fatherOccupation", v)}
+                selectClassName={selectClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Phone{form.primaryContact === "father" ? " *" : ""}</label>
               <input className={inputClass} value={form.fatherPhone} onChange={(e) => update("fatherPhone", e.target.value)} />
             </div>
             <div>
-              <label className={labelClass}>Email</label>
+              <label className={labelClass}>Email{form.primaryContact === "father" ? " *" : ""}</label>
               <input type="email" className={inputClass} value={form.fatherEmail} onChange={(e) => update("fatherEmail", e.target.value)} />
             </div>
           </Section>
@@ -212,15 +260,27 @@ export default function NewApplicationForm({ academicYears, grades }: { academic
               <input className={inputClass} value={form.motherName} onChange={(e) => update("motherName", e.target.value)} />
             </div>
             <div>
-              <label className={labelClass}>Occupation</label>
-              <input className={inputClass} value={form.motherOccupation} onChange={(e) => update("motherOccupation", e.target.value)} />
+              <label className={labelClass}>Qualification</label>
+              <QualificationSelect
+                value={form.motherQualification}
+                onChange={(v) => update("motherQualification", v)}
+                selectClassName={selectClass}
+              />
             </div>
             <div>
-              <label className={labelClass}>Phone</label>
+              <label className={labelClass}>Occupation</label>
+              <OccupationSelect
+                value={form.motherOccupation}
+                onChange={(v) => update("motherOccupation", v)}
+                selectClassName={selectClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Phone{form.primaryContact === "mother" ? " *" : ""}</label>
               <input className={inputClass} value={form.motherPhone} onChange={(e) => update("motherPhone", e.target.value)} />
             </div>
             <div>
-              <label className={labelClass}>Email</label>
+              <label className={labelClass}>Email{form.primaryContact === "mother" ? " *" : ""}</label>
               <input type="email" className={inputClass} value={form.motherEmail} onChange={(e) => update("motherEmail", e.target.value)} />
             </div>
           </Section>
@@ -237,8 +297,28 @@ export default function NewApplicationForm({ academicYears, grades }: { academic
               <input className={inputClass} value={form.guardianRelation} onChange={(e) => update("guardianRelation", e.target.value)} />
             </div>
             <div>
-              <label className={labelClass}>Phone</label>
+              <label className={labelClass}>Qualification</label>
+              <QualificationSelect
+                value={form.guardianQualification}
+                onChange={(v) => update("guardianQualification", v)}
+                selectClassName={selectClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Occupation</label>
+              <OccupationSelect
+                value={form.guardianOccupation}
+                onChange={(v) => update("guardianOccupation", v)}
+                selectClassName={selectClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Phone{form.primaryContact === "guardian" ? " *" : ""}</label>
               <input className={inputClass} value={form.guardianPhone} onChange={(e) => update("guardianPhone", e.target.value)} />
+            </div>
+            <div>
+              <label className={labelClass}>Email{form.primaryContact === "guardian" ? " *" : ""}</label>
+              <input type="email" className={inputClass} value={form.guardianEmail} onChange={(e) => update("guardianEmail", e.target.value)} />
             </div>
           </Section>
 

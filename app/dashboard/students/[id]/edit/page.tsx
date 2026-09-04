@@ -6,6 +6,7 @@ import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { EditStudentForm, type EditableStudent } from "../../_components/edit-student-form";
 import type { SectionOption } from "../../_components/add-student-modal";
+import { parseAddress } from "@/lib/students/address";
 
 function Unauthorized() {
   return (
@@ -26,7 +27,8 @@ interface EditStudentRow {
   admission_no: string | null;
   dob: string | null;
   gender: string | null;
-  address: string | null;
+  present_address: unknown;
+  permanent_address: unknown;
   phone: string | null;
   photo_url: string | null;
   status: string | null;
@@ -44,7 +46,7 @@ interface EditStudentRow {
   allergies: string | null;
   student_parents: {
     is_primary: boolean | null;
-    parents: { id: string; full_name: string | null; phone: string | null; email: string | null } | null;
+    parents: { id: string; full_name: string | null; phone: string | null; email: string | null; occupation: string | null; qualification: string | null } | null;
   }[] | null;
 }
 
@@ -70,11 +72,11 @@ export default async function EditStudentPage({
     supabaseAdmin
       .from("students")
       .select(`
-        id, full_name, roll_no, admission_no, dob, gender, address, phone, photo_url, status, section_id,
+        id, full_name, roll_no, admission_no, dob, gender, present_address, permanent_address, phone, photo_url, status, section_id,
         blood_group, category, religion, caste, mother_tongue, language,
         emergency_contact_name, emergency_contact_phone, emergency_contact_relation,
         medical_conditions, allergies,
-        student_parents ( is_primary, parents ( id, full_name, phone, email ) )
+        student_parents ( is_primary, parents ( id, full_name, phone, email, occupation, qualification ) )
       `)
       .eq("school_id", schoolId)
       .eq("id", id)
@@ -106,7 +108,8 @@ export default async function EditStudentPage({
     admissionNo: s.admission_no ?? "",
     dob: s.dob ?? "",
     gender: (s.gender as EditableStudent["gender"]) ?? "Male",
-    address: s.address ?? "",
+    presentAddress: parseAddress(s.present_address),
+    permanentAddress: parseAddress(s.permanent_address),
     phone: s.phone ?? "",
     photoUrl: s.photo_url ?? null,
     active: s.status === "active",
@@ -115,6 +118,8 @@ export default async function EditStudentPage({
     parentName: parent?.full_name ?? "",
     parentPhone: parent?.phone ?? "",
     parentEmail: parent?.email ?? "",
+    parentOccupation: parent?.occupation ?? "",
+    parentQualification: parent?.qualification ?? "",
     bloodGroup: s.blood_group ?? "",
     category: s.category ?? "",
     religion: s.religion ?? "",

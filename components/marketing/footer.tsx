@@ -7,6 +7,7 @@ const links = {
     { label: "Features", href: "/features" },
     { label: "Pricing", href: "/pricing" },
     { label: "Live Demo", href: "/demo" },
+    { label: "Docs", href: "/docs" },
     { label: "Changelog", href: "/changelog" },
   ],
   Company: [

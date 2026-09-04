@@ -58,7 +58,7 @@ async function main() {
       email_confirm: true,
       user_metadata: {
         role: "super_admin",
-        full_name: "Shikshaloy Super Admin",
+        full_name: "Sarah Mitchell",
         status: "active",
       },
     }),

@@ -1,5 +1,6 @@
 import { formatDate, calcAge } from "../_data/admissions";
 import type { Application } from "./AdmissionsClient";
+import { formatAddress } from "@/lib/students/address";
 
 function initials(name: string) {
   return name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
@@ -67,13 +68,16 @@ export function AdmissionFormPrint({
           <Row label="Blood Group" value={app.bloodGroup} />
           <Row label="Category" value={app.category} />
           <Row label="Nationality" value={app.nationality} />
-          <Row label="Address" value={app.address} />
+          <Row label="Present Address" value={formatAddress(app.presentAddress)} />
+          <Row label="Permanent Address" value={formatAddress(app.permanentAddress)} />
         </Section>
 
         <Section title="Parent / Guardian Contact">
           <Row label="Full Name" value={app.parentName} />
           <Row label="Phone" value={app.parentPhone} />
           <Row label="Email" value={app.parentEmail} />
+          <Row label="Qualification" value={app.parentQualification} />
+          <Row label="Occupation" value={app.parentOccupation} />
         </Section>
 
         {(app.fatherName || app.motherName || app.guardianName) && (
@@ -81,6 +85,7 @@ export function AdmissionFormPrint({
             {app.fatherName && (
               <>
                 <Row label="Father's Name" value={app.fatherName} />
+                <Row label="Father's Qualification" value={app.fatherQualification} />
                 <Row label="Father's Occupation" value={app.fatherOccupation} />
                 <Row label="Father's Phone" value={app.fatherPhone} />
                 <Row label="Father's Email" value={app.fatherEmail} />
@@ -89,6 +94,7 @@ export function AdmissionFormPrint({
             {app.motherName && (
               <>
                 <Row label="Mother's Name" value={app.motherName} />
+                <Row label="Mother's Qualification" value={app.motherQualification} />
                 <Row label="Mother's Occupation" value={app.motherOccupation} />
                 <Row label="Mother's Phone" value={app.motherPhone} />
                 <Row label="Mother's Email" value={app.motherEmail} />
@@ -98,7 +104,10 @@ export function AdmissionFormPrint({
               <>
                 <Row label="Guardian's Name" value={app.guardianName} />
                 <Row label="Guardian's Relation" value={app.guardianRelation} />
+                <Row label="Guardian's Qualification" value={app.guardianQualification} />
+                <Row label="Guardian's Occupation" value={app.guardianOccupation} />
                 <Row label="Guardian's Phone" value={app.guardianPhone} />
+                <Row label="Guardian's Email" value={app.guardianEmail} />
               </>
             )}
           </Section>

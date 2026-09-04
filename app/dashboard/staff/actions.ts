@@ -234,10 +234,24 @@ export async function updateStaff(input: UpdateStaffInput): Promise<void> {
     })
     .eq("id", input.staffId)
     .eq("school_id", schoolId)
-    .select("full_name")
+    .select("full_name, profile_id")
     .single();
 
   if (error || !staff) throw new Error(`Failed to update staff member: ${error?.message ?? "unknown error"}`);
+
+  // staff_members.full_name is a working copy for this module's own UI, but
+  // profiles.full_name is the canonical identity name — it's what the
+  // Drivers list, the dashboard greeting, and every other page that reads
+  // the linked login account actually display. Without this, editing a
+  // staff member's name here (including drivers, who have a staff_members
+  // row too) leaves those places showing the old name.
+  if (staff.profile_id) {
+    await supabaseAdmin
+      .from("profiles")
+      .update({ full_name: fullName, updated_at: new Date().toISOString() })
+      .eq("id", staff.profile_id)
+      .eq("school_id", schoolId);
+  }
 
   await logAuditEvent({
     schoolId,
@@ -248,6 +262,7 @@ export async function updateStaff(input: UpdateStaffInput): Promise<void> {
 
   revalidatePath("/dashboard/staff");
   revalidatePath(`/dashboard/staff/${input.staffId}`);
+  revalidatePath("/dashboard/drivers");
 }
 
 // ── Bulk import ───────────────────────────────────────────────────────────────
