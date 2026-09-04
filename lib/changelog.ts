@@ -21,6 +21,18 @@ export interface ChangelogRelease {
 // here is all that's needed to keep both in sync.
 export const RELEASES: ChangelogRelease[] = [
   {
+    version: "0.13.0",
+    hash: "ec46b68",
+    date: "2026-09-04",
+    entries: [
+      { type: "feat", text: "Parent/guardian details now use the same fields everywhere they're entered — Parents page, admissions, and Add Student — with dropdowns for qualification, occupation, and religion" },
+      { type: "feat", text: "Present and permanent address are now separate, structured fields (street, city, state, postal code, country) instead of one free-text line, with a \"same as present\" shortcut" },
+      { type: "improve", text: "Parent phone and email are now required whenever a parent/guardian record is added or edited, so every family stays reachable" },
+      { type: "improve", text: "Adding a student by hand is now a guided 5-step flow — Student Info, Address, Health & Emergency, Parent/Guardian, Review — ending with a summary before it's saved" },
+      { type: "fix", text: "A guardian set as the primary contact on an admission application can now get a parent portal login, matching father/mother" },
+    ],
+  },
+  {
     version: "0.12.0",
     hash: "ab91b61",
     date: "2026-09-02",
