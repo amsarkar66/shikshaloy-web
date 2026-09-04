@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Info, X } from "lucide-react";
@@ -29,20 +30,40 @@ function formatReleaseDate(date: string) {
 function ReleaseInfo() {
   const release = RELEASES[0];
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Rendered through a portal into <body> instead of nested inside the
+  // sidebar: the sidebar is `position: static` at desktop widths (see its
+  // `lg:static` class, used so it lays out in the normal flex flow instead
+  // of overlaying as fixed) which makes its own `z-index` inert — a
+  // descendant absolutely-positioned here was landing in the same stacking
+  // context as ordinary page content and losing to it unpredictably.
+  // Portaling to <body> with its own `position: fixed` and z-index sidesteps
+  // that entirely: nothing in this app renders above it.
+  useEffect(() => {
+    if (!open || !buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    setCoords({ top: rect.bottom + 8, left: rect.left });
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     function onClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (buttonRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      setOpen(false);
     }
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, [open]);
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative">
       <button
+        ref={buttonRef}
         onClick={() => setOpen((v) => !v)}
         className="inline-flex shrink-0 -translate-y-px items-center justify-center text-gray-400 dark:text-zinc-600 hover:text-gray-900 dark:hover:text-zinc-50"
         aria-label="Release info"
@@ -50,29 +71,41 @@ function ReleaseInfo() {
       >
         <Info className="h-[9.5px] w-[9.5px]" />
       </button>
-      {open && (
-        <div className="absolute left-0 top-full z-50 mt-2 w-64 rounded-xl border border-primary-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 text-left shadow-xl">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-bold text-gray-900 dark:text-zinc-50">v{release.version}</p>
-            <p className="text-[10px] text-gray-400 dark:text-zinc-600">{formatReleaseDate(release.date)}</p>
-          </div>
-          <ul className="mt-2 space-y-1.5">
-            {release.entries.map((entry, i) => (
-              <li key={i} className="flex items-start gap-1.5 text-[11px] text-gray-600 dark:text-zinc-400">
-                <span className={`mt-1 h-2 w-0.5 shrink-0 rounded-full ${TYPE_DOT[entry.type]}`} />
-                {entry.text}
-              </li>
-            ))}
-          </ul>
-          <Link
-            href="/changelog"
-            target="_blank"
+      {open && typeof document !== "undefined" && createPortal(
+        <>
+          <div
+            className="fixed inset-0 z-[9998] bg-black/20"
             onClick={() => setOpen(false)}
-            className="mt-2.5 block text-[11px] font-medium text-primary-600 dark:text-primary-400 hover:underline"
+            aria-hidden="true"
+          />
+          <div
+            ref={panelRef}
+            style={{ top: coords.top, left: coords.left }}
+            className="fixed z-[9999] w-64 rounded-xl border border-primary-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 text-left shadow-xl"
           >
-            View full changelog
-          </Link>
-        </div>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold text-gray-900 dark:text-zinc-50">v{release.version}</p>
+              <p className="text-[10px] text-gray-400 dark:text-zinc-600">{formatReleaseDate(release.date)}</p>
+            </div>
+            <ul className="mt-2 space-y-1.5">
+              {release.entries.map((entry, i) => (
+                <li key={i} className="flex items-start gap-1.5 text-[11px] text-gray-600 dark:text-zinc-400">
+                  <span className={`mt-1 h-2 w-0.5 shrink-0 rounded-full ${TYPE_DOT[entry.type]}`} />
+                  {entry.text}
+                </li>
+              ))}
+            </ul>
+            <Link
+              href="/changelog"
+              target="_blank"
+              onClick={() => setOpen(false)}
+              className="mt-2.5 block text-[11px] font-medium text-primary-600 dark:text-primary-400 hover:underline"
+            >
+              View full changelog
+            </Link>
+          </div>
+        </>,
+        document.body,
       )}
     </div>
   );
