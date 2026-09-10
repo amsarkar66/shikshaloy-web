@@ -26,6 +26,24 @@ export async function middleware(request: NextRequest) {
     return NextResponse.rewrite(url);
   }
 
+  const { pathname } = request.nextUrl;
+  const requiresAuth =
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/onboarding") ||
+    pathname.startsWith("/verify-phone");
+
+  // Only /login's post-login redirect and the auth-gated prefixes above
+  // actually use the session — every other route (marketing pages, static
+  // assets that slip through the matcher, etc.) can skip the Supabase
+  // client entirely. This matters because getSession() silently refreshes
+  // an expired access token over the network: with a stale/invalid refresh
+  // token cookie, running that on every single request (as this matcher
+  // used to) fires a failing refresh per request and can trip Supabase's
+  // auth rate limit, surfacing as 429s.
+  if (!requiresAuth && pathname !== "/login") {
+    return NextResponse.next();
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -49,18 +67,28 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // getSession() decodes the JWT locally — no network call, no latency.
-  // Actual server components use getUser() where security matters.
+  // getSession() decodes the JWT locally when the token is still valid —
+  // no network call, no latency. When it's expired it refreshes over the
+  // network; actual server components use getUser() where security matters.
   const {
     data: { session },
+    error: sessionError,
   } = await supabase.auth.getSession();
   const user = session?.user;
 
-  const { pathname } = request.nextUrl;
-  const requiresAuth =
-    pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/onboarding") ||
-    pathname.startsWith("/verify-phone");
+  if (sessionError) {
+    // A stale/invalid refresh token cookie (e.g. from a revoked session)
+    // makes getSession() retry the same failing network refresh on every
+    // request as long as the cookie is sent — which is what turns a quick
+    // reload mid-load into a burst of calls against Supabase's rate-limited
+    // /auth/v1/token endpoint (surfacing to the browser as a 429). Clear it
+    // here, once, so the next request has nothing left to refresh.
+    request.cookies.getAll().forEach(({ name }) => {
+      if (name.startsWith("sb-") && name.includes("-auth-token")) {
+        supabaseResponse.cookies.delete(name);
+      }
+    });
+  }
 
   if (requiresAuth && !user) {
     return NextResponse.redirect(new URL("/login", request.url));
