@@ -21,6 +21,18 @@ export interface ChangelogRelease {
 // here is all that's needed to keep both in sync.
 export const RELEASES: ChangelogRelease[] = [
   {
+    version: "0.14.0",
+    hash: "7060a93",
+    date: "2026-09-10",
+    entries: [
+      { type: "feat", text: "Bulk import now captures every student field — address, blood group, religion/caste, mother tongue, emergency contact, and full parent details — not just name, roll, class, and phone" },
+      { type: "feat", text: "Export the student list to CSV with the full profile for every student shown" },
+      { type: "improve", text: "CSV upload shows the picked file with its size and row count, and correctly handles commas inside a field (like an address or a language list)" },
+      { type: "improve", text: "Import results now show in a clear summary dialog instead of an inline banner" },
+      { type: "fix", text: "Fixed new student portal logins being issued with the wrong email domain" },
+    ],
+  },
+  {
     version: "0.13.0",
     hash: "ec46b68",
     date: "2026-09-04",
