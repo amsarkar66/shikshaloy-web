@@ -208,6 +208,7 @@ export function Sidebar({
                     key={href}
                     href={href}
                     onClick={onClose}
+                    prefetch={false}
                     className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
                       active
                         ? "bg-primary-500/10 dark:bg-primary-500/20 text-primary-600 dark:text-primary-400 font-semibold"
