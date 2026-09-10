@@ -82,7 +82,7 @@ export async function createLoginForExistingStudent(
   if (error || !student) throw new Error("Student not found");
   if (student.profile_id) throw new Error("This student already has a login account");
 
-  const loginEmail = `${slugify(student.full_name)}.${Math.floor(1000 + Math.random() * 9000)}@students.shikshaloy.app`;
+  const loginEmail = `${slugify(student.full_name)}.${Math.floor(1000 + Math.random() * 9000)}@students.shikshaloy.com`;
   const loginPassword = randomPassword();
 
   const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -309,7 +309,7 @@ export async function enrollStudent(input: EnrollStudentInput): Promise<EnrollSt
     rollNo = `${input.gradeLevel}${section.name}${seq}`;
   }
 
-  const loginEmail = `${slugify(input.fullName)}.${Math.floor(1000 + Math.random() * 9000)}@students.shikshaloy.app`;
+  const loginEmail = `${slugify(input.fullName)}.${Math.floor(1000 + Math.random() * 9000)}@students.shikshaloy.com`;
   const loginPassword = randomPassword();
 
   const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({

@@ -9,7 +9,7 @@ import {
   Search, Plus, Download, ChevronLeft, ChevronRight, ChevronDown,
   Eye, Pencil, ArrowUpDown, ArrowUp, ArrowDown, MoreHorizontal, Phone, CreditCard,
   X, GraduationCap, Upload, Loader2, CheckCircle2, SlidersHorizontal, KeyRound,
-  LayoutGrid, List, Calendar,
+  LayoutGrid, List, Calendar, AlertTriangle,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr } from "@/components/ui/data-table";
@@ -17,7 +17,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { BulkImportModal, type ImportColumn } from "../../_components/bulk-import-modal";
 import { AddStudentModal, type SectionOption } from "./add-student-modal";
 import { StudentCredentialsDialog } from "./credentials-dialog";
-import { bulkImportStudents, setStudentActive, type BulkImportOutcome } from "../actions";
+import { bulkImportStudents, setStudentActive, getStudentsFullExport, type BulkImportOutcome } from "../actions";
 import { PlanLimitModal } from "../../_components/plan-limit-modal";
 import { SchoolFilterSelect, SchoolCell, matchesSchoolFilter } from "../../_components/school-filter";
 import type { InstitutionSchool } from "@/lib/supabase/institution-context";
@@ -88,12 +88,36 @@ const PAGE_SIZE = 10;
 const CLASSES  = ["5", "6", "7", "8", "9", "10"];
 
 const IMPORT_COLUMNS: ImportColumn[] = [
-  { key: "name",    label: "Name",     required: true },
-  { key: "rollNo",  label: "Roll No",  required: true },
-  { key: "class",   label: "Class",    required: true },
-  { key: "section", label: "Section" },
-  { key: "parent",  label: "Parent" },
-  { key: "phone",   label: "Phone" },
+  { key: "name",     label: "Name",  required: true },
+  { key: "class",    label: "Class", required: true },
+  { key: "rollNo",       label: "Roll No" },
+  { key: "admissionNo",  label: "Admission No." },
+  { key: "section",      label: "Section" },
+  { key: "gender",       label: "Gender" },
+  { key: "dob",          label: "Date of Birth" },
+  { key: "phone",        label: "Phone" },
+  { key: "addressLine1", label: "Address Line 1" },
+  { key: "addressLine2", label: "Address Line 2" },
+  { key: "city",         label: "City" },
+  { key: "state",        label: "State" },
+  { key: "postalCode",   label: "Postal Code" },
+  { key: "country",      label: "Country" },
+  { key: "bloodGroup",   label: "Blood Group" },
+  { key: "category",     label: "Category" },
+  { key: "religion",     label: "Religion" },
+  { key: "caste",        label: "Caste" },
+  { key: "motherTongue", label: "Mother Tongue" },
+  { key: "language",     label: "Language(s)" },
+  { key: "emergencyContactName",     label: "Emergency Contact Name" },
+  { key: "emergencyContactPhone",    label: "Emergency Contact Phone" },
+  { key: "emergencyContactRelation", label: "Emergency Contact Relation" },
+  { key: "medicalConditions", label: "Medical Conditions" },
+  { key: "allergies",         label: "Allergies" },
+  { key: "parent",             label: "Parent Name" },
+  { key: "parentPhone",        label: "Parent Phone" },
+  { key: "parentEmail",        label: "Parent Email" },
+  { key: "parentQualification", label: "Parent Qualification" },
+  { key: "parentOccupation",    label: "Parent Occupation" },
 ];
 
 function StatsRow({ students }: { students: Student[] }) {
@@ -127,7 +151,7 @@ function StatsRow({ students }: { students: Student[] }) {
   );
 }
 
-function SortIcon({ field, active, dir }: { field: string; active: boolean; dir: SortDir }) {
+function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
   if (!active) return <ArrowUpDown className="h-3 w-3 opacity-40" />;
   return dir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
 }
@@ -297,7 +321,7 @@ function StudentCard({
         <div className="flex items-center justify-between text-xs">
           <span className="text-gray-400 dark:text-zinc-500">Attendance</span>
           <div className="flex items-center gap-2">
-            <div className="h-1.5 w-16 rounded-full bg-gray-100 dark:bg-zinc-700">
+            <div className="h-1.5 w-24 rounded-full bg-gray-100 dark:bg-zinc-700">
               <div className={`h-1.5 rounded-full ${attendanceBar(s.attendance)}`} style={{ width: `${s.attendance}%` }} />
             </div>
             <span className={`font-semibold tabular-nums ${attendanceColor(s.attendance)}`}>{s.attendance}%</span>
@@ -327,6 +351,60 @@ function StudentCard({
         >
           <Phone className="h-3.5 w-3.5" />
         </a>
+      </div>
+    </div>
+  );
+}
+
+function ImportResultModal({ outcome, onClose }: { outcome: BulkImportOutcome; onClose: () => void }) {
+  const hasFailures = outcome.failed.length > 0;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-md rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xl max-h-[80vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-gray-200 dark:border-zinc-800 px-5 py-4">
+          <div className="flex items-center gap-2">
+            {hasFailures ? (
+              <AlertTriangle className="h-4.5 w-4.5 text-amber-500" />
+            ) : (
+              <CheckCircle2 className="h-4.5 w-4.5 text-emerald-500" />
+            )}
+            <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Import complete</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto p-5 space-y-3">
+          <p className="text-sm text-gray-700 dark:text-zinc-300">
+            Imported <span className="font-semibold">{outcome.succeeded}</span> student{outcome.succeeded === 1 ? "" : "s"}
+            {hasFailures && (
+              <> — <span className="font-semibold text-amber-600 dark:text-amber-400">{outcome.failed.length}</span> failed</>
+            )}
+            .
+          </p>
+
+          {hasFailures && (
+            <div className="space-y-1.5">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Failed rows</p>
+              <ul className="space-y-1.5">
+                {outcome.failed.map((f, i) => (
+                  <li key={i} className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-xs">
+                    <p className="font-medium text-gray-800 dark:text-zinc-200">{f.row}</p>
+                    <p className="mt-0.5 text-red-600 dark:text-red-400">{f.reason}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-gray-100 dark:border-zinc-800 px-5 py-4">
+          <FancyButton onClick={onClose} size="sm" className="w-full">Done</FancyButton>
+        </div>
       </div>
     </div>
   );
@@ -362,6 +440,7 @@ export default function StudentsClient({
   const [importOpen,  setImportOpen] = useState(false);
   const [addOpen,     setAddOpen]    = useState(false);
   const [importBusy,  setImportBusy] = useState(false);
+  const [exportBusy,  setExportBusy] = useState(false);
   const [importResult, setImportResult] = useState<BulkImportOutcome | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [credentialsStudent, setCredentialsStudent] = useState<Student | null>(null);
@@ -374,8 +453,17 @@ export default function StudentsClient({
     try {
       const outcome = await bulkImportStudents(
         rows.map((r) => ({
-          name: r.name, rollNo: r.rollNo, class: r.class,
-          section: r.section, parent: r.parent, phone: r.phone,
+          name: r.name, rollNo: r.rollNo, admissionNo: r.admissionNo, class: r.class,
+          section: r.section, gender: r.gender, dob: r.dob, phone: r.phone,
+          addressLine1: r.addressLine1, addressLine2: r.addressLine2,
+          city: r.city, state: r.state, postalCode: r.postalCode, country: r.country,
+          bloodGroup: r.bloodGroup, category: r.category, religion: r.religion, caste: r.caste,
+          motherTongue: r.motherTongue, language: r.language,
+          emergencyContactName: r.emergencyContactName, emergencyContactPhone: r.emergencyContactPhone,
+          emergencyContactRelation: r.emergencyContactRelation,
+          medicalConditions: r.medicalConditions, allergies: r.allergies,
+          parent: r.parent, parentPhone: r.parentPhone, parentEmail: r.parentEmail,
+          parentQualification: r.parentQualification, parentOccupation: r.parentOccupation,
         }))
       );
       setImportResult(outcome);
@@ -442,6 +530,64 @@ export default function StudentsClient({
   const activeFilterCount = [classFilter, sectionFilter, genderFilter, statusFilter, feeFilter, attendanceFilter, enrolledFilter].filter((v) => v !== "all").length;
   const hasFilter = Boolean(query) || activeFilterCount > 0;
 
+  async function exportCsv() {
+    setExportBusy(true);
+    try {
+      const full = await getStudentsFullExport();
+      const byId = new Map(full.map((s) => [s.id, s]));
+      const visibleIds = new Set(filtered.map((s) => s.id));
+      const rowsData = full.filter((s) => visibleIds.has(s.id));
+
+      const header = [
+        "Name", "Roll No", "Admission No.", "Class", "Section", "Gender", "Date of Birth", "Phone",
+        "Present Address", "Permanent Address",
+        "Blood Group", "Category", "Religion", "Caste", "Mother Tongue", "Language(s)",
+        "Emergency Contact Name", "Emergency Contact Phone", "Emergency Contact Relation",
+        "Medical Conditions", "Allergies",
+        "Parent Name", "Parent Phone", "Parent Email", "Parent Qualification", "Parent Occupation",
+        "Attendance", "Fee Status", "Status", "Joined Date",
+        ...(schools.length > 0 ? ["School"] : []),
+      ];
+      const rows = rowsData.map((s) => [
+        s.name, s.rollNo, s.admissionNo, s.class, s.section, s.gender, s.dob, s.phone,
+        s.presentAddress, s.permanentAddress,
+        s.bloodGroup, s.category, s.religion, s.caste, s.motherTongue, s.language,
+        s.emergencyContactName, s.emergencyContactPhone, s.emergencyContactRelation,
+        s.medicalConditions, s.allergies,
+        s.parentName, s.parentPhone, s.parentEmail, s.parentQualification, s.parentOccupation,
+        `${s.attendance}%`, s.feeStatus, s.status, s.joinedDate,
+        ...(schools.length > 0 ? [s.schoolName] : []),
+      ]);
+      // Fall back to the summary row for any student the full export somehow
+      // missed (e.g. a race with a just-added student), so export never
+      // silently drops rows the table is showing.
+      for (const s of filtered) {
+        if (!byId.has(s.id)) {
+          rows.push([
+            s.name, s.rollNo, "", s.class, s.section, s.gender ?? "", "", s.phone,
+            "", "", "", "", "", "", "", "", "", "", "", "", "",
+            s.parent, "", "", "", "",
+            `${s.attendance}%`, s.feeStatus, s.status, s.joinedDate ?? "",
+            ...(schools.length > 0 ? [s.schoolName ?? ""] : []),
+          ]);
+        }
+      }
+
+      const csv = [header, ...rows]
+        .map((r) => r.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(","))
+        .join("\r\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `students-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExportBusy(false);
+    }
+  }
+
   const paginationContent = (
     <>
       <p className="text-xs text-gray-500 dark:text-zinc-400">
@@ -490,8 +636,8 @@ export default function StudentsClient({
               <MoreHorizontal className="h-4 w-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" sideOffset={8} className="w-48">
-              <DropdownMenuItem className="cursor-pointer">
-                <Download className="h-3.5 w-3.5" /> Export
+              <DropdownMenuItem className="cursor-pointer" disabled={exportBusy} onClick={exportCsv}>
+                {exportBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Export
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="cursor-pointer"
@@ -709,20 +855,7 @@ export default function StudentsClient({
       />
 
       {importResult && (
-        <div className="flex items-start gap-2 rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/50 px-4 py-2.5 text-sm">
-          <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-emerald-500" />
-          <div>
-            <p className="text-gray-700 dark:text-zinc-300">
-              Imported {importResult.succeeded} student{importResult.succeeded === 1 ? "" : "s"}
-              {importResult.failed.length > 0 && `, ${importResult.failed.length} failed`}.
-            </p>
-            {importResult.failed.length > 0 && (
-              <ul className="mt-1 text-xs text-red-600 dark:text-red-400 space-y-0.5">
-                {importResult.failed.map((f, i) => <li key={i}>{f.row}: {f.reason}</li>)}
-              </ul>
-            )}
-          </div>
-        </div>
+        <ImportResultModal outcome={importResult} onClose={() => setImportResult(null)} />
       )}
 
       <AddStudentModal
@@ -766,12 +899,12 @@ export default function StudentsClient({
         <TableHead>
           <Th position="first">
             <button onClick={() => toggleSort("name")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
-              Student <SortIcon field="name" active={sortField === "name"} dir={sortDir} />
+              Student <SortIcon active={sortField === "name"} dir={sortDir} />
             </button>
           </Th>
           <Th>
             <button onClick={() => toggleSort("class")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
-              Class <SortIcon field="class" active={sortField === "class"} dir={sortDir} />
+              Class <SortIcon active={sortField === "class"} dir={sortDir} />
             </button>
           </Th>
           {schools.length > 1 && <Th>School</Th>}
@@ -779,17 +912,17 @@ export default function StudentsClient({
           <Th>Parent / Guardian</Th>
           <Th>
             <button onClick={() => toggleSort("attendance")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
-              Attendance <SortIcon field="attendance" active={sortField === "attendance"} dir={sortDir} />
+              Attendance <SortIcon active={sortField === "attendance"} dir={sortDir} />
             </button>
           </Th>
           <Th>
             <button onClick={() => toggleSort("feeStatus")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
-              Fee Status <SortIcon field="feeStatus" active={sortField === "feeStatus"} dir={sortDir} />
+              Fee Status <SortIcon active={sortField === "feeStatus"} dir={sortDir} />
             </button>
           </Th>
           <Th>
             <button onClick={() => toggleSort("joinedDate")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
-              Joined <SortIcon field="joinedDate" active={sortField === "joinedDate"} dir={sortDir} />
+              Joined <SortIcon active={sortField === "joinedDate"} dir={sortDir} />
             </button>
           </Th>
           <Th position="last" align="right">Actions</Th>
@@ -844,8 +977,8 @@ export default function StudentsClient({
                   <p className="text-xs text-gray-400 dark:text-zinc-500">{s.phone}</p>
                 </Td>
                 <Td>
-                  <div className="flex items-center gap-2 min-w-[96px]">
-                    <div className="flex-1 h-1.5 rounded-full bg-gray-100 dark:bg-zinc-700">
+                  <div className="flex items-center gap-2">
+                    <div className="h-1.5 w-24 rounded-full bg-gray-100 dark:bg-zinc-700">
                       <div className={`h-1.5 rounded-full ${attendanceBar(s.attendance)}`} style={{ width: `${s.attendance}%` }} />
                     </div>
                     <span className={`text-xs font-semibold tabular-nums ${attendanceColor(s.attendance)}`}>{s.attendance}%</span>

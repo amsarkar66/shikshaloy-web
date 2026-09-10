@@ -4,13 +4,13 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
-import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
+import { getCurrentInstitutionIdOrThrow, getInstitutionSchools } from "@/lib/supabase/institution-context";
 import { resolveAuthorizedSchoolId, assertAuthorizedSchool } from "@/lib/supabase/authorized-school";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 import { getStudentCapacity } from "@/lib/billing/plan-limits";
 import { logAuditEvent } from "@/lib/audit/log";
 import { enrollStudent, createLoginForExistingStudent, type EnrollStudentResult } from "@/lib/students/enroll";
-import { addressForStorage, type StructuredAddress } from "@/lib/students/address";
+import { addressForStorage, formatAddress, type StructuredAddress } from "@/lib/students/address";
 import { randomPassword } from "@/lib/auth/random-password";
 import { getVerifiedUser, requireRoleOrStaffTemplate, type VerifiedProfile } from "@/lib/auth/verified-role";
 import type { LeaveType } from "../leaves/_data/leaves";
@@ -112,6 +112,144 @@ export async function addStudentManual(input: AddStudentInput): Promise<EnrollSt
 
   revalidatePath("/dashboard/students");
   return result;
+}
+
+export interface StudentExportRow {
+  id: string;
+  name: string;
+  rollNo: string;
+  admissionNo: string;
+  class: string;
+  section: string;
+  gender: string;
+  dob: string;
+  phone: string;
+  presentAddress: string;
+  permanentAddress: string;
+  bloodGroup: string;
+  category: string;
+  religion: string;
+  caste: string;
+  motherTongue: string;
+  language: string;
+  emergencyContactName: string;
+  emergencyContactPhone: string;
+  emergencyContactRelation: string;
+  medicalConditions: string;
+  allergies: string;
+  parentName: string;
+  parentPhone: string;
+  parentEmail: string;
+  parentQualification: string;
+  parentOccupation: string;
+  attendance: number;
+  feeStatus: string;
+  status: string;
+  joinedDate: string;
+  schoolName: string;
+}
+
+interface StudentExportQueryRow {
+  id: string;
+  full_name: string;
+  roll_no: string | null;
+  admission_no: string | null;
+  dob: string | null;
+  gender: string | null;
+  present_address: Partial<StructuredAddress> | null;
+  permanent_address: Partial<StructuredAddress> | null;
+  phone: string | null;
+  attendance_pct: number | null;
+  fee_status: string | null;
+  status: string | null;
+  joined_date: string | null;
+  school_id: string;
+  blood_group: string | null;
+  category: string | null;
+  religion: string | null;
+  caste: string | null;
+  mother_tongue: string | null;
+  language: string | null;
+  emergency_contact_name: string | null;
+  emergency_contact_phone: string | null;
+  emergency_contact_relation: string | null;
+  medical_conditions: string | null;
+  allergies: string | null;
+  sections: { name: string | null; grades: { level: number | null } | null } | null;
+  student_parents: { parents: { full_name: string | null; phone: string | null; email: string | null; occupation: string | null; qualification: string | null } | null }[] | null;
+}
+
+// Full per-student export — every field collected on the Add Student form,
+// unlike the list view's slim column set (see StudentsClient's Student
+// interface) which only carries what the table displays.
+export async function getStudentsFullExport(): Promise<StudentExportRow[]> {
+  const vu = await requireStudentAdmin();
+
+  let schoolIds: string[];
+  let schoolNameById = new Map<string, string>();
+  if (vu.role === "super_admin") {
+    const institutionId = await getCurrentInstitutionIdOrThrow();
+    const schools = await getInstitutionSchools(institutionId);
+    schoolIds = schools.map((s) => s.id);
+    schoolNameById = new Map(schools.map((s) => [s.id, s.name]));
+  } else {
+    schoolIds = [await getCurrentSchoolIdOrThrow()];
+  }
+  if (schoolIds.length === 0) return [];
+
+  const { data, error } = await supabaseAdmin
+    .from("students")
+    .select(`
+      id, full_name, roll_no, admission_no, dob, gender, present_address, permanent_address, phone,
+      attendance_pct, fee_status, status, joined_date, school_id,
+      blood_group, category, religion, caste, mother_tongue, language,
+      emergency_contact_name, emergency_contact_phone, emergency_contact_relation,
+      medical_conditions, allergies,
+      sections ( name, grades ( level ) ),
+      student_parents ( parents ( full_name, phone, email, occupation, qualification ) )
+    `)
+    .in("school_id", schoolIds)
+    .order("full_name");
+
+  if (error) throw new Error(`Failed to export students: ${error.message}`);
+
+  return ((data ?? []) as unknown as StudentExportQueryRow[]).map((s) => {
+    const parent = s.student_parents?.[0]?.parents ?? null;
+    return {
+      id: s.id,
+      name: s.full_name,
+      rollNo: s.roll_no ?? "",
+      admissionNo: s.admission_no ?? "",
+      class: String(s.sections?.grades?.level ?? ""),
+      section: s.sections?.name ?? "",
+      gender: s.gender ?? "",
+      dob: s.dob ?? "",
+      phone: s.phone ?? "",
+      presentAddress: formatAddress(s.present_address),
+      permanentAddress: formatAddress(s.permanent_address),
+      bloodGroup: s.blood_group ?? "",
+      category: s.category ?? "",
+      religion: s.religion ?? "",
+      caste: s.caste ?? "",
+      motherTongue: s.mother_tongue ?? "",
+      language: s.language ?? "",
+      emergencyContactName: s.emergency_contact_name ?? "",
+      emergencyContactPhone: s.emergency_contact_phone ?? "",
+      emergencyContactRelation: s.emergency_contact_relation ?? "",
+      medicalConditions: s.medical_conditions ?? "",
+      allergies: s.allergies ?? "",
+      parentName: parent?.full_name ?? "",
+      parentPhone: parent?.phone ?? "",
+      parentEmail: parent?.email ?? "",
+      parentQualification: parent?.qualification ?? "",
+      parentOccupation: parent?.occupation ?? "",
+      attendance: Math.round(s.attendance_pct ?? 0),
+      feeStatus: s.fee_status ?? "",
+      status: s.status ?? "",
+      joinedDate: s.joined_date ?? "",
+      schoolName: schoolNameById.get(s.school_id) ?? "",
+    };
+  });
 }
 
 export interface UpdateStudentInput {
@@ -432,15 +570,47 @@ export async function addStudentNote(studentId: string, category: string, note: 
 export interface BulkImportRow {
   name: string;
   rollNo?: string;
+  admissionNo?: string;
   class: string;
   section?: string;
-  parent?: string;
+  gender?: string;
+  dob?: string;
   phone?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
+  bloodGroup?: string;
+  category?: string;
+  religion?: string;
+  caste?: string;
+  motherTongue?: string;
+  language?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  emergencyContactRelation?: string;
+  medicalConditions?: string;
+  allergies?: string;
+  parent?: string;
+  parentPhone?: string;
+  parentEmail?: string;
+  parentQualification?: string;
+  parentOccupation?: string;
 }
 
 export interface BulkImportOutcome {
   succeeded: number;
   failed: Array<{ row: string; reason: string }>;
+}
+
+function normalizeGender(g?: string): "Male" | "Female" | "Other" | null {
+  const v = (g ?? "").trim().toLowerCase();
+  if (v === "male" || v === "m") return "Male";
+  if (v === "female" || v === "f") return "Female";
+  if (v === "other" || v === "o") return "Other";
+  return null;
 }
 
 export async function bulkImportStudents(rows: BulkImportRow[]): Promise<BulkImportOutcome> {
@@ -462,18 +632,41 @@ export async function bulkImportStudents(rows: BulkImportRow[]): Promise<BulkImp
       outcome.failed.push({ row: row.name, reason: `Your plan allows up to ${maxStudents} students — upgrade to import more.` });
       continue;
     }
+    const address = {
+      line1: row.addressLine1 || "", line2: row.addressLine2 || "",
+      city: row.city || "", state: row.state || "",
+      postalCode: row.postalCode || "", country: row.country || "",
+    };
     try {
       await enrollStudent({
         schoolId,
         fullName: row.name,
-        dob: null,
-        gender: null,
+        dob: row.dob || null,
+        gender: normalizeGender(row.gender),
         gradeLevel,
         academicYearId,
         sectionName: row.section || null,
         rollNo: row.rollNo || null,
+        admissionNo: row.admissionNo || null,
         phone: row.phone || null,
+        presentAddress: address,
+        permanentAddress: address,
         parentName: row.parent || null,
+        parentPhone: row.parentPhone || null,
+        parentEmail: row.parentEmail || null,
+        parentQualification: row.parentQualification || null,
+        parentOccupation: row.parentOccupation || null,
+        bloodGroup: row.bloodGroup || null,
+        category: row.category || null,
+        religion: row.religion || null,
+        caste: row.caste || null,
+        motherTongue: row.motherTongue || null,
+        language: row.language || null,
+        emergencyContactName: row.emergencyContactName || null,
+        emergencyContactPhone: row.emergencyContactPhone || null,
+        emergencyContactRelation: row.emergencyContactRelation || null,
+        medicalConditions: row.medicalConditions || null,
+        allergies: row.allergies || null,
       });
       outcome.succeeded += 1;
     } catch (e) {

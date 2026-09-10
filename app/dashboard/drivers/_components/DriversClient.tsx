@@ -49,7 +49,7 @@ function StatsRow({ drivers }: { drivers: Driver[] }) {
   );
 }
 
-function SortIcon({ field, active, dir }: { field: string; active: boolean; dir: SortDir }) {
+function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
   if (!active) return <ArrowUpDown className="h-3 w-3 opacity-40" />;
   return dir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
 }
@@ -317,11 +317,11 @@ export default function DriversClient({ initialDrivers }: { initialDrivers: Driv
         )}
       >
         <TableHead>
-          <Th position="first"><button onClick={() => toggleSort("name")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Driver <SortIcon field="name" active={sortField==="name"} dir={sortDir} /></button></Th>
+          <Th position="first"><button onClick={() => toggleSort("name")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Driver <SortIcon active={sortField==="name"} dir={sortDir} /></button></Th>
           <Th>Contact</Th>
           <Th>Assigned To</Th>
-          <Th><button onClick={() => toggleSort("joinedDate")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Joined <SortIcon field="joinedDate" active={sortField==="joinedDate"} dir={sortDir} /></button></Th>
-          <Th><button onClick={() => toggleSort("status")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Status <SortIcon field="status" active={sortField==="status"} dir={sortDir} /></button></Th>
+          <Th><button onClick={() => toggleSort("joinedDate")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Joined <SortIcon active={sortField==="joinedDate"} dir={sortDir} /></button></Th>
+          <Th><button onClick={() => toggleSort("status")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Status <SortIcon active={sortField==="status"} dir={sortDir} /></button></Th>
           <Th position="last" align="right">Actions</Th>
         </TableHead>
         <TableBody>

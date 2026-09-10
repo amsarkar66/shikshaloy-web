@@ -18,15 +18,48 @@ interface BulkImportModalProps {
   onImport: (rows: Record<string, string>[]) => void | Promise<void>;
 }
 
+// A plain split(",") misaligns columns once any field itself contains a
+// comma (e.g. "English, Hindi", or an address) — walk the line respecting
+// quoted fields ("a, b" and "" as an escaped quote) instead.
+function parseCsvLine(line: string): string[] {
+  const cells: string[] = [];
+  let cell = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"' && line[i + 1] === '"') { cell += '"'; i++; }
+      else if (ch === '"') inQuotes = false;
+      else cell += ch;
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ",") {
+      cells.push(cell.trim());
+      cell = "";
+    } else {
+      cell += ch;
+    }
+  }
+  cells.push(cell.trim());
+  return cells;
+}
+
 function parseCsv(text: string): string[][] {
   return text
     .split(/\r?\n/)
     .filter((line) => line.trim().length > 0)
-    .map((line) => line.split(",").map((cell) => cell.trim().replace(/^"|"$/g, "")));
+    .map(parseCsvLine);
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 export function BulkImportModal({ open, onClose, title, columns, onImport }: BulkImportModalProps) {
   const [raw, setRaw] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -37,11 +70,20 @@ export function BulkImportModal({ open, onClose, title, columns, onImport }: Bul
   const preview = body.slice(0, 5);
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const picked = e.target.files?.[0];
+    if (!picked) return;
+    setFile(picked);
+    setError("");
     const reader = new FileReader();
     reader.onload = () => setRaw(String(reader.result ?? ""));
-    reader.readAsText(file);
+    reader.readAsText(picked);
+  }
+
+  function removeFile(e: React.MouseEvent) {
+    e.stopPropagation();
+    setFile(null);
+    setRaw("");
+    if (fileRef.current) fileRef.current.value = "";
   }
 
   function downloadTemplate() {
@@ -57,6 +99,7 @@ export function BulkImportModal({ open, onClose, title, columns, onImport }: Bul
 
   function handleClose() {
     setRaw("");
+    setFile(null);
     setError("");
     onClose();
   }
@@ -92,36 +135,56 @@ export function BulkImportModal({ open, onClose, title, columns, onImport }: Bul
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-gray-200 dark:border-zinc-800 px-5 py-4">
-          <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Bulk Import — {title}</p>
+          <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Import {title}</p>
           <button onClick={handleClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200">
             <X className="h-4 w-4" />
           </button>
         </div>
 
         <div className="max-h-[70vh] overflow-y-auto p-5 space-y-4">
-          <button
-            onClick={downloadTemplate}
-            className="flex items-center gap-1.5 text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline"
-          >
-            <Download className="h-3.5 w-3.5" /> Download CSV template
-          </button>
-
           <div
-            className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 dark:border-zinc-700 p-6 text-center cursor-pointer hover:border-primary-400 transition-colors"
+            className={`rounded-xl border border-dashed border-gray-200 dark:border-zinc-700 p-6 cursor-pointer hover:border-primary-400 transition-colors ${
+              file ? "text-left" : "flex flex-col items-center justify-center gap-2 text-center"
+            }`}
             onClick={() => fileRef.current?.click()}
           >
-            <Upload className="h-6 w-6 text-gray-400 dark:text-zinc-500" />
-            <p className="text-sm text-gray-600 dark:text-zinc-400">Click to upload a .csv file</p>
+            {file ? (
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-500/10 text-primary-600 dark:text-primary-400">
+                  <FileSpreadsheet className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-gray-800 dark:text-zinc-200">{file.name}</p>
+                  <p className="text-xs text-gray-400 dark:text-zinc-500">
+                    {formatFileSize(file.size)} · {body.length} row{body.length === 1 ? "" : "s"} detected
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={removeFile}
+                  title="Remove file"
+                  className="shrink-0 rounded-lg p-1.5 text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <>
+                <Upload className="h-6 w-6 text-gray-400 dark:text-zinc-500" />
+                <p className="text-sm text-gray-600 dark:text-zinc-400">Click to upload a .csv file</p>
+              </>
+            )}
             <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleFile} />
           </div>
 
-          <textarea
-            value={raw}
-            onChange={(e) => setRaw(e.target.value)}
-            placeholder={`Or paste CSV rows here, e.g.\n${columns.map((c) => c.label).join(",")}\n...`}
-            rows={4}
-            className="w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-3 text-xs font-mono text-gray-700 dark:text-zinc-300 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
-          />
+          {!file && (
+            <button
+              onClick={downloadTemplate}
+              className="flex items-center gap-1.5 text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline"
+            >
+              <Download className="h-3.5 w-3.5" /> Download CSV template
+            </button>
+          )}
 
           {error && (
             <div className="flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-600 dark:text-red-400">
@@ -135,19 +198,19 @@ export function BulkImportModal({ open, onClose, title, columns, onImport }: Bul
                 <FileSpreadsheet className="h-3.5 w-3.5" /> Preview — {body.length} row{body.length === 1 ? "" : "s"} detected
               </div>
               <div className="max-h-40 overflow-auto">
-                <table className="w-full text-xs">
+                <table className="w-full border-collapse text-xs">
                   <thead>
-                    <tr className="text-left text-gray-400 dark:text-zinc-500">
+                    <tr className="divide-x divide-gray-200 dark:divide-zinc-700 border-b border-gray-200 dark:border-zinc-700 text-left text-gray-400 dark:text-zinc-500">
                       {header?.map((h, i) => (
-                        <th key={i} className="px-3 py-1.5 font-medium">{h}</th>
+                        <th key={i} className="max-w-[160px] truncate whitespace-nowrap px-3 py-1.5 font-medium" title={h}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
                     {preview.map((row, i) => (
-                      <tr key={i}>
+                      <tr key={i} className="divide-x divide-gray-100 dark:divide-zinc-800">
                         {row.map((cell, j) => (
-                          <td key={j} className="px-3 py-1.5 text-gray-600 dark:text-zinc-400">{cell}</td>
+                          <td key={j} className="max-w-[160px] truncate whitespace-nowrap px-3 py-1.5 text-gray-600 dark:text-zinc-400" title={cell}>{cell}</td>
                         ))}
                       </tr>
                     ))}
