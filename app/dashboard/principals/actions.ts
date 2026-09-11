@@ -57,6 +57,29 @@ export async function invitePrincipal(input: InvitePrincipalInput): Promise<void
     throw new Error(authError?.message ?? "Failed to create account");
   }
 
+  // Every admin needs a staff_members row too — not just for payroll/HR
+  // records, but because promoteExistingToAdmin and the rest of the
+  // access-role model (docs/architecture/role-and-identity-model.md)
+  // assume every admin has one. Without this, newly invited principals
+  // would reopen the exact gap 20260911130000_backfill_admin_staff_members
+  // just closed for existing ones.
+  const { error: staffInsertError } = await supabaseAdmin.from("staff_members").insert({
+    school_id: school.id,
+    profile_id: authUser.user.id,
+    full_name: fullName,
+    email,
+    type: "non_teaching",
+    designation: "Principal",
+    joined_date: new Date().toISOString().slice(0, 10),
+    status: "active",
+    permission_template_id: "admin",
+    permission_template_name: "Admin",
+  });
+
+  if (staffInsertError) {
+    throw new Error(`Account created but failed to add staff record: ${staffInsertError.message}`);
+  }
+
   const { error: schoolUpdateError } = await supabaseAdmin
     .from("schools")
     .update({ principal_name: fullName, principal_email: email })
