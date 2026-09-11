@@ -1,6 +1,6 @@
 # Role & Identity Model — Design Notes
 
-Status: **Design discussion, not yet implemented.**
+Status: **Phase 1 shipped** (§7). **Phase 2 investigated and paused** — see §8 for why it can't be done in isolation. Phases 3–5 still design-only.
 Scope: how Shikshaloy represents "who a person is" and "what they can access," and how that needs to change to support a person holding more than one relationship to a school (or to more than one school).
 
 ## 1. The problem
@@ -67,6 +67,8 @@ The bug in the current model is that axis 1 and axis 2 are fused into one enum, 
 ### 3.3 `access_role` — widened from `permission_template_id`
 
 Values: `admin`, `accountant`, `receptionist`, `hr_manager`, `librarian`, `warden`, `lab_assistant`, or none (default teacher/staff self-service). Lives on `staff_members`, checked the same way `requireRoleOrStaffTemplate` already checks `permission_template_id` today — this is a widening of an existing, working mechanism, not a new one.
+
+**As implemented in Phase 1 (§7):** no new column was added. `permission_template_id`/`permission_template_name` (`text`, no `CHECK` constraint — confirmed empty in `supabase/migrations/20260628000000_initial_schema.sql:268-269`) already accept `'admin'`/`'Admin'` as values with zero migration. A dedicated `access_role` column is still the cleaner long-term name, but reusing the existing column was the lower-risk additive move for Phase 1 and is what's live today.
 
 **Promotion = an `access_role` write**, not an identity swap:
 - `designation` (e.g. "Teacher" → "Principal") is a cosmetic label — changing it alone grants nothing.
@@ -135,8 +137,38 @@ This generalizes the filtering `getVerifiedStaffTemplateId`/`searchDirectory` al
 
 ## 6. Suggested build order
 
-1. **Additive schema**: add `access_role` to `staff_members`; backfill from current `profiles.role` (`admin` → `staff` + `access_role: admin`; `teacher` → `staff` + `type: teaching`; existing `staff` → `type: non_teaching` + existing `permission_template_id` value). Ship the promotion action on top of this without touching existing `requireRole` call sites yet (dual-running).
-2. **Migrate call sites** (`requireRole`/`requireRoleOrStaffTemplate`/raw `role ===` checks, ~50 files) to read `access_role` instead of `profiles.role`, one file at a time, verifying each screen.
-3. **Collapse** `profiles.role`'s `admin`/`teacher` values once nothing reads them; rework `dashboard/page.tsx` + `nav-data.ts` to be capability-composed instead of a single switch.
-4. **Build the identity resolver + switchers** (§4.3–4.5): `getIdentitiesForProfile`, `ACTIVE_IDENTITY_COOKIE`, profile-modal UI. Independent of steps 1–3 in principle, but easier once `access_role` composition already exists for the Staff case.
+1. ~~**Additive schema**: add `access_role` to `staff_members`...~~ **Done — see §7.** (Shipped by reusing `permission_template_id` instead of adding a new column; behaviorally equivalent.)
+2. **Migrate call sites** (`requireRole`/`requireRoleOrStaffTemplate`/raw `role ===` checks) to read the access-role signal instead of `profiles.role`. **Investigated, not started — see §8: this cannot ship as an isolated step.** Must be combined with step 3's write-side change or it's pure risk for zero behavior change.
+3. **Collapse** `profiles.role`'s `admin`/`teacher` values once nothing reads them; rework `dashboard/page.tsx` + `nav-data.ts` to be capability-composed instead of a single switch. Now understood to need combining with step 2 (see §8).
+4. **Build the identity resolver + switchers** (§4.3–4.5): `getIdentitiesForProfile`, `ACTIVE_IDENTITY_COOKIE`, profile-modal UI. Independent of steps 2–3 in principle, but easier once access-role composition already exists for the Staff case.
 5. Surface "My Children" (or the generalized identity switcher, once built) for any profile with a linked `parents` row — closes the gap found in §2.3 as a side effect of step 4.
+
+## 7. Phase 1 — shipped
+
+`promoteExistingToAdmin` / `searchPromotableStaff` (`app/dashboard/principals/actions.ts`), a "Promote Existing" tab on both invite-principal entry points (`PrincipalsClient.tsx`, `PeopleClient.tsx`), and `sendAdminPromotionEmail` (`lib/email/resend.ts`). Commits `0c71654`, `f33fc99`.
+
+Promotion upgrades an existing teacher/staff account in place — same login, same `profiles.id`, same `staff_members` row (kept active, not deactivated, since `payroll_records.staff_id` points at it and was never coupled to role). Writes `profiles.role = 'admin'` (so every existing `requireRole(["admin", ...])` check keeps working unmodified — this is the "dual-running" step 1 described above) *and* `staff_members.permission_template_id = 'admin'` (inert today, forward-compatible for step 2 whenever it ships).
+
+**A real production gap was found and closed along the way.** `invitePrincipal` — the only place that has ever created a new `admin` account — has always created just an `auth.users` + `profiles` row, never a `staff_members` row. Every admin created before this session therefore had `profiles.role = 'admin'` with no staff record at all. Confirmed via a live count query against the production project (`hhdeqpwmvrhptwtbcyzh`): **2 of 2** admin profiles were missing a `staff_members` row. Fixed with:
+- `supabase/migrations/20260911130000_backfill_admin_staff_members.sql` — one-time, idempotent backfill (applied to production; re-verified 0/2 missing afterward).
+- `invitePrincipal` now creates the `staff_members` row at invite time too, matching what promotion already did, so the gap can't reopen.
+- Commit `9b3afa9`.
+
+This gap mattered specifically *because* of the direction this doc proposes: had step 2 (migrating checks to read `staff_members`) shipped before this fix, every existing admin would have been locked out the moment it deployed. Worth remembering as a general lesson for the rest of this migration: **any step that reads `staff_members` as an authorization signal needs to first confirm every account that currently passes the old check also has a `staff_members` row** — don't assume it.
+
+## 8. Phase 2 finding — cannot ship as an isolated step
+
+Investigated the real scope of "migrate call sites" precisely (not just the rough "~50 files" estimate in §2.1):
+
+- 18 files: `requireRole([...])` where the allowed list includes `"admin"`
+- 23 files: `requireRoleOrStaffTemplate([...])` where the allowed list includes `"admin"`
+- 42 files: raw `role === "admin"`-style checks (mostly page-level UI guards, not server-action enforcement)
+
+Roughly matches the original estimate — the scope wasn't wrong. What's wrong is doing it as a standalone step. **Today, and for as long as promotion keeps writing `profiles.role = 'admin'`, every admin account has both signals (`profiles.role = 'admin'` and `staff_members.permission_template_id = 'admin'`) set together, always.** Nothing in the system can ever have one without the other until step 3 (stop writing `profiles.role = 'admin'`, keep the person's real role) actually ships. So migrating the 40-80 authorization call sites to read the new signal, on its own, changes zero behavior for any real account — it's pure security-critical-code churn (real risk of a mistake either locking someone out or, worse, opening unauthorized access) for no payoff until step 3 lands too.
+
+**Options going forward, not yet decided:**
+1. Merge steps 2 and 3 into one coordinated change — migrate the checks *and* stop flipping `profiles.role` in the same pass, so "teacher who's also admin" actually goes live when it's done, not two separate risky deploys with an inert one first.
+2. Ship narrow first — get one real flow (e.g. just the Administrators page + a few core admin actions) working end-to-end on the new model, accept inconsistent access for a promoted teacher until the rest catches up, expand over multiple sessions.
+3. Hold — Phase 1 already delivers the actual user-facing feature (promote without losing identity/history/payroll). The rest is architecture for whenever the multi-session investment is worth it.
+
+Paused at this decision point per explicit instruction (2026-09-11) — not resumed since.
