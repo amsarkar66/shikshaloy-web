@@ -1,16 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Search, ChevronDown, Users, GraduationCap, Briefcase, UserCog, Landmark,
-  Plus, Upload, X, CheckCircle2, Loader2,
+  Plus, Upload, X, CheckCircle2, Loader2, ArrowUpCircle,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
 import { BulkImportModal, type ImportColumn } from "../../_components/bulk-import-modal";
 import { inviteStaffMember, bulkImportStaff, getStaffTemplatesForSchool, type BulkImportOutcome } from "../../staff/actions";
-import { invitePrincipal } from "../../principals/actions";
+import { invitePrincipal, searchPromotableStaff, promoteExistingToAdmin, type PromotableStaff } from "../../principals/actions";
+
+const PROMOTE_SEARCH_MIN_CHARS = 2;
 
 export interface SchoolOption {
   id: string;
@@ -285,12 +287,119 @@ function BulkImportSchoolPickerModal({ schools, onClose, onContinue }: { schools
   );
 }
 
+function PromoteExistingTab({
+  schoolId, onDone,
+}: { schoolId: string; onDone: (name: string) => void }) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<PromotableStaff[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState<PromotableStaff | null>(null);
+  const [status, setStatus] = useState<"idle" | "saving" | "error">("idle");
+  const [error, setError] = useState("");
+  const requestId = useRef(0);
+
+  useEffect(() => {
+    setSelected(null);
+    const q = query.trim();
+    if (q.length < PROMOTE_SEARCH_MIN_CHARS || !schoolId) {
+      setResults([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    const id = ++requestId.current;
+    const timer = window.setTimeout(() => {
+      searchPromotableStaff(schoolId, q)
+        .then((r) => {
+          if (requestId.current !== id) return;
+          setResults(r);
+        })
+        .finally(() => {
+          if (requestId.current === id) setLoading(false);
+        });
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [query, schoolId]);
+
+  async function handlePromote() {
+    if (!selected) return;
+    setStatus("saving");
+    setError("");
+    try {
+      await promoteExistingToAdmin({ staffId: selected.staffId, schoolId });
+      onDone(selected.fullName);
+    } catch (err) {
+      setStatus("error");
+      setError(err instanceof Error ? err.message : "Failed to promote. Please try again.");
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1.5">
+        <label className="block text-xs font-semibold text-gray-600 dark:text-zinc-400">Search teacher or staff</label>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500 pointer-events-none" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by name…"
+            className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-8 pr-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
+          />
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-6"><Loader2 className="h-4 w-4 animate-spin text-gray-400" /></div>
+      ) : results.length > 0 ? (
+        <div className="max-h-48 overflow-y-auto rounded-lg border border-gray-200 dark:border-zinc-700 divide-y divide-gray-100 dark:divide-zinc-800">
+          {results.map((r) => (
+            <button
+              key={r.staffId}
+              onClick={() => setSelected(r)}
+              className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors ${selected?.staffId === r.staffId ? "bg-indigo-50 dark:bg-indigo-500/10" : "hover:bg-gray-50 dark:hover:bg-zinc-800"}`}
+            >
+              <div className="min-w-0">
+                <p className="font-medium text-gray-900 dark:text-zinc-100 truncate">{r.fullName}</p>
+                <p className="text-xs text-gray-400 dark:text-zinc-500">{r.designation || (r.type === "teaching" ? "Teacher" : "Staff")}</p>
+              </div>
+              {selected?.staffId === r.staffId && <CheckCircle2 className="h-4 w-4 shrink-0 text-indigo-500" />}
+            </button>
+          ))}
+        </div>
+      ) : query.trim().length >= PROMOTE_SEARCH_MIN_CHARS ? (
+        <p className="py-4 text-center text-xs text-gray-400 dark:text-zinc-500">No matching teacher or staff found.</p>
+      ) : null}
+
+      {selected && (
+        <p className="text-xs text-gray-500 dark:text-zinc-400">
+          <strong className="text-gray-700 dark:text-zinc-300">{selected.fullName}</strong> keeps their existing login and staff record — this only grants admin access.
+        </p>
+      )}
+
+      <div className="flex items-center justify-end gap-2 pt-1">
+        <button
+          onClick={handlePromote}
+          disabled={!selected || status === "saving"}
+          className="flex items-center gap-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 px-4 py-2 text-sm font-medium text-white transition-colors"
+        >
+          {status === "saving" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+          <ArrowUpCircle className="h-3.5 w-3.5" /> Promote to Admin
+        </button>
+      </div>
+      {status === "error" && <p className="text-xs text-red-500 text-center -mt-2">{error}</p>}
+    </div>
+  );
+}
+
 function InvitePrincipalModal({ schools, onClose, onInvited }: { schools: SchoolOption[]; onClose: () => void; onInvited: () => void }) {
+  const [mode, setMode] = useState<"new" | "promote">("new");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [schoolId, setSchoolId] = useState(schools[0]?.id ?? "");
   const [status, setStatus] = useState<"idle" | "saving" | "sent" | "error">("idle");
   const [error, setError] = useState("");
+  const [sentLabel, setSentLabel] = useState("");
 
   async function handleInvite() {
     if (!fullName.trim() || !email.trim() || !schoolId) return;
@@ -298,6 +407,7 @@ function InvitePrincipalModal({ schools, onClose, onInvited }: { schools: School
     setError("");
     try {
       await invitePrincipal({ fullName, email, schoolId });
+      setSentLabel(`Invite sent to ${email}`);
       setStatus("sent");
       onInvited();
     } catch (err) {
@@ -306,53 +416,73 @@ function InvitePrincipalModal({ schools, onClose, onInvited }: { schools: School
     }
   }
 
+  function handlePromoted(name: string) {
+    setSentLabel(`${name} is now an admin`);
+    setStatus("sent");
+    onInvited();
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-sm rounded-2xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-2xl p-6 space-y-5 max-h-[90vh] overflow-y-auto">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Invite Principal</p>
-            <p className="mt-0.5 text-xs text-gray-500 dark:text-zinc-400">They will receive an email with login credentials.</p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">{mode === "new" ? "Invite Principal" : "Promote to Admin"}</p>
+            <p className="mt-0.5 text-xs text-gray-500 dark:text-zinc-400">
+              {mode === "new" ? "They will receive an email with login credentials." : "Give an existing teacher or staff member admin access."}
+            </p>
           </div>
           <button onClick={onClose} className="rounded-lg p-1 text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"><X className="h-4 w-4" /></button>
         </div>
         {status === "sent" ? (
           <div className="flex flex-col items-center gap-3 py-4 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-500/10"><CheckCircle2 className="h-6 w-6 text-emerald-500" /></div>
-            <p className="text-sm font-medium text-gray-900 dark:text-zinc-50">Invite sent to {email}</p>
+            <p className="text-sm font-medium text-gray-900 dark:text-zinc-50">{sentLabel}</p>
             <button onClick={onClose} className="rounded-lg bg-indigo-500 hover:bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors">Done</button>
           </div>
         ) : schools.length === 0 ? (
           <p className="py-6 text-center text-sm text-gray-400 dark:text-zinc-500">Add a school first before inviting a principal.</p>
         ) : (
           <>
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-600 dark:text-zinc-400">Full Name</label>
-                <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Jane Doe" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
+            <div className="flex rounded-lg border border-gray-200 dark:border-zinc-700 p-0.5 text-xs font-medium">
+              <button onClick={() => setMode("new")} className={`flex-1 rounded-md py-1.5 transition-colors ${mode === "new" ? "bg-indigo-500 text-white" : "text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-zinc-200"}`}>New Person</button>
+              <button onClick={() => setMode("promote")} className={`flex-1 rounded-md py-1.5 transition-colors ${mode === "promote" ? "bg-indigo-500 text-white" : "text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-zinc-200"}`}>Promote Existing</button>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-gray-600 dark:text-zinc-400">School</label>
+              <div className="relative">
+                <select value={schoolId} onChange={(e) => setSchoolId(e.target.value)} className="h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+                  {schools.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
               </div>
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-600 dark:text-zinc-400">Email Address</label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="principal@school.edu" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
-              </div>
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-600 dark:text-zinc-400">School</label>
-                <div className="relative">
-                  <select value={schoolId} onChange={(e) => setSchoolId(e.target.value)} className="h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
-                    {schools.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+            </div>
+
+            {mode === "new" ? (
+              <>
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-gray-600 dark:text-zinc-400">Full Name</label>
+                    <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Jane Doe" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-gray-600 dark:text-zinc-400">Email Address</label>
+                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="principal@school.edu" className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20" />
+                  </div>
                 </div>
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-2 pt-1">
-              <button onClick={onClose} className="rounded-lg border border-gray-200 dark:border-zinc-700 px-4 py-2 text-sm font-medium text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors">Cancel</button>
-              <button onClick={handleInvite} disabled={!fullName.trim() || !email.trim() || status === "saving"} className="flex items-center gap-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 px-4 py-2 text-sm font-medium text-white transition-colors">
-                {status === "saving" && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Send Invite
-              </button>
-            </div>
-            {status === "error" && <p className="text-xs text-red-500 text-center -mt-2">{error}</p>}
+                <div className="flex items-center justify-end gap-2 pt-1">
+                  <button onClick={onClose} className="rounded-lg border border-gray-200 dark:border-zinc-700 px-4 py-2 text-sm font-medium text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors">Cancel</button>
+                  <button onClick={handleInvite} disabled={!fullName.trim() || !email.trim() || status === "saving"} className="flex items-center gap-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 px-4 py-2 text-sm font-medium text-white transition-colors">
+                    {status === "saving" && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Send Invite
+                  </button>
+                </div>
+                {status === "error" && <p className="text-xs text-red-500 text-center -mt-2">{error}</p>}
+              </>
+            ) : (
+              <PromoteExistingTab schoolId={schoolId} onDone={handlePromoted} />
+            )}
           </>
         )}
       </div>
