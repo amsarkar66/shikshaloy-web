@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Fragment } from "react";
+import { useState, useTransition, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -23,7 +23,7 @@ import {
   KeyRound,
   Globe,
 } from "lucide-react";
-import { PageSchoolPicker } from "../../_components/page-school-picker";
+import { setActiveSchool } from "../../_components/school-switcher-actions";
 import type { InstitutionSchool } from "@/lib/supabase/institution-context";
 import {
   MODULES, MODULE_GROUPS, emptyPerms,
@@ -697,6 +697,48 @@ function AcademicTab({ settings }: { settings: SettingsData["academicSettings"] 
 
 // ── Tab: Permissions ──────────────────────────────────────────────────────────
 
+// Vertical school switcher, styled to match the Built-in/Custom template
+// lists it sits above — role templates are per-school, so a super_admin
+// needs to pick which school's templates the matrix below is editing.
+function SchoolTabList({
+  schools, activeSchoolId,
+}: { schools: InstitutionSchool[]; activeSchoolId: string | null }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
+  function handleSelect(schoolId: string) {
+    if (schoolId === activeSchoolId) return;
+    startTransition(async () => {
+      await setActiveSchool(schoolId);
+      router.refresh();
+    });
+  }
+
+  return (
+    <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
+      <div className="px-3 py-2.5 border-b border-gray-100 dark:border-zinc-700/50">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-zinc-500">School</p>
+      </div>
+      <div className="p-1.5 space-y-0.5">
+        {schools.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => handleSelect(s.id)}
+            disabled={isPending}
+            className={`w-full text-left rounded-lg px-3 py-2 text-sm transition-colors disabled:opacity-50 ${
+              activeSchoolId === s.id
+                ? "bg-primary-500/10 text-primary-600 dark:text-primary-400 font-medium"
+                : "text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700/50"
+            }`}
+          >
+            {s.name}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function PermissionsTab({
   initialTemplates, schools, activeSchoolId,
 }: { initialTemplates: Template[]; schools: InstitutionSchool[]; activeSchoolId: string | null }) {
@@ -791,15 +833,11 @@ function PermissionsTab({
 
   return (
     <div className="space-y-4">
-      {schools.length > 1 && (
-        <div className="flex justify-end">
-          <PageSchoolPicker schools={schools} activeSchoolId={activeSchoolId} />
-        </div>
-      )}
       <ErrorNote msg={error} />
       <div className="flex gap-5 min-h-0">
         {/* Template sidebar */}
         <div className="w-52 shrink-0 space-y-3">
+          {schools.length > 1 && <SchoolTabList schools={schools} activeSchoolId={activeSchoolId} />}
           <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
             <div className="px-3 py-2.5 border-b border-gray-100 dark:border-zinc-700/50">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-zinc-500">Built-in</p>
