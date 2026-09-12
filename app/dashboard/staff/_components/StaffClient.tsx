@@ -258,17 +258,17 @@ function StaffRowMenu({
             className="fixed z-50 w-48 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg shadow-black/10 py-1"
           >
             <button onClick={() => { onClose(); onEditDetails(); }} className={`w-full ${menuItemClass}`}>
-              <Pencil className="h-3.5 w-3.5 shrink-0" /> Edit details
+              <Pencil className="h-3.5 w-3.5 shrink-0" /> Edit Details
             </button>
             <button onClick={() => { onClose(); onManageAccess(); }} className={`w-full ${menuItemClass}`}>
-              <Shield className="h-3.5 w-3.5 shrink-0" /> Manage access
+              <Shield className="h-3.5 w-3.5 shrink-0" /> Manage Access
             </button>
             <Link href={`/dashboard/staff/${staff.id}?tab=attendance`} onClick={onClose} prefetch={false} className={menuItemClass}>
-              <CalendarCheck className="h-3.5 w-3.5 shrink-0" /> View attendance
+              <CalendarCheck className="h-3.5 w-3.5 shrink-0" /> View Attendance
             </Link>
             {staff.status !== "active" && (
               <button onClick={() => { onClose(); onResend(); }} className={`w-full ${menuItemClass}`}>
-                <Send className="h-3.5 w-3.5 shrink-0" /> Resend invitation
+                <Send className="h-3.5 w-3.5 shrink-0" /> Resend Invitation
               </button>
             )}
             <div className="my-1 border-t border-gray-100 dark:border-zinc-700/50" />

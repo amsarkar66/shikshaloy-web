@@ -532,10 +532,10 @@ function AdminRowMenu({
                 onClick={() => { onClose(); onRevoke(); }}
                 className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
               >
-                <ShieldOff className="h-3.5 w-3.5 shrink-0" /> Revoke admin access
+                <ShieldOff className="h-3.5 w-3.5 shrink-0" /> Revoke Admin Access
               </button>
             ) : (
-              <p className="px-3.5 py-2 text-xs font-medium text-gray-400 dark:text-zinc-500">No actions available</p>
+              <p className="px-3.5 py-2 text-xs font-medium text-gray-400 dark:text-zinc-500">No Actions Available</p>
             )}
           </div>
         </>,
