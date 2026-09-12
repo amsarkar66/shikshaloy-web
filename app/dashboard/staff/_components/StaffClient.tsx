@@ -122,16 +122,16 @@ function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
 function PermissionBadge({ name }: { name?: string }) {
   if (!name) return <span className="text-xs text-gray-400 dark:text-zinc-500">—</span>;
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 dark:bg-primary-500/10 border border-primary-100 dark:border-primary-500/20 px-2 py-0.5 text-[11px] font-medium text-primary-600 dark:text-primary-400">
-      <Shield className="h-2.5 w-2.5" /> {name}
+    <span className="inline-flex max-w-full min-w-0 items-center gap-1 rounded-full bg-primary-50 dark:bg-primary-500/10 border border-primary-100 dark:border-primary-500/20 px-2 py-0.5 text-[11px] font-medium text-primary-600 dark:text-primary-400">
+      <Shield className="h-2.5 w-2.5 shrink-0" /> <span className="min-w-0 truncate">{name}</span>
     </span>
   );
 }
 
 function RoleChip({ label }: { label: string }) {
   return (
-    <span className="inline-flex items-center rounded-full bg-gray-50 dark:bg-zinc-700/40 border border-gray-200 dark:border-zinc-700 px-2 py-0.5 text-[11px] font-medium text-gray-600 dark:text-zinc-300">
-      {label}
+    <span className="inline-flex max-w-full min-w-0 items-center rounded-full bg-gray-50 dark:bg-zinc-700/40 border border-gray-200 dark:border-zinc-700 px-2 py-0.5 text-[11px] font-medium text-gray-600 dark:text-zinc-300">
+      <span className="min-w-0 truncate">{label}</span>
     </span>
   );
 }
@@ -778,7 +778,7 @@ export default function StaffClient({
                 </Td>
                 <Td className="text-sm text-gray-700 dark:text-zinc-300 whitespace-nowrap">{formatJoinDate(s.joinedDate)}</Td>
                 <Td><span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[s.status]}`}>{STATUS_LABEL[s.status]}</span></Td>
-                <Td>
+                <Td className="max-w-[160px]">
                   {s.permissionTemplateName ? (
                     <PermissionBadge name={s.permissionTemplateName} />
                   ) : (
