@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   UserCog, Search, Plus, ChevronDown, X, CheckCircle2, Loader2, ArrowUpCircle, ShieldOff, MoreHorizontal,
+  AlertTriangle, UserPlus,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
@@ -57,6 +58,35 @@ const STATUS_LABEL: Record<PrincipalStatus, string> = {
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function PrincipalStatsRow({ principals, schools }: { principals: Principal[]; schools: SchoolOption[] }) {
+  const total = principals.length;
+  const schoolsWithAdmin = new Set(principals.map((p) => p.schoolId)).size;
+  const schoolsWithoutAdmin = Math.max(0, schools.length - schoolsWithAdmin);
+  const promoted = principals.filter((p) => p.revokable).length;
+  const newThisYear = principals.filter((p) => p.joinedDate >= `${new Date().getFullYear()}-01-01`).length;
+  const items = [
+    { label: "Total Administrators",     value: total,              icon: UserCog,       accent: "text-violet-500  bg-violet-500/10"  },
+    { label: "Schools Without an Admin", value: schoolsWithoutAdmin, icon: AlertTriangle, accent: "text-red-500     bg-red-500/10"     },
+    { label: "Promoted From Staff",      value: promoted,           icon: ArrowUpCircle, accent: "text-indigo-500  bg-indigo-500/10"  },
+    { label: "New This Year",            value: newThisYear,        icon: UserPlus,      accent: "text-emerald-500 bg-emerald-500/10" },
+  ];
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {items.map((s) => (
+        <div key={s.label} className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-4 flex items-center gap-4">
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${s.accent}`}>
+            <s.icon className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-xl font-bold text-gray-900 dark:text-zinc-50">{s.value}</p>
+            <p className="text-xs text-gray-500 dark:text-zinc-400">{s.label}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function PromoteExistingTab({
@@ -393,15 +423,7 @@ export default function PrincipalsClient({ principals, schools }: { principals: 
         </div>
       </div>
 
-      <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-4 flex items-center gap-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-violet-500 bg-violet-500/10">
-          <UserCog className="h-5 w-5" />
-        </div>
-        <div>
-          <p className="text-xl font-bold text-gray-900 dark:text-zinc-50">{principals.length}</p>
-          <p className="text-xs text-gray-500 dark:text-zinc-400">Principal{principals.length === 1 ? "" : "s"} across {schools.length} school{schools.length === 1 ? "" : "s"}</p>
-        </div>
-      </div>
+      <PrincipalStatsRow principals={principals} schools={schools} />
 
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 min-w-0">
