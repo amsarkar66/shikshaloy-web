@@ -1,6 +1,6 @@
 # Role & Identity Model — Design Notes
 
-Status: **Phases 1–3 shipped** (§7, §9). Phase 3 landed as "stop writing `profiles.role = 'admin'` on promotion," not a literal enum collapse — see §9 for why that's the actual correct shape. Phases 4–5 still design-only.
+Status: **All five phases shipped** (§7, §9, §10). Phase 3 landed as "stop writing `profiles.role = 'admin'` on promotion," not a literal enum collapse — see §9 for why that's the actual correct shape. Multi-school (§5) remains explicitly deferred — everything shipped is same-school only. One known scoping limitation carried through to the end — see §10.
 Scope: how Shikshaloy represents "who a person is" and "what they can access," and how that needs to change to support a person holding more than one relationship to a school (or to more than one school).
 
 ## 1. The problem
@@ -187,10 +187,25 @@ Went with option 1 from §8: migrated the checks and stopped writing `profiles.r
 
 **Write side** (`principals/actions.ts`): `promoteExistingToAdmin` no longer touches `profiles.role`/`school_id` at all — only `staff_members.permission_template_id`/`permission_template_name`. A promoted teacher's `profiles.role` stays `'teacher'` permanently: still shows up in "assign teacher" pickers (§2.2's original bug is now actually fixed, not just documented), keeps their teacher-only screens, and separately has admin access. `invitePrincipal` (brand-new admin accounts) is untouched — still writes `role = 'admin'` directly, which is why the enum itself was never dropped (§6, step 3).
 
-**Known limitation, deliberately not fixed this pass — real Phase 4/5 territory:** a handful of places check `role === "teacher"` for scoping *after* already being let through an admin-or-teacher gate, and a teacher's literal role still matches that branch before the admin-grant fallback is ever consulted (the fallback only fires when the literal role check *fails*). So a promoted teacher gets full admin screens, but in these specific spots still gets teacher-scoped behavior:
+**Known limitation, carried through §10 too — see there for why it survived the switcher:** a handful of places check `role === "teacher"` for scoping *after* already being let through an admin-or-teacher gate, and a teacher's literal role still matches that branch before the admin-grant fallback is ever consulted (the fallback only fires when the literal role check *fails*). So a promoted teacher gets full admin screens, but in these specific spots still gets teacher-scoped behavior:
 - `subjects/attendance-actions.ts` — per-slot marking scoped to their own timetable slots, not unrestricted.
 - `grades/actions.ts` marks-entry / `homework/[id]/page.tsx` `canEdit` — scoped to sections/homework they're personally assigned to.
 
-This is exactly the "which identity am I acting as" question §4's switcher is meant to answer — until it exists, admin access is additive on top of these but doesn't override them. Two admin-*count* stats queries (`schools/page.tsx`, `schools/[id]/page.tsx`) also still filter on `profiles.role = 'admin'` — cosmetic undercount on a stats card, not a gate, left as-is.
+Two admin-*count* stats queries (`schools/page.tsx`, `schools/[id]/page.tsx`) also still filter on `profiles.role = 'admin'` — cosmetic undercount on a stats card, not a gate, left as-is.
 
 Verified: `tsc --noEmit` clean, `eslint` 0 errors, two independent `next build` runs both exit 0.
+
+## 10. Phases 4+5 — shipped (2026-09-12), commit `4fcd3f8`
+
+Built §4's switcher, scoped deliberately to same-school multi-identity only — multi-school (§5's deferral) is untouched.
+
+- `lib/identity/resolve.ts` — `getAvailableIdentities(vu)`. Three sources merged by key (so a role that's already "admin" doesn't double up): the base `profiles.role`, an admin grant on a teacher/staff's `staff_members` row, and a linked `parents` row at the current school. Admin ranks first when present, preserving the priority `dashboard/page.tsx` already gave it before the switcher existed.
+- `lib/identity/context.ts` — `getActiveIdentity()`, `cache()`-wrapped. Reads `ACTIVE_IDENTITY_COOKIE`, falls back to the top-ranked identity if unset or no longer valid (e.g. the grant was revoked since the cookie was set).
+- `dashboard/layout.tsx` and `dashboard/page.tsx` both now call this one resolver instead of each doing their own `isAdmin()` check — closes the exact drift §9 flagged as a lesson (the two disagreeing was the sidebar-vs-content bug found there).
+- "Viewing as" section in the profile-menu dropdown (`dashboard-header.tsx`), shown only when `identities.length > 1` — the overwhelming majority of accounts see nothing new.
+
+**Phase 5 fell out of this for free, as predicted in §6:** once "parent" is a selectable identity, switching to it sets `role = "parent"` in the resolved identity, which `nav-data.ts`'s existing `NAV.parent` array (already containing "My Children") picks up automatically — no nav-data changes needed. `/dashboard/children` itself needed no changes either; it was already role-agnostic (§2.3).
+
+**The known limitation from §9 survives this pass, for a specific reason worth recording:** the switcher changes *which identity is active* (a cookie + the resolver's output), but the narrow scoping checks named in §9 (`subjects/attendance-actions.ts`, `grades/actions.ts` marks-entry, `homework/[id]/page.tsx` `canEdit`) never read the active identity at all — they call `requireRole`/inline-check the literal `profiles.role` directly, same as before. So switching a promoted teacher's identity to "Admin" gets them the full admin nav and every check that goes through `isAdmin()`/the `requireRole` fallback, but does *not* change behavior in these few spots, because they were never wired to consult the switcher's choice in the first place. Fixing this properly means threading `getActiveIdentity()` (or at least its resolved key) into those specific functions instead of re-deriving role from `getVerifiedUser()` directly — a small, mechanical follow-up, not a design gap, deliberately left rather than expanding this pass further.
+
+Verified: `tsc --noEmit` clean, `eslint` 0 errors, `next build` clean.
