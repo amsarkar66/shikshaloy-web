@@ -1,6 +1,6 @@
 # Role & Identity Model — Design Notes
 
-Status: **Phase 1 shipped** (§7). **Phase 2 investigated and paused** — see §8 for why it can't be done in isolation. Phases 3–5 still design-only.
+Status: **Phases 1–3 shipped** (§7, §9). Phase 3 landed as "stop writing `profiles.role = 'admin'` on promotion," not a literal enum collapse — see §9 for why that's the actual correct shape. Phases 4–5 still design-only.
 Scope: how Shikshaloy represents "who a person is" and "what they can access," and how that needs to change to support a person holding more than one relationship to a school (or to more than one school).
 
 ## 1. The problem
@@ -138,9 +138,9 @@ This generalizes the filtering `getVerifiedStaffTemplateId`/`searchDirectory` al
 ## 6. Suggested build order
 
 1. ~~**Additive schema**: add `access_role` to `staff_members`...~~ **Done — see §7.** (Shipped by reusing `permission_template_id` instead of adding a new column; behaviorally equivalent.)
-2. **Migrate call sites** (`requireRole`/`requireRoleOrStaffTemplate`/raw `role ===` checks) to read the access-role signal instead of `profiles.role`. **Investigated, not started — see §8: this cannot ship as an isolated step.** Must be combined with step 3's write-side change or it's pure risk for zero behavior change.
-3. **Collapse** `profiles.role`'s `admin`/`teacher` values once nothing reads them; rework `dashboard/page.tsx` + `nav-data.ts` to be capability-composed instead of a single switch. Now understood to need combining with step 2 (see §8).
-4. **Build the identity resolver + switchers** (§4.3–4.5): `getIdentitiesForProfile`, `ACTIVE_IDENTITY_COOKIE`, profile-modal UI. Independent of steps 2–3 in principle, but easier once access-role composition already exists for the Staff case.
+2. ~~**Migrate call sites**...~~ **Done — see §9.** Shipped together with step 3 (below), not in isolation — §8 explains why isolation would have been pure risk for zero behavior change.
+3. ~~**Collapse** `profiles.role`'s `admin`/`teacher` values...~~ **Landed differently — see §9.** The enum itself is untouched (`invitePrincipal` still writes `role = 'admin'` for brand-new admins); what shipped is "promotion stops writing it," which delivers the same capability (teacher keeps their role, gains admin access) without needing the literal enum drop. `dashboard/page.tsx` + `nav-data.ts`/sidebar routing were reworked to route on the merged signal, not a full capability-composition rebuild (that's still step 4/5 territory).
+4. **Build the identity resolver + switchers** (§4.3–4.5): `getIdentitiesForProfile`, `ACTIVE_IDENTITY_COOKIE`, profile-modal UI. Not started. This is also what would let a promoted teacher get back to a genuine "Teacher" view instead of always landing on `AdminView` — see §9's known limitations.
 5. Surface "My Children" (or the generalized identity switcher, once built) for any profile with a linked `parents` row — closes the gap found in §2.3 as a side effect of step 4.
 
 ## 7. Phase 1 — shipped
@@ -171,4 +171,26 @@ Roughly matches the original estimate — the scope wasn't wrong. What's wrong i
 2. Ship narrow first — get one real flow (e.g. just the Administrators page + a few core admin actions) working end-to-end on the new model, accept inconsistent access for a promoted teacher until the rest catches up, expand over multiple sessions.
 3. Hold — Phase 1 already delivers the actual user-facing feature (promote without losing identity/history/payroll). The rest is architecture for whenever the multi-session investment is worth it.
 
-Paused at this decision point per explicit instruction (2026-09-11) — not resumed since.
+Paused at this decision point per explicit instruction (2026-09-11).
+
+## 9. Phases 2+3 — shipped merged (2026-09-12), commit `6653b7c`
+
+Went with option 1 from §8: migrated the checks and stopped writing `profiles.role = 'admin'` on promotion in the same pass, so the capability actually went live instead of landing as inert plumbing.
+
+**Read side** (`lib/auth/verified-role.ts`):
+- `requireRole`/`requireRoleOrStaffTemplate` fall back to a `staff_members.permission_template_id = 'admin'` grant when the caller's literal role doesn't already satisfy an "admin" check in the allowed list. No-op for every existing admin (their literal role still matches first) — this is what made it safe to migrate ahead of confirming real-world usage.
+- New `isAdmin(vu)` for the ~40 files that inline a `role === "admin"` comparison instead of calling `requireRole` — real scope was 47 admin-gated `requireRole`/`requireRoleOrStaffTemplate` call sites (matched §8's estimate) plus a comparable number of raw inline checks the earlier grep missed (`.includes([...])` and `new Set([...]).has(role)` patterns needed a second sweep to catch — `assignHomework` in `homework/actions.ts` and `MARKS_ENTRY_ROLES` in `grades/actions.ts`).
+
+**A gap the plan hadn't accounted for:** `dashboard/layout.tsx` resolves the sidebar nav's role *independently* of `dashboard/page.tsx`'s view routing. Fixing only the routing would have sent a promoted teacher to `AdminView` while the sidebar still showed the Teacher nav — reachable admin screens with no visible way to navigate to them. Both had to move together.
+
+**Another gap:** two admin-listing queries (`principals/page.tsx`, `people/page.tsx`) filtered `profiles.role = 'admin'` directly to build the "Administrators" table. Once promotion stopped writing that field, a promoted teacher would have silently vanished from their own institution's admin list — fixed by merging in `staff_members` rows carrying the grant, deduped by profile id.
+
+**Write side** (`principals/actions.ts`): `promoteExistingToAdmin` no longer touches `profiles.role`/`school_id` at all — only `staff_members.permission_template_id`/`permission_template_name`. A promoted teacher's `profiles.role` stays `'teacher'` permanently: still shows up in "assign teacher" pickers (§2.2's original bug is now actually fixed, not just documented), keeps their teacher-only screens, and separately has admin access. `invitePrincipal` (brand-new admin accounts) is untouched — still writes `role = 'admin'` directly, which is why the enum itself was never dropped (§6, step 3).
+
+**Known limitation, deliberately not fixed this pass — real Phase 4/5 territory:** a handful of places check `role === "teacher"` for scoping *after* already being let through an admin-or-teacher gate, and a teacher's literal role still matches that branch before the admin-grant fallback is ever consulted (the fallback only fires when the literal role check *fails*). So a promoted teacher gets full admin screens, but in these specific spots still gets teacher-scoped behavior:
+- `subjects/attendance-actions.ts` — per-slot marking scoped to their own timetable slots, not unrestricted.
+- `grades/actions.ts` marks-entry / `homework/[id]/page.tsx` `canEdit` — scoped to sections/homework they're personally assigned to.
+
+This is exactly the "which identity am I acting as" question §4's switcher is meant to answer — until it exists, admin access is additive on top of these but doesn't override them. Two admin-*count* stats queries (`schools/page.tsx`, `schools/[id]/page.tsx`) also still filter on `profiles.role = 'admin'` — cosmetic undercount on a stats card, not a gate, left as-is.
+
+Verified: `tsc --noEmit` clean, `eslint` 0 errors, two independent `next build` runs both exit 0.
