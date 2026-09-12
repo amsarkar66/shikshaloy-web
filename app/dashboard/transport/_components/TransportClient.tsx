@@ -288,23 +288,6 @@ function VehiclesTab({ vehicles, onAdd, onEdit }: { vehicles: Vehicle[]; onAdd: 
           })}
         </TableBody>
       </Table>
-
-      <div className="grid grid-cols-3 gap-4">
-        {(["active", "maintenance", "inactive"] as VehicleStatus[]).map((s) => {
-          const count = vehicles.filter((v) => v.status === s).length;
-          const colors: Record<VehicleStatus, string> = {
-            active:      "border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-500/5 text-emerald-700 dark:text-emerald-400",
-            maintenance: "border-amber-200  dark:border-amber-900  bg-amber-50/50  dark:bg-amber-500/5  text-amber-700  dark:text-amber-400",
-            inactive:    "border-gray-200   dark:border-zinc-700   bg-gray-50      dark:bg-zinc-800/50  text-gray-600   dark:text-zinc-400",
-          };
-          return (
-            <div key={s} className={`rounded-xl border p-4 text-center ${colors[s]}`}>
-              <p className="text-2xl font-bold">{count}</p>
-              <p className="text-xs font-semibold capitalize mt-0.5">{s}</p>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }

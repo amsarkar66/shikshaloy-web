@@ -89,10 +89,7 @@ function TimetableGrid({ tt, rowItems }: { tt: ClassTimetable; rowItems: RowItem
             <th className="w-20 py-3 px-2 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500 whitespace-nowrap">Time</th>
             {DAYS.map((day, i) => (
               <th key={day} className={`py-3 px-2 text-center text-[11px] font-semibold tracking-wide transition-colors ${i === todayIdx ? "text-primary-600 dark:text-primary-400" : "text-gray-600 dark:text-zinc-300"}`}>
-                <span className="inline-flex items-center gap-1">
-                  {day}
-                  {i === todayIdx && <span className="h-1.5 w-1.5 rounded-full bg-primary-500 inline-block" />}
-                </span>
+                {day}
               </th>
             ))}
           </tr>
@@ -269,6 +266,11 @@ export default function TimetableClient({
           <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Class schedule</p>
         </div>
         <div className="flex gap-2 sm:ml-auto">
+          {view === "class" && selClass && sectionIdByLabel[selClass] && (
+            <button onClick={() => setConfiguring(true)} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
+              <Settings2 className="h-3.5 w-3.5" /> Configure
+            </button>
+          )}
           <button onClick={() => window.print()} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">
             <Printer className="h-3.5 w-3.5" /> Print
           </button>
@@ -313,11 +315,6 @@ export default function TimetableClient({
         </p>
         {view === "teacher" && selTeacher && (
           <button onClick={() => setTeacher("")} className="ml-2 text-xs text-primary-500 hover:text-primary-700 dark:hover:text-primary-300 transition-colors">← All Teachers</button>
-        )}
-        {view === "class" && selClass && activeTt && hasAnySlot(activeTt) && (
-          <button onClick={() => setConfiguring(true)} className="ml-auto flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-zinc-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
-            <Settings2 className="h-3.5 w-3.5" /> Configure
-          </button>
         )}
       </div>
 

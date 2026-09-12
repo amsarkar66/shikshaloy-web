@@ -4,7 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getCurrentInstitutionIdOrThrow, getInstitutionSchools } from "@/lib/supabase/institution-context";
 import InventoryClient from "./_components/InventoryClient";
-import type { InventoryItem } from "./_data/inventory";
+import { toItem, ITEM_SELECT, type InventoryItem, type ItemRow } from "./_data/inventory";
 
 function Unauthorized() {
   return (
@@ -17,32 +17,6 @@ function Unauthorized() {
     </div>
   );
 }
-
-interface ItemRow {
-  id: string; name: string | null; category: string | null; location: string | null;
-  total_qty: number | null; in_use_qty: number | null; damaged_qty: number | null;
-  condition: string | null; unit_cost: number | null; last_updated: string;
-  school_id: string;
-}
-
-function toItem(i: ItemRow, schoolNameById?: Map<string, string>): InventoryItem {
-  return {
-    id: i.id,
-    name: i.name ?? "",
-    category: i.category ?? "Uncategorized",
-    location: i.location ?? "—",
-    totalQty: i.total_qty ?? 0,
-    inUse: i.in_use_qty ?? 0,
-    damaged: i.damaged_qty ?? 0,
-    condition: (i.condition ?? "good") as InventoryItem["condition"],
-    unitCost: Number(i.unit_cost ?? 0),
-    lastUpdated: i.last_updated,
-    schoolId: schoolNameById ? i.school_id : undefined,
-    schoolName: schoolNameById ? (schoolNameById.get(i.school_id) ?? "—") : undefined,
-  };
-}
-
-const ITEM_SELECT = "id, name, category, location, total_qty, in_use_qty, damaged_qty, condition, unit_cost, last_updated, school_id";
 
 export default async function InventoryPage() {
   try {
@@ -69,7 +43,7 @@ export default async function InventoryPage() {
       .in("school_id", schoolIds)
       .order("name");
 
-    const items: InventoryItem[] = ((itemRows ?? []) as ItemRow[]).map((i) => toItem(i, schoolNameById));
+    const items: InventoryItem[] = ((itemRows ?? []) as ItemRow[]).map((i) => toItem(i, schoolNameById.get(i.school_id) ?? "—"));
 
     return <InventoryClient items={items} schools={schools} />;
   }

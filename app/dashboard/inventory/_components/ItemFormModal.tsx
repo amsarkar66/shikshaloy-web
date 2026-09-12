@@ -34,6 +34,7 @@ export function ItemFormModal({ mode, item, categories, onClose, onSaved, school
   const [damaged, setDamaged] = useState(item ? String(item.damaged) : "0");
   const [condition, setCondition] = useState<ItemCondition>(item?.condition ?? "good");
   const [unitCost, setUnitCost] = useState(item ? String(item.unitCost) : "0");
+  const [notes, setNotes] = useState(item?.notes ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,6 +63,7 @@ export function ItemFormModal({ mode, item, categories, onClose, onSaved, school
         damaged: damaged ? Number(damaged) : 0,
         condition,
         unitCost: unitCost ? Number(unitCost) : 0,
+        notes: notes.trim() || null,
         schoolId: multiSchool ? schoolId : undefined,
       };
       if (mode === "add") {
@@ -158,6 +160,16 @@ export function ItemFormModal({ mode, item, categories, onClose, onSaved, school
                   </button>
                 ))}
               </div>
+            </div>
+            <div className="col-span-2">
+              <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-zinc-400">Notes</label>
+              <textarea
+                className="w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
+                rows={3}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Optional notes about this item…"
+              />
             </div>
           </div>
 

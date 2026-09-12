@@ -28,7 +28,9 @@ interface AdminHomeworkRow {
   due_date: string;
   description: string | null;
   status: string;
+  subject_id: string;
   section_id: string;
+  teacher_id: string;
   subjects: { name: string | null } | null;
   sections: { name: string | null; grades: { level: number | null } | null } | null;
   staff_members: { full_name: string | null } | null;
@@ -125,7 +127,7 @@ async function TeacherHomework({ userId }: { userId: string }) {
     supabaseAdmin
       .from("homework")
       .select(`
-        id, title, assigned_date, due_date, description, status, section_id,
+        id, title, assigned_date, due_date, description, status, subject_id, section_id, teacher_id,
         subjects ( name ),
         sections ( name, grades ( level ) ),
         staff_members ( full_name )
@@ -165,8 +167,11 @@ async function TeacherHomework({ userId }: { userId: string }) {
     id: h.id,
     title: h.title ?? "",
     subject: h.subjects?.name ?? "—",
+    subjectId: h.subject_id,
     sectionLabel: `${h.sections?.grades?.level ?? "?"}-${h.sections?.name ?? ""}`,
+    sectionId: h.section_id,
     teacher: h.staff_members?.full_name ?? "—",
+    teacherId: h.teacher_id,
     assignedDate: h.assigned_date,
     dueDate: h.due_date,
     totalStudents: studentCountBySection[h.section_id] ?? 0,
@@ -213,7 +218,7 @@ export default async function HomeworkPage() {
       supabaseAdmin
         .from("homework")
         .select(`
-          id, title, assigned_date, due_date, description, status, section_id,
+          id, title, assigned_date, due_date, description, status, subject_id, section_id, teacher_id,
           subjects ( name ),
           sections ( name, grades ( level ) ),
           staff_members ( full_name )
@@ -259,8 +264,11 @@ export default async function HomeworkPage() {
     id: h.id,
     title: h.title ?? "",
     subject: h.subjects?.name ?? "—",
+    subjectId: h.subject_id,
     sectionLabel: `${h.sections?.grades?.level ?? "?"}-${h.sections?.name ?? ""}`,
+    sectionId: h.section_id,
     teacher: h.staff_members?.full_name ?? "—",
+    teacherId: h.teacher_id,
     assignedDate: h.assigned_date,
     dueDate: h.due_date,
     totalStudents: studentCountBySection[h.section_id] ?? 0,

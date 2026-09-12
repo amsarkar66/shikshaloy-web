@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Circle, Loader2, Users } from "lucide-react";
+import Link from "next/link";
+import { CheckCircle2, Circle, Loader2, Users, MoreHorizontal, Eye, Phone } from "lucide-react";
 import { Table, TableHead, TableBody, Th, Td, Tr } from "@/components/ui/data-table";
 import { submitHomework, unsubmitHomework } from "../actions";
 
@@ -11,6 +13,7 @@ export interface RosterItem {
   fullName: string;
   rollNo: string | null;
   photoUrl: string | null;
+  phone: string | null;
   submitted: boolean;
   submittedAt: string | null;
 }
@@ -33,40 +36,135 @@ function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
+function RowActionsMenu({
+  item, canToggle, busy, open, onToggleOpen, onCloseMenu, onToggleSubmission,
+}: {
+  item: RosterItem;
+  canToggle: boolean;
+  busy: boolean;
+  open: boolean;
+  onToggleOpen: () => void;
+  onCloseMenu: () => void;
+  onToggleSubmission: () => void;
+}) {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+
+  function handleToggle() {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+    }
+    onToggleOpen();
+  }
+
+  const menuItemClass = "flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors";
+  const disabledMenuItemClass = "flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-300 dark:text-zinc-600 cursor-not-allowed";
+
+  return (
+    <div className="flex justify-end">
+      <button
+        ref={buttonRef}
+        onClick={handleToggle}
+        title="More actions"
+        className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"
+      >
+        <MoreHorizontal className="h-3.5 w-3.5" />
+      </button>
+
+      {open && pos && createPortal(
+        <>
+          <div className="fixed inset-0 z-40" onClick={onCloseMenu} />
+          <div
+            style={{ top: pos.top, right: pos.right }}
+            className="fixed z-50 w-48 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg shadow-black/10 py-1"
+          >
+            <button
+              disabled={!canToggle || busy}
+              onClick={() => { onCloseMenu(); onToggleSubmission(); }}
+              className={!canToggle || busy ? disabledMenuItemClass : `w-full ${menuItemClass}`}
+            >
+              {busy ? (
+                <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+              ) : item.submitted ? (
+                <Circle className="h-3.5 w-3.5 shrink-0" />
+              ) : (
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+              )}
+              {item.submitted ? "Mark as Pending" : "Mark as Submitted"}
+            </button>
+            <Link href={`/dashboard/students/${item.studentId}`} onClick={onCloseMenu} prefetch={false} className={menuItemClass}>
+              <Eye className="h-3.5 w-3.5 shrink-0" /> View Student Profile
+            </Link>
+            {item.phone ? (
+              <a href={`tel:${item.phone}`} className={menuItemClass}>
+                <Phone className="h-3.5 w-3.5 shrink-0" /> Call Parent
+              </a>
+            ) : (
+              <span className={disabledMenuItemClass}>
+                <Phone className="h-3.5 w-3.5 shrink-0" /> Call Parent
+              </span>
+            )}
+          </div>
+        </>,
+        document.body
+      )}
+    </div>
+  );
+}
+
 export function SubmissionRoster({
-  homeworkId, items, canEdit,
+  homeworkId, items, canEdit, locked = false,
 }: {
   homeworkId: string;
   items: RosterItem[];
   canEdit: boolean;
+  locked?: boolean;
 }) {
   const router = useRouter();
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
+  const canToggle = canEdit && !locked;
 
   function toggle(studentId: string, submitted: boolean) {
-    if (!canEdit) return;
+    if (!canToggle) return;
+    setError(null);
     setPendingId(studentId);
     startTransition(async () => {
-      if (submitted) await unsubmitHomework(homeworkId, studentId);
-      else await submitHomework(homeworkId, studentId);
-      router.refresh();
-      setPendingId(null);
+      try {
+        if (submitted) await unsubmitHomework(homeworkId, studentId);
+        else await submitHomework(homeworkId, studentId);
+        router.refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to update submission");
+      } finally {
+        setPendingId(null);
+      }
     });
   }
 
   return (
-    <Table>
+    <div className="space-y-2">
+      {error && (
+        <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-400">
+          {error}
+        </div>
+      )}
+      <Table>
       <TableHead>
         <Th position="first">Student</Th>
         <Th>Roll No</Th>
         <Th>Status</Th>
         <Th>Submitted At</Th>
+        <Th position="last" align="right">Actions</Th>
       </TableHead>
       <TableBody>
         {items.length === 0 ? (
           <tr>
-            <td colSpan={4} className="py-16 text-center">
+            <td colSpan={5} className="py-16 text-center">
               <div className="flex flex-col items-center gap-2">
                 <Users className="h-8 w-8 text-gray-300 dark:text-zinc-600" />
                 <p className="text-sm font-medium text-gray-500 dark:text-zinc-400">No students in this class</p>
@@ -95,14 +193,13 @@ export function SubmissionRoster({
                   <span className="text-sm text-gray-700 dark:text-zinc-300">{item.rollNo ?? "—"}</span>
                 </Td>
                 <Td>
-                  <button
-                    onClick={() => toggle(item.studentId, item.submitted)}
-                    disabled={!canEdit || busy}
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium transition-colors ${
+                  <span
+                    title={locked ? "This assignment is closed and no longer accepting submissions" : undefined}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium ${
                       item.submitted
                         ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
                         : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
-                    } ${canEdit ? "cursor-pointer hover:opacity-80" : ""}`}
+                    }`}
                   >
                     {busy ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
@@ -112,18 +209,30 @@ export function SubmissionRoster({
                       <Circle className="h-3 w-3" />
                     )}
                     {item.submitted ? "Submitted" : "Pending"}
-                  </button>
+                  </span>
                 </Td>
                 <Td>
                   <span className="text-sm text-gray-500 dark:text-zinc-400">
                     {item.submittedAt ? formatDateTime(item.submittedAt) : "—"}
                   </span>
                 </Td>
+                <Td position="last">
+                  <RowActionsMenu
+                    item={item}
+                    canToggle={canToggle}
+                    busy={busy}
+                    open={openMenuId === item.studentId}
+                    onToggleOpen={() => setOpenMenuId(openMenuId === item.studentId ? null : item.studentId)}
+                    onCloseMenu={() => setOpenMenuId(null)}
+                    onToggleSubmission={() => toggle(item.studentId, item.submitted)}
+                  />
+                </Td>
               </Tr>
             );
           })
         )}
       </TableBody>
-    </Table>
+      </Table>
+    </div>
   );
 }

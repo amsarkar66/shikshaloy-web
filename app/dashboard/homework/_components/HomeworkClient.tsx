@@ -1,20 +1,20 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ClipboardList, CheckCircle2, Clock, AlertTriangle,
   Search, Plus, ChevronLeft, ChevronRight, ChevronDown, X,
-  ArrowUpDown, ArrowUp, ArrowDown, BookOpen,
+  ArrowUpDown, ArrowUp, ArrowDown, BookOpen, Pencil, Trash2,
 } from "lucide-react";
 import {
   submissionRate, isOverdue, formatDate,
   type Homework, type HomeworkStatus,
 } from "../_data/homework";
-import { assignHomework } from "../actions";
-import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr } from "@/components/ui/data-table";
-import { DatePicker } from "@/components/ui/date-picker";
+import { FancyButton } from "@/components/ui/fancy-button";
+import { AssignmentModal } from "./AssignmentModal";
+import { DeleteHomeworkModal } from "./DeleteHomeworkModal";
 
 type SortField = "title" | "dueDate" | "submission";
 type SortDir = "asc" | "desc";
@@ -58,117 +58,6 @@ function StatsRow({ items }: { items: Homework[] }) {
   );
 }
 
-function NewAssignmentModal({
-  open, onClose, subjects, sections, teachers,
-}: {
-  open: boolean;
-  onClose: () => void;
-  subjects: Subject[];
-  sections: Section[];
-  teachers: Teacher[];
-}) {
-  const [title, setTitle] = useState("");
-  const [subjectId, setSubjectId] = useState(subjects[0]?.id ?? "");
-  const [sectionId, setSectionId] = useState(sections[0]?.id ?? "");
-  const [teacherId, setTeacherId] = useState(teachers[0]?.id ?? "");
-  const [dueDate, setDueDate] = useState("");
-  const [description, setDescription] = useState("");
-  const [isPending, startTransition] = useTransition();
-
-  if (!open) return null;
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!title || !dueDate || !subjectId || !sectionId || !teacherId) return;
-    startTransition(async () => {
-      await assignHomework({ title, subjectId, sectionId, teacherId, dueDate, description });
-      setTitle(""); setDueDate(""); setDescription("");
-      onClose();
-    });
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <form
-        onSubmit={handleSubmit}
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xl"
-      >
-        <div className="flex items-center justify-between border-b border-gray-200 dark:border-zinc-800 px-5 py-4">
-          <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">New Assignment</p>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="space-y-3 p-5">
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">Title</label>
-            <input
-              value={title} onChange={(e) => setTitle(e.target.value)} required
-              placeholder="e.g. Algebra worksheet — Chapter 4"
-              className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">Subject</label>
-              <div className="relative">
-                <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-2 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
-                  {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">Class</label>
-              <div className="relative">
-                <select value={sectionId} onChange={(e) => setSectionId(e.target.value)} className="h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-2 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
-                  {sections.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">Teacher</label>
-            <div className="relative">
-              <select value={teacherId} onChange={(e) => setTeacherId(e.target.value)} className="h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-2 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
-                {teachers.map((t) => <option key={t.id} value={t.id}>{t.name} ({t.designation})</option>)}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">Due date</label>
-            <DatePicker value={dueDate} onChange={setDueDate} />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-600 dark:text-zinc-400">Instructions</label>
-            <textarea
-              value={description} onChange={(e) => setDescription(e.target.value)} rows={3}
-              placeholder="What should students do?"
-              className="w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-3 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
-            />
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-2 border-t border-gray-200 dark:border-zinc-800 px-5 py-4">
-          <button type="button" onClick={onClose} className="h-9 rounded-lg border border-gray-200 dark:border-zinc-700 px-4 text-sm text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800">
-            Cancel
-          </button>
-          <FancyButton type="submit" disabled={isPending} size="sm">
-            <Plus className="h-4 w-4" /> {isPending ? "Assigning…" : "Assign"}
-          </FancyButton>
-        </div>
-      </form>
-    </div>
-  );
-}
 
 export default function HomeworkClient({
   homework, subjects, sections, teachers,
@@ -186,6 +75,8 @@ export default function HomeworkClient({
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [page, setPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<Homework | null>(null);
+  const [deleting, setDeleting] = useState<Homework | null>(null);
 
   const subjectNames = useMemo(() => Array.from(new Set(homework.map((h) => h.subject))).sort(), [homework]);
 
@@ -326,11 +217,12 @@ export default function HomeworkClient({
             </button>
           </Th>
           <Th>Status</Th>
+          <Th position="last" align="right">Actions</Th>
         </TableHead>
         <TableBody>
           {pageData.length === 0 ? (
             <tr>
-              <td colSpan={5} className="py-20 text-center">
+              <td colSpan={6} className="py-20 text-center">
                 <div className="flex flex-col items-center gap-2">
                   <BookOpen className="h-8 w-8 text-gray-300 dark:text-zinc-600" />
                   <p className="text-sm font-medium text-gray-500 dark:text-zinc-400">No assignments found</p>
@@ -381,6 +273,16 @@ export default function HomeworkClient({
                       {hw.status === "closed" ? "Closed" : "Active"}
                     </span>
                   </Td>
+                  <Td position="last">
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={(e) => { e.stopPropagation(); setEditing(hw); }} title="Edit" className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); setDeleting(hw); }} title="Delete" className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 transition-colors">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </Td>
                 </Tr>
               );
             })
@@ -388,13 +290,34 @@ export default function HomeworkClient({
         </TableBody>
       </Table>
 
-      <NewAssignmentModal
+      <AssignmentModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         subjects={subjects}
         sections={sections}
         teachers={teachers}
+        onSaved={() => router.refresh()}
       />
+
+      {editing && (
+        <AssignmentModal
+          open
+          onClose={() => setEditing(null)}
+          subjects={subjects}
+          sections={sections}
+          teachers={teachers}
+          existing={editing}
+          onSaved={() => router.refresh()}
+        />
+      )}
+
+      {deleting && (
+        <DeleteHomeworkModal
+          homework={deleting}
+          onClose={() => setDeleting(null)}
+          onDeleted={() => router.refresh()}
+        />
+      )}
     </div>
   );
 }

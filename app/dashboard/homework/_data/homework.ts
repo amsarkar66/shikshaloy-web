@@ -4,8 +4,11 @@ export interface Homework {
   id: string;
   title: string;
   subject: string;
+  subjectId: string;
   sectionLabel: string;
+  sectionId: string;
   teacher: string;
+  teacherId: string;
   assignedDate: string; // ISO
   dueDate: string;      // ISO
   totalStudents: number;

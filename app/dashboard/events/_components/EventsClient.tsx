@@ -651,9 +651,9 @@ function ListView({ events, onOpenPtm }: { events: SchoolEvent[]; onOpenPtm: (id
 
   return (
     <div className="space-y-4">
-      {/* Time filter */}
+      {/* Time filter + Type filter pills */}
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-0.5">
+        <div className="flex rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-0.5 shrink-0">
           {(["upcoming","all","past"] as const).map((t) => (
             <button
               key={t}
@@ -668,10 +668,6 @@ function ListView({ events, onOpenPtm }: { events: SchoolEvent[]; onOpenPtm: (id
             </button>
           ))}
         </div>
-      </div>
-
-      {/* Type filter pills */}
-      <div className="flex items-center gap-1.5 flex-wrap">
         {FILTER_TYPES.map((t) => {
           const count = t === "all" ? typeCounts.all : (typeCounts[t] ?? 0);
           return (
