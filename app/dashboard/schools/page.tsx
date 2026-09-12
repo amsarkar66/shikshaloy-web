@@ -35,8 +35,13 @@ export default async function SchoolsPage() {
     schoolIds.length
       ? supabaseAdmin.from("staff_members").select("school_id").in("school_id", schoolIds).neq("status", "inactive")
       : Promise.resolve({ data: [] }),
+    // staff_members.permission_template_id = 'admin', not profiles.role —
+    // every admin (invitePrincipal or promoteExistingToAdmin) has this
+    // grant, but a promoted teacher/staff keeps profiles.role unchanged
+    // (docs/architecture/role-and-identity-model.md §7-9), so counting on
+    // role alone undercounts them.
     schoolIds.length
-      ? supabaseAdmin.from("profiles").select("school_id").in("school_id", schoolIds).eq("role", "admin")
+      ? supabaseAdmin.from("staff_members").select("school_id").in("school_id", schoolIds).eq("permission_template_id", "admin")
       : Promise.resolve({ data: [] }),
     schoolIds.length
       ? supabaseAdmin.from("fee_payments").select("school_id, month_str, amount_due, amount_paid").in("school_id", schoolIds)

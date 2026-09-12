@@ -55,7 +55,10 @@ export default async function SchoolDetailPage({
   ] = await Promise.all([
     supabaseAdmin.from("students").select("attendance_pct").eq("school_id", id),
     supabaseAdmin.from("staff_members").select("type").eq("school_id", id).neq("status", "inactive"),
-    supabaseAdmin.from("profiles").select("id").eq("school_id", id).eq("role", "admin"),
+    // staff_members.permission_template_id = 'admin', not profiles.role —
+    // a promoted teacher/staff keeps their original role, so counting on
+    // role alone undercounts them (docs/architecture/role-and-identity-model.md §7-9).
+    supabaseAdmin.from("staff_members").select("id").eq("school_id", id).eq("permission_template_id", "admin"),
     supabaseAdmin.from("fee_payments").select("month_str, amount_due, amount_paid").eq("school_id", id),
     supabaseAdmin.from("audit_log").select("action, module, description, actor_name, created_at")
       .eq("school_id", id).order("created_at", { ascending: false }).limit(6),
