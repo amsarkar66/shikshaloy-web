@@ -56,7 +56,14 @@ export async function getVerifiedRole(): Promise<string | null> {
 // requireRoleOrStaffTemplate fall back to this only when the caller's
 // literal role didn't already satisfy the check, so it changes nothing for
 // any call site that doesn't ask for "admin" in the first place.
-async function hasAdminGrant(profileId: string): Promise<boolean> {
+// Exported on its own (not just via isAdmin/requireRole) for call sites
+// that already resolved a caller's role through some other path — e.g.
+// requireRole's own return value, whose literal role can mask a grant when
+// the allowed list also contains that literal role (see
+// subjects/attendance-actions.ts: requireRole(["admin","super_admin","teacher"])
+// matches "teacher" directly and never reaches requireRole's own fallback,
+// so a promoted teacher needs this checked separately to get admin scope).
+export async function hasAdminGrant(profileId: string): Promise<boolean> {
   const { data: staff } = await supabaseAdmin
     .from("staff_members")
     .select("permission_template_id")

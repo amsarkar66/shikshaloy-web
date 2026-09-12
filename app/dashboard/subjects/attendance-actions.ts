@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { logAuditEvent } from "@/lib/audit/log";
-import { requireRole } from "@/lib/auth/verified-role";
+import { requireRole, hasAdminGrant } from "@/lib/auth/verified-role";
 
 // ── Authorization ────────────────────────────────────────────────────────────
 // Subject attendance can be marked by admin/super_admin (any slot in the
@@ -22,7 +22,14 @@ interface SubjectMarkerContext {
 async function requireSubjectAttendanceMarker(): Promise<SubjectMarkerContext> {
   const { id, role } = await requireRole(["admin", "super_admin", "teacher"] as const);
 
-  if (role === "admin" || role === "super_admin") return { role, userId: id, teacherProfileId: null };
+  // requireRole's allowed list already contains "teacher", so a promoted
+  // teacher's literal role satisfies the check directly and never reaches
+  // requireRole's own admin-grant fallback — checked separately here so
+  // they get unrestricted scope instead of being treated as a plain
+  // teacher (see lib/auth/verified-role.ts's hasAdminGrant comment).
+  if (role === "admin" || role === "super_admin" || (await hasAdminGrant(id))) {
+    return { role: "admin", userId: id, teacherProfileId: null };
+  }
   return { role, userId: id, teacherProfileId: id };
 }
 

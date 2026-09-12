@@ -70,7 +70,10 @@ export default async function HomeworkDetailPage({
   const hw = hwRow as unknown as HomeworkRow;
 
   let canEdit = role === "admin" || role === "super_admin" || userIsAdmin;
-  if (role === "teacher") {
+  // Skip the ownership check entirely for an admin-grant-holding teacher —
+  // without this, they'd hit notFound() below for any homework they didn't
+  // personally assign, despite canEdit already being (correctly) true.
+  if (role === "teacher" && !userIsAdmin) {
     const teacher = await getTeacherContext(user.id);
     if (!teacher || teacher.staffId !== hw.teacher_id) notFound();
     canEdit = true;
