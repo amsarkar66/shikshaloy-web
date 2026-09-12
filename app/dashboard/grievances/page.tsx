@@ -62,7 +62,7 @@ export default async function GrievancesPage() {
     const schoolNameById = new Map(schools.map((s) => [s.id, s.name]));
 
     if (schoolIds.length === 0) {
-      return <GrievancesClient initialData={[]} schools={schools} />;
+      return <GrievancesClient initialData={[]} />;
     }
 
     const { data } = await supabaseAdmin
@@ -73,7 +73,7 @@ export default async function GrievancesPage() {
 
     const grievances: Grievance[] = ((data ?? []) as GrievanceRow[]).map((g) => toGrievance(g, schoolNameById));
 
-    return <GrievancesClient initialData={grievances} schools={schools} />;
+    return <GrievancesClient initialData={grievances} />;
   }
 
   const schoolId = await getCurrentSchoolIdOrThrow();

@@ -9,8 +9,7 @@ import {
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Select, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/select";
 import { updateGrievanceStatus, type GrievanceStatus } from "../actions";
-import { SchoolFilterSelect, SchoolCell, matchesSchoolFilter } from "../../_components/school-filter";
-import type { InstitutionSchool } from "@/lib/supabase/institution-context";
+import { SchoolCell } from "../../_components/school-filter";
 
 export interface Grievance {
   id: string;
@@ -262,13 +261,12 @@ const STATUS_TABS: { value: GrievanceStatus | "all"; label: string }[] = [
   { value: "resolved",  label: "Resolved" },
 ];
 
-export default function GrievancesClient({ initialData, schools = [] }: { initialData: Grievance[]; schools?: InstitutionSchool[] }) {
+export default function GrievancesClient({ initialData }: { initialData: Grievance[] }) {
   const [statusTab, setStatusTab] = useState<GrievanceStatus | "all">("all");
-  const [schoolFilter, setSchoolFilter] = useState("all");
 
   const filtered = useMemo(() => {
-    return initialData.filter((g) => (statusTab === "all" || g.status === statusTab) && matchesSchoolFilter(schoolFilter, g.schoolId));
-  }, [statusTab, schoolFilter, initialData]);
+    return initialData.filter((g) => statusTab === "all" || g.status === statusTab);
+  }, [statusTab, initialData]);
 
   return (
     <div className="w-full px-6 py-6 space-y-5">
@@ -277,7 +275,6 @@ export default function GrievancesClient({ initialData, schools = [] }: { initia
           <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Grievances</h1>
           <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Track and resolve raised concerns</p>
         </div>
-        <SchoolFilterSelect schools={schools} value={schoolFilter} onChange={setSchoolFilter} />
       </div>
 
       <StatsRow grievances={initialData} />
