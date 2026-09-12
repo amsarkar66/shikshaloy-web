@@ -4,10 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Search, ChevronDown, Users, GraduationCap, Briefcase, UserCog, Landmark,
-  Plus, Upload, X, CheckCircle2, Loader2, ArrowUpCircle, ShieldOff,
+  Plus, Upload, X, CheckCircle2, Loader2, ArrowUpCircle, ShieldOff, MoreHorizontal,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { BulkImportModal, type ImportColumn } from "../../_components/bulk-import-modal";
 import { inviteStaffMember, bulkImportStaff, getStaffTemplatesForSchool, type BulkImportOutcome } from "../../staff/actions";
 import { invitePrincipal, searchPromotableStaff, promoteExistingToAdmin, revokeAdminAccess, type PromotableStaff } from "../../principals/actions";
@@ -494,6 +495,54 @@ function InvitePrincipalModal({ schools, onClose, onInvited }: { schools: School
   );
 }
 
+function RevokeConfirmModal({
+  admin, onClose, onRevoked,
+}: { admin: AdminRow; onClose: () => void; onRevoked: () => void }) {
+  const [status, setStatus] = useState<"idle" | "saving" | "error">("idle");
+  const [error, setError] = useState("");
+
+  async function handleConfirm() {
+    if (!admin.staffId) return;
+    setStatus("saving");
+    setError("");
+    try {
+      await revokeAdminAccess(admin.staffId, admin.schoolId);
+      onRevoked();
+    } catch (err) {
+      setStatus("error");
+      setError(err instanceof Error ? err.message : "Failed to revoke admin access.");
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={status === "saving" ? undefined : onClose} />
+      <div className="relative w-full max-w-sm rounded-2xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-2xl p-6 space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50 dark:bg-red-500/10 text-red-500">
+            <ShieldOff className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Revoke admin access?</p>
+            <p className="mt-0.5 text-xs text-gray-500 dark:text-zinc-400">
+              <strong className="text-gray-700 dark:text-zinc-300">{admin.name}</strong> keeps their existing login and staff record — only their admin access is removed.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-2">
+          <button onClick={onClose} disabled={status === "saving"} className="rounded-lg border border-gray-200 dark:border-zinc-700 px-4 py-2 text-sm font-medium text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800 disabled:opacity-50 transition-colors">
+            Cancel
+          </button>
+          <button onClick={handleConfirm} disabled={status === "saving"} className="flex items-center gap-2 rounded-lg bg-red-500 hover:bg-red-600 disabled:opacity-50 px-4 py-2 text-sm font-medium text-white transition-colors">
+            {status === "saving" && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Revoke Access
+          </button>
+        </div>
+        {status === "error" && <p className="text-xs text-red-500 text-center">{error}</p>}
+      </div>
+    </div>
+  );
+}
+
 export default function PeopleClient({
   schools, students, staff, parents, admins,
 }: {
@@ -509,24 +558,7 @@ export default function PeopleClient({
   const [schoolFilter, setSchoolFilter] = useState("all");
   const [showInviteStaff, setShowInviteStaff] = useState(false);
   const [showInvitePrincipal, setShowInvitePrincipal] = useState(false);
-  const [confirmingAdminId, setConfirmingAdminId] = useState<string | null>(null);
-  const [revokingAdminId, setRevokingAdminId] = useState<string | null>(null);
-  const [revokeError, setRevokeError] = useState<{ id: string; message: string } | null>(null);
-
-  async function handleRevokeAdmin(a: AdminRow) {
-    if (!a.staffId) return;
-    setRevokingAdminId(a.id);
-    setRevokeError(null);
-    try {
-      await revokeAdminAccess(a.staffId, a.schoolId);
-      router.refresh();
-    } catch (err) {
-      setRevokeError({ id: a.id, message: err instanceof Error ? err.message : "Failed to revoke admin access." });
-    } finally {
-      setRevokingAdminId(null);
-      setConfirmingAdminId(null);
-    }
-  }
+  const [revokeTarget, setRevokeTarget] = useState<AdminRow | null>(null);
   const [bulkPickerOpen, setBulkPickerOpen] = useState(false);
   const [bulkSchoolId, setBulkSchoolId] = useState<string | null>(null);
   const [importBusy, setImportBusy] = useState(false);
@@ -777,7 +809,7 @@ export default function PeopleClient({
             <Th>Contact</Th>
             <Th>Joined</Th>
             <Th>Status</Th>
-            <Th position="last">&nbsp;</Th>
+            <Th position="last" className="w-px">&nbsp;</Th>
           </TableHead>
           <TableBody>
             {filteredAdmins.length === 0 ? (
@@ -793,37 +825,23 @@ export default function PeopleClient({
                   </Td>
                   <Td className="text-sm text-gray-700 dark:text-zinc-300 whitespace-nowrap">{formatDate(a.joinedDate)}</Td>
                   <Td><StatusBadge status={a.status} /></Td>
-                  <Td position="last">
-                    {a.revokable && (
-                      confirmingAdminId === a.id ? (
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => void handleRevokeAdmin(a)}
-                            disabled={revokingAdminId === a.id}
-                            className="flex items-center gap-1 rounded-lg bg-red-500 hover:bg-red-600 disabled:opacity-50 px-2 py-1 text-xs font-medium text-white transition-colors"
-                          >
-                            {revokingAdminId === a.id && <Loader2 className="h-3 w-3 animate-spin" />} Confirm
-                          </button>
-                          <button
-                            onClick={() => setConfirmingAdminId(null)}
-                            disabled={revokingAdminId === a.id}
-                            className="rounded-lg border border-gray-200 dark:border-zinc-700 px-2 py-1 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-end gap-0.5">
-                          <button
-                            onClick={() => setConfirmingAdminId(a.id)}
-                            className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
-                          >
-                            <ShieldOff className="h-3.5 w-3.5" /> Revoke
-                          </button>
-                          {revokeError?.id === a.id && <p className="text-[11px] text-red-500 max-w-[160px] text-right">{revokeError.message}</p>}
-                        </div>
-                      )
-                    )}
+                  <Td position="last" className="w-px whitespace-nowrap">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger className="ml-auto flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" sideOffset={8} className="w-52">
+                        {a.revokable ? (
+                          <DropdownMenuItem variant="destructive" className="cursor-pointer" onClick={() => setRevokeTarget(a)}>
+                            <ShieldOff className="h-3.5 w-3.5" /> Revoke admin access
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem disabled className="cursor-default">
+                            No actions available
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </Td>
                 </Tr>
               ))
@@ -862,6 +880,17 @@ export default function PeopleClient({
           schools={schools}
           onClose={() => setShowInvitePrincipal(false)}
           onInvited={() => router.refresh()}
+        />
+      )}
+
+      {revokeTarget && (
+        <RevokeConfirmModal
+          admin={revokeTarget}
+          onClose={() => setRevokeTarget(null)}
+          onRevoked={() => {
+            setRevokeTarget(null);
+            router.refresh();
+          }}
         />
       )}
 

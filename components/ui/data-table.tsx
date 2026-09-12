@@ -41,13 +41,13 @@ export function TableHead({ children }: { children: ReactNode }) {
 }
 
 export function Th({
-  children, position, align = "left",
+  children, position, align = "left", className = "",
 }: {
-  children?: ReactNode; position?: "first" | "last"; align?: "left" | "center" | "right";
+  children?: ReactNode; position?: "first" | "last"; align?: "left" | "center" | "right"; className?: string;
 }) {
   return (
     <th
-      className={`${cellPadding(position)} ${textAlign(align)} text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 whitespace-nowrap`}
+      className={`${cellPadding(position)} ${textAlign(align)} text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 whitespace-nowrap ${className}`}
     >
       {children}
     </th>
