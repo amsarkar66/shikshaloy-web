@@ -777,7 +777,7 @@ export default function StaffClient({
                   <p className="text-xs text-gray-400 dark:text-zinc-500 truncate max-w-[180px]">{s.email}</p>
                 </Td>
                 <Td className="text-sm text-gray-700 dark:text-zinc-300 whitespace-nowrap">{formatJoinDate(s.joinedDate)}</Td>
-                <Td><span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[s.status]}`}>{STATUS_LABEL[s.status]}</span></Td>
+                <Td className="max-w-[120px]"><span className={`inline-flex max-w-full min-w-0 items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[s.status]}`}><span className="min-w-0 truncate">{STATUS_LABEL[s.status]}</span></span></Td>
                 <Td className="max-w-[160px]">
                   {s.permissionTemplateName ? (
                     <PermissionBadge name={s.permissionTemplateName} />
