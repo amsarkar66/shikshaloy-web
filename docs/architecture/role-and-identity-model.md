@@ -189,7 +189,7 @@ Went with option 1 from §8: migrated the checks and stopped writing `profiles.r
 
 **Known limitation at the time, fixed 2026-09-12 — see §10's addendum:** a handful of places checked `role === "teacher"` for scoping *after* already being let through an admin-or-teacher gate, and a teacher's literal role matched that branch before the admin-grant fallback was ever consulted (the fallback only fires when the literal role check *fails*). `subjects/attendance-actions.ts` and `homework/[id]/page.tsx` turned out to be real bugs from this; `grades/actions.ts` turned out to already be fine on closer inspection.
 
-Two admin-*count* stats queries (`schools/page.tsx`, `schools/[id]/page.tsx`) also still filter on `profiles.role = 'admin'` — cosmetic undercount on a stats card, not a gate, left as-is.
+Two admin-*count* stats queries (`schools/page.tsx`, `schools/[id]/page.tsx`) also still filtered on `profiles.role = 'admin'` — cosmetic undercount on a stats card, not a gate. **Fixed 2026-09-12, commit `d0bcbdb`** — switched both to count `staff_members.permission_template_id = 'admin'` instead, which every admin has regardless of which flow granted it; simpler than the principals/people two-query merge since these two only need a count, not per-admin display data.
 
 Verified: `tsc --noEmit` clean, `eslint` 0 errors, two independent `next build` runs both exit 0.
 
