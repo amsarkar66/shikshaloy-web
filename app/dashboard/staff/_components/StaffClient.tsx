@@ -574,13 +574,26 @@ export default function StaffClient({
     );
   }
 
+  // Options are derived from whatever permission templates are actually
+  // assigned in this list (not the school's full template catalog, which
+  // isn't loaded here) — Admin sorts first, the rest alphabetically.
+  const roleOptions = useMemo(() => {
+    const byId = new Map<string, string>();
+    for (const s of staffList) {
+      if (s.permissionTemplateId) byId.set(s.permissionTemplateId, s.permissionTemplateName ?? s.permissionTemplateId);
+    }
+    return Array.from(byId, ([id, name]) => ({ id, name })).sort((a, b) =>
+      a.id === ADMIN_VALUE ? -1 : b.id === ADMIN_VALUE ? 1 : a.name.localeCompare(b.name)
+    );
+  }, [staffList]);
+
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
     return staffList.filter((s) => {
       const matchQ  = !q || s.name.toLowerCase().includes(q) || s.employeeId.toLowerCase().includes(q) || s.designation.toLowerCase().includes(q);
       const matchTy = typeFilter   === "all" || s.type   === typeFilter;
       const matchSt = statusFilter === "all" || s.status === statusFilter;
-      const matchRo = roleFilter   === "all" || (roleFilter === "admin" ? s.permissionTemplateId === ADMIN_VALUE : s.permissionTemplateId !== ADMIN_VALUE);
+      const matchRo = roleFilter   === "all" || (roleFilter === "none" ? !s.permissionTemplateId : s.permissionTemplateId === roleFilter);
       const matchSc = matchesSchoolFilter(schoolFilter, s.schoolId);
       return matchQ && matchTy && matchSt && matchRo && matchSc;
     }).sort((a, b) => {
@@ -659,8 +672,8 @@ export default function StaffClient({
         <div className="relative">
           <select value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }} className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
             <option value="all">All Roles</option>
-            <option value="admin">Admin</option>
-            <option value="staff">Staff</option>
+            {roleOptions.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+            <option value="none">No Access</option>
           </select>
           <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
         </div>
