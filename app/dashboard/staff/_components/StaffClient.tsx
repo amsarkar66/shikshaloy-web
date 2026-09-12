@@ -266,9 +266,11 @@ function StaffRowMenu({
             <Link href={`/dashboard/staff/${staff.id}?tab=attendance`} onClick={onClose} prefetch={false} className={menuItemClass}>
               <CalendarCheck className="h-3.5 w-3.5 shrink-0" /> View attendance
             </Link>
-            <button onClick={() => { onClose(); onResend(); }} className={`w-full ${menuItemClass}`}>
-              <Send className="h-3.5 w-3.5 shrink-0" /> Resend invitation
-            </button>
+            {staff.status !== "active" && (
+              <button onClick={() => { onClose(); onResend(); }} className={`w-full ${menuItemClass}`}>
+                <Send className="h-3.5 w-3.5 shrink-0" /> Resend invitation
+              </button>
+            )}
             <div className="my-1 border-t border-gray-100 dark:border-zinc-700/50" />
             <button
               onClick={() => { onClose(); onDeactivateOrReactivate(); }}
