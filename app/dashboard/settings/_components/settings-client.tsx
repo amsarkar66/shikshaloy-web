@@ -725,11 +725,12 @@ function SchoolTabList({
             key={s.id}
             onClick={() => handleSelect(s.id)}
             disabled={isPending}
-            className={`w-full text-left rounded-lg px-3 py-2 text-sm transition-colors disabled:opacity-50 ${
+            className={`w-full truncate text-left rounded-lg px-3 py-2 text-sm transition-colors disabled:opacity-50 ${
               activeSchoolId === s.id
                 ? "bg-primary-500/10 text-primary-600 dark:text-primary-400 font-medium"
                 : "text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700/50"
             }`}
+            title={s.name}
           >
             {s.name}
           </button>
