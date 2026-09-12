@@ -420,7 +420,7 @@ function TodaysAttendanceTable({
               </Td>
               <Td><span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${r.statusBadgeClass}`}>{r.statusLabel}</span></Td>
               <Td position="last" align="right">
-                <Link href={r.href} className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Eye className="h-3.5 w-3.5" /></Link>
+                <Link href={r.href} prefetch={false} className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Eye className="h-3.5 w-3.5" /></Link>
               </Td>
             </Tr>
           );
@@ -659,13 +659,14 @@ function OverviewTab({
 }
 
 function StudentRoster({
-  studentsBySection, statusMap, onStatusChange, query, classFilter,
+  studentsBySection, statusMap, onStatusChange, query, classFilter, readOnly,
 }: {
   studentsBySection: Record<string, AttendanceStudent[]>;
   statusMap: Record<string, AttendanceStatus>;
   onStatusChange: (id: string, sectionId: string, s: MarkedAttendanceStatus) => void;
   query: string;
   classFilter: string;
+  readOnly?: boolean;
 }) {
   const allStudents = useMemo(() => Object.values(studentsBySection).flat(), [studentsBySection]);
 
@@ -703,7 +704,7 @@ function StudentRoster({
                   <span className={`sm:hidden inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[status]}`}>{STATUS[status].label}</span>
                   <div className="hidden sm:flex items-center gap-1">
                     {(["present","late","absent"] as MarkedAttendanceStatus[]).map((s)=>(
-                      <button key={s} onClick={()=>onStatusChange(st.id,st.sectionId,s)} className={`h-7 rounded-lg border px-3 text-xs font-medium transition-colors ${status===s?STATUS[s].active:STATUS[s].ghost}`}>{STATUS[s].label}</button>
+                      <button key={s} onClick={()=>onStatusChange(st.id,st.sectionId,s)} disabled={readOnly} className={`h-7 rounded-lg border px-3 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${status===s?STATUS[s].active:STATUS[s].ghost}`}>{STATUS[s].label}</button>
                     ))}
                   </div>
                 </div>
@@ -724,10 +725,11 @@ function StudentRoster({
   );
 }
 
-function StaffAttendanceView({ staff, staffStatusMap, setStaffStatus }: {
+function StaffAttendanceView({ staff, staffStatusMap, setStaffStatus, readOnly }: {
   staff: AttendanceStaff[];
   staffStatusMap: Record<string, StaffAttendanceStatus>;
   setStaffStatus: (id: string, s: MarkedStaffAttendanceStatus) => void;
+  readOnly?: boolean;
 }) {
   const activeStaff = useMemo(()=>staff.filter((s)=>s.status!=="inactive"),[staff]);
   const departments = useMemo(()=>["all",...Array.from(new Set(activeStaff.map((s)=>s.department))).sort()],[activeStaff]);
@@ -777,7 +779,7 @@ function StaffAttendanceView({ staff, staffStatusMap, setStaffStatus }: {
           <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
         </div>
         <div className="sm:ml-auto flex gap-2">
-          <button onClick={markAllPresent} className="flex h-9 items-center gap-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-500/10 px-3 text-sm font-medium text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors"><CheckSquare className="h-3.5 w-3.5"/> Mark All Present</button>
+          <button onClick={markAllPresent} disabled={readOnly} className="flex h-9 items-center gap-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-500/10 px-3 text-sm font-medium text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors disabled:cursor-not-allowed disabled:opacity-40"><CheckSquare className="h-3.5 w-3.5"/> Mark All Present</button>
         </div>
       </div>
       <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 overflow-hidden">
@@ -798,7 +800,7 @@ function StaffAttendanceView({ staff, staffStatusMap, setStaffStatus }: {
                 <span className={`sm:hidden inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STAFF_BADGE[status]}`}>{STAFF_STATUS[status].label}</span>
                 <div className="hidden sm:flex items-center gap-1">
                   {(["present","late","absent"] as MarkedStaffAttendanceStatus[]).map((s)=>(
-                    <button key={s} onClick={()=>!isLocked&&setStaffStatus(st.id,s)} disabled={isLocked} className={`h-7 rounded-lg border px-3 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${status===s?STAFF_STATUS[s].active:STAFF_STATUS[s].ghost}`}>{STAFF_STATUS[s].label}</button>
+                    <button key={s} onClick={()=>!isLocked&&!readOnly&&setStaffStatus(st.id,s)} disabled={isLocked||readOnly} className={`h-7 rounded-lg border px-3 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${status===s?STAFF_STATUS[s].active:STAFF_STATUS[s].ghost}`}>{STAFF_STATUS[s].label}</button>
                   ))}
                   {isLocked&&<span className={`h-7 inline-flex items-center rounded-lg border px-3 text-xs font-medium ${STAFF_STATUS.on_leave.active}`}>On Leave</span>}
                 </div>
@@ -872,15 +874,30 @@ export default function AttendanceClient({
 
   function handleTabChange(t: "overview"|"students"|"staff") { setTab(t); }
 
+  const isReadOnlyDate = dateStr !== todayStr();
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   const setStudentStatus  = useCallback((id: string, secId: string, s: MarkedAttendanceStatus) => {
+    if (dateStr !== todayStr()) return; // buttons are disabled for non-today dates, but guard the callback too
+    const prevStatus = statusMap[id] ?? "unmarked";
+    setSaveError(null);
     setStatusMap((prev)=>({...prev,[id]:s}));
-    if (dateStr === todayStr()) void markStudentAttendance(id, secId, dateStr, s);
-  },[dateStr]);
+    markStudentAttendance(id, secId, dateStr, s).catch((err) => {
+      setStatusMap((prev)=>({...prev,[id]:prevStatus}));
+      setSaveError(err instanceof Error ? err.message : "Failed to save attendance — change reverted.");
+    });
+  },[dateStr, statusMap]);
 
   const setStaffStatusFn  = useCallback((id: string, s: MarkedStaffAttendanceStatus) => {
+    if (dateStr !== todayStr()) return;
+    const prevStatus = staffStatusMap[id] ?? "unmarked";
+    setSaveError(null);
     setStaffStatusMap((prev)=>({...prev,[id]:s}));
-    if (dateStr === todayStr()) void markStaffAttendance(id, dateStr, s);
-  },[dateStr]);
+    markStaffAttendance(id, dateStr, s).catch((err) => {
+      setStaffStatusMap((prev)=>({...prev,[id]:prevStatus}));
+      setSaveError(err instanceof Error ? err.message : "Failed to save attendance — change reverted.");
+    });
+  },[dateStr, staffStatusMap]);
 
   const schoolStats = useMemo(()=>{
     const all = Object.values(initialStudentsBySection).flat();
@@ -942,6 +959,18 @@ export default function AttendanceClient({
         </div>
       </div>
 
+      {saveError && (
+        <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-400">
+          {saveError}
+        </div>
+      )}
+
+      {isReadOnlyDate && (tab==="students"||tab==="staff") && (
+        <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+          Viewing {formatLong(dateStr)} — attendance can only be marked for today.
+        </div>
+      )}
+
       {tab==="staff"?<StaffStatsRow {...staffStats}/>:<StatsRow {...schoolStats}/>}
 
       <div className="flex gap-1 border-b border-gray-200 dark:border-zinc-800">
@@ -991,12 +1020,12 @@ export default function AttendanceClient({
             )}
           </div>
 
-          <StudentRoster studentsBySection={initialStudentsBySection} statusMap={statusMap} onStatusChange={setStudentStatus} query={studentQuery} classFilter={studentClassFilter}/>
+          <StudentRoster studentsBySection={initialStudentsBySection} statusMap={statusMap} onStatusChange={setStudentStatus} query={studentQuery} classFilter={studentClassFilter} readOnly={isReadOnlyDate}/>
         </div>
       )}
 
       {tab==="staff" && allowStaffTab && (
-        <StaffAttendanceView staff={initialStaff} staffStatusMap={staffStatusMap} setStaffStatus={setStaffStatusFn}/>
+        <StaffAttendanceView staff={initialStaff} staffStatusMap={staffStatusMap} setStaffStatus={setStaffStatusFn} readOnly={isReadOnlyDate}/>
       )}
     </div>
   );
