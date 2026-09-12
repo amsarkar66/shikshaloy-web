@@ -351,21 +351,20 @@ export default function DocumentsClient({ docs, schools = [] }: { docs: SchoolDo
 
         {/* Document list */}
         <div className="space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-zinc-500 pointer-events-none" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search documents…"
-              className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
-            />
-          </div>
-
-          {schools.length > 1 && (
-            <div className="flex justify-end">
-              <SchoolFilterSelect schools={schools} value={schoolFilter} onChange={setSchoolFilter} />
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1 min-w-0">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-zinc-500 pointer-events-none" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search documents…"
+                className="h-9 w-full rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-9 pr-4 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
+              />
             </div>
-          )}
+            {schools.length > 1 && (
+              <SchoolFilterSelect schools={schools} value={schoolFilter} onChange={setSchoolFilter} />
+            )}
+          </div>
 
           <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 divide-y divide-gray-100 dark:divide-zinc-700/50 overflow-hidden">
             {filtered.length === 0 ? (
