@@ -3,15 +3,17 @@
 import { useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { isDemoAccountEmail } from "@/lib/demo/config";
+import type { DashboardIdentity } from "@/lib/identity/resolve";
 import { Sidebar } from "./sidebar";
 import { DashboardHeader } from "./dashboard-header";
 import { DemoBanner } from "./demo-banner";
 import { CommandMenu } from "./command-menu";
 
 export function DashboardShell({
-  role, user, orgName, orgLogoUrl, children,
+  role, identities, user, orgName, orgLogoUrl, children,
 }: {
   role: string;
+  identities: DashboardIdentity[];
   user: User;
   orgName: string | null;
   orgLogoUrl: string | null;
@@ -40,6 +42,7 @@ export function DashboardShell({
           <div className="print:hidden">
             <DashboardHeader
               role={role}
+              identities={identities}
               user={user}
               orgName={orgName}
               orgLogoUrl={orgLogoUrl}

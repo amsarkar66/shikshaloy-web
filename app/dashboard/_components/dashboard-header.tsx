@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, Search, Settings, LogOut, Menu, CheckCheck, CreditCard } from "lucide-react";
+import { Bell, Search, Settings, LogOut, Menu, CheckCheck, CreditCard, Check, Loader2 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { createClient } from "@/lib/supabase/client";
+import type { DashboardIdentity } from "@/lib/identity/resolve";
 import { signOut } from "../actions";
+import { setActiveIdentity } from "./identity-switcher-actions";
 import { useIsMac } from "../_lib/use-is-mac";
 import {
   DropdownMenu,
@@ -123,9 +125,10 @@ function getInitials(name: string) {
 }
 
 export function DashboardHeader({
-  role, user, orgName, orgLogoUrl, onMenuClick, onSearchClick,
+  role, identities, user, orgName, orgLogoUrl, onMenuClick, onSearchClick,
 }: {
   role: string;
+  identities?: DashboardIdentity[];
   user: User;
   orgName?: string | null;
   orgLogoUrl?: string | null;
@@ -138,6 +141,22 @@ export function DashboardHeader({
   const supabase = useMemo(() => createClient(), []);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const [switchingTo, setSwitchingTo] = useState<string | null>(null);
+
+  const handleSwitchIdentity = useCallback(
+    async (key: string) => {
+      if (key === role || switchingTo) return;
+      setSwitchingTo(key);
+      const result = await setActiveIdentity(key);
+      if (result.error) {
+        setSwitchingTo(null);
+        return;
+      }
+      router.refresh();
+      setSwitchingTo(null);
+    },
+    [role, router, switchingTo]
+  );
 
   const fetchNotifications = useCallback(async () => {
     const { data } = await supabase
@@ -314,6 +333,31 @@ export function DashboardHeader({
                 <p className="truncate text-xs font-normal text-muted-foreground">{user.email}</p>
               </div>
             </div>
+            {identities && identities.length > 1 && (
+              <>
+                <DropdownMenuSeparator />
+                <p className="px-2 pt-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Viewing as
+                </p>
+                {identities.map((identity) => (
+                  <DropdownMenuItem
+                    key={identity.key}
+                    className="cursor-pointer mt-0.5"
+                    disabled={switchingTo !== null}
+                    onClick={() => void handleSwitchIdentity(identity.key)}
+                  >
+                    {switchingTo === identity.key ? (
+                      <Loader2 className="animate-spin" />
+                    ) : identity.key === role ? (
+                      <Check />
+                    ) : (
+                      <span className="w-4" />
+                    )}
+                    {identity.label}
+                  </DropdownMenuItem>
+                ))}
+              </>
+            )}
             <DropdownMenuSeparator />
             {role === "super_admin" && (
               <DropdownMenuItem

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getUser } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolId } from "@/lib/supabase/school-context";
-import { getVerifiedUser, isAdmin } from "@/lib/auth/verified-role";
+import { getActiveIdentity } from "@/lib/identity/context";
 import { DashboardShell } from "./_components/dashboard-shell";
 import { PendingReviewScreen } from "./_components/pending-review-screen";
 import { RejectedScreen } from "./_components/rejected-screen";
@@ -18,15 +18,14 @@ export default async function DashboardLayout({
 
   if (!user) redirect("/login");
 
-  const vu = await getVerifiedUser();
-  // The nav sidebar and dashboard/page.tsx's view routing must agree on
-  // "effective role," or a promoted teacher (profiles.role left as
-  // 'teacher' — see docs/architecture/role-and-identity-model.md §7-8)
-  // would land on AdminView with the Teacher sidebar and no way to reach
-  // any admin screen. isAdmin() is a no-op for everyone whose role was
-  // already 'admin', so this changes nothing for existing admins.
-  const baseRole = vu?.role ?? "";
-  const role = baseRole !== "admin" && (await isAdmin(vu)) ? "admin" : baseRole;
+  // The nav sidebar and dashboard/page.tsx's view routing must resolve the
+  // exact same identity, or a promoted teacher (profiles.role left as
+  // 'teacher' — see docs/architecture/role-and-identity-model.md §7-9)
+  // could land on one view with a mismatched sidebar. getActiveIdentity()
+  // is cache()-wrapped, so both call sites share one resolution per request.
+  const active = await getActiveIdentity();
+  const role = active?.key ?? "";
+  const identities = active?.identities ?? [];
 
   // Super admin owns an institution (which can in turn own many
   // schools/colleges) — show the institution name. Each dashboard page that
@@ -66,6 +65,7 @@ export default async function DashboardLayout({
   return (
     <DashboardShell
       role={role}
+      identities={identities}
       user={user}
       orgName={orgName}
       orgLogoUrl={orgLogoUrl}

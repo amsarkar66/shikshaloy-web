@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getUser } from "@/lib/supabase/server";
-import { getVerifiedUser, isAdmin } from "@/lib/auth/verified-role";
+import { getActiveIdentity } from "@/lib/identity/context";
 import { KernelView } from "./_views/kernel-view";
 import { SuperAdminView } from "./_views/super-admin-view";
 import { AdminView } from "./_views/admin-view";
@@ -20,18 +20,18 @@ export default async function DashboardPage() {
 
   if (!user) redirect("/login");
 
-  const vu = await getVerifiedUser();
-  const role = vu?.role;
+  // The active identity is a chosen dashboard view, not just profiles.role —
+  // it also covers a staff_members admin grant on a teacher/staff account
+  // (promoteExistingToAdmin deliberately leaves the role alone) and a
+  // linked parents row at this school, surfaced via the identity switcher
+  // in the profile menu when more than one applies. See
+  // docs/architecture/role-and-identity-model.md §7-9.
+  const active = await getActiveIdentity();
+  const role = active?.key;
 
   if (role === "kernel")      return <KernelView />;
   if (role === "super_admin") return <SuperAdminView user={user} />;
-  // Also lands anyone with a staff_members admin grant here — e.g. a
-  // teacher promoted via promoteExistingToAdmin, which deliberately keeps
-  // their original role instead of overwriting it. See
-  // docs/architecture/role-and-identity-model.md §7-8. A real "which
-  // identity am I acting as" switcher (§4) would let them get back to
-  // TeacherView; until that exists, admin access takes priority.
-  if (role === "admin" || (await isAdmin(vu))) return <AdminView user={user} />;
+  if (role === "admin")       return <AdminView user={user} />;
   if (role === "student")     return <StudentView user={user} />;
   if (role === "teacher")     return <TeacherView user={user} />;
   if (role === "parent")      return <ParentView user={user} />;
