@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
-  UserCog, Search, Plus, ChevronDown, X, CheckCircle2, Loader2, Landmark, ArrowUpCircle, ShieldOff, MoreHorizontal,
+  UserCog, Search, Plus, ChevronDown, X, CheckCircle2, Loader2, ArrowUpCircle, ShieldOff, MoreHorizontal,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
@@ -439,7 +439,7 @@ export default function PrincipalsClient({ principals, schools }: { principals: 
                   </div>
                 </Td>
                 <Td>
-                  <span className="inline-flex items-center gap-1.5 text-sm text-gray-700 dark:text-zinc-300"><Landmark className="h-3.5 w-3.5 text-violet-400" />{p.schoolName}</span>
+                  <span className="text-sm text-gray-700 dark:text-zinc-300">{p.schoolName}</span>
                 </Td>
                 <Td>
                   <p className="text-sm text-gray-700 dark:text-zinc-300 truncate max-w-[200px]">{p.email}</p>
