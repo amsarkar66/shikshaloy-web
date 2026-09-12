@@ -25,48 +25,22 @@ export async function recordFeePayment(
   await requireFeeManagerRole();
   const schoolId = await getCurrentSchoolIdOrThrow();
 
-  const { data: rows } = await supabaseAdmin
-    .from("fee_payments")
-    .select("id, amount_due, amount_paid, receipt_no")
-    .eq("school_id", schoolId)
-    .eq("student_id", studentId)
-    .eq("month_str", monthStr)
-    .order("created_at", { ascending: true });
-
-  if (!rows || rows.length === 0) throw new Error("No fee record found for this student and month");
-
-  const receiptNo =
-    rows.find((r) => r.receipt_no)?.receipt_no ??
-    `RCP-${monthStr.replace("-", "")}-${Math.floor(Math.random() * 9000) + 1000}`;
-
-  // Allocate the payment across this month's fee categories in creation order,
-  // filling each category's balance before moving to the next.
-  let remaining = amount;
-  for (const row of rows) {
-    if (remaining <= 0) break;
-    const due = Number(row.amount_due);
-    const paidSoFar = Number(row.amount_paid);
-    const balance = due - paidSoFar;
-    if (balance <= 0) continue;
-
-    const applied = Math.min(balance, remaining);
-    const newPaid = paidSoFar + applied;
-    const status = newPaid >= due ? "paid" : newPaid > 0 ? "partial" : "overdue";
-
-    const { error } = await supabaseAdmin
-      .from("fee_payments")
-      .update({
-        amount_paid: newPaid,
-        status,
-        paid_date: paidDate,
-        payment_mode: paymentMode,
-        receipt_no: receiptNo,
-      })
-      .eq("id", row.id);
-
-    if (error) throw new Error(error.message);
-    remaining -= applied;
-  }
+  // Allocates the payment across this month's fee categories (in creation
+  // order, filling each category's balance before the next) atomically in
+  // a single DB call with row locks — see record_fee_payment() migration.
+  // This used to read amount_paid in JS then write back a computed total,
+  // which raced: two concurrent payments for the same student/month could
+  // both read the same stale value and the second write would silently
+  // lose the first payment's contribution.
+  const { error } = await supabaseAdmin.rpc("record_fee_payment", {
+    p_school_id: schoolId,
+    p_student_id: studentId,
+    p_month_str: monthStr,
+    p_amount: amount,
+    p_paid_date: paidDate,
+    p_payment_mode: paymentMode,
+  });
+  if (error) throw new Error(error.message);
 
   await recomputeStudentFeeStatus(studentId);
 
@@ -339,7 +313,14 @@ export async function generateMonthlyFees(monthStr: string): Promise<{ created: 
   }
 
   if (rowsToInsert.length > 0) {
-    const { error } = await supabaseAdmin.from("fee_payments").insert(rowsToInsert);
+    // ignoreDuplicates backstops the in-memory existingPairs dedup above
+    // with the DB-level unique constraint (student_id, month_str,
+    // category) — a concurrent/double-click invocation racing past the
+    // in-memory check now just no-ops on the DB side instead of inserting
+    // a duplicate fee line item.
+    const { error } = await supabaseAdmin
+      .from("fee_payments")
+      .upsert(rowsToInsert, { onConflict: "student_id,month_str,category", ignoreDuplicates: true });
     if (error) throw new Error(`Failed to generate fees: ${error.message}`);
 
     // A freshly-inserted row is always unpaid, so every affected student is

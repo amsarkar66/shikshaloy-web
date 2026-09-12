@@ -64,17 +64,15 @@ export async function processAllPending(monthStr: string, schoolIdInput?: string
   }
 
   const paidOn = new Date().toISOString().slice(0, 10);
-  const { error } = await supabaseAdmin
-    .from("payroll_records")
-    .update({
-      status: "processed",
-      paid_on: paidOn,
-      pay_mode: "bank_transfer",
-      slip_no: generateSlipNo(monthStr),
-    })
-    .eq("school_id", schoolId)
-    .eq("month_str", monthStr)
-    .eq("status", "pending");
+  // release_payroll_batch assigns each released row its own slip_no (via
+  // row_number()) in one statement — a plain bulk .update() here would
+  // stamp the same generateSlipNo() value onto every staff member's
+  // payroll record in the batch.
+  const { error } = await supabaseAdmin.rpc("release_payroll_batch", {
+    p_school_id: schoolId,
+    p_month_str: monthStr,
+    p_paid_on: paidOn,
+  });
 
   if (error) throw new Error(error.message);
   revalidatePath("/dashboard/payroll");
