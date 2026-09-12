@@ -114,6 +114,21 @@ export async function assignSubjectToSection(input: AssignSubjectInput): Promise
   const schoolId = await getCurrentSchoolIdOrThrow();
   const academicYearId = await getCurrentAcademicYearId();
 
+  // The insert below tags the row with the caller's own schoolId, but
+  // sectionId/subjectId/teacherId are otherwise unchecked — without this,
+  // a caller could link another school's section/subject/teacher into a
+  // row claimed by their own school.
+  const [{ data: section }, { data: subject }, { data: teacher }] = await Promise.all([
+    supabaseAdmin.from("sections").select("id").eq("id", input.sectionId).eq("school_id", schoolId).maybeSingle(),
+    supabaseAdmin.from("subjects").select("id").eq("id", input.subjectId).eq("school_id", schoolId).maybeSingle(),
+    input.teacherId
+      ? supabaseAdmin.from("staff_members").select("id").eq("id", input.teacherId).eq("school_id", schoolId).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  if (!section) throw new Error("Section not found");
+  if (!subject) throw new Error("Subject not found");
+  if (input.teacherId && !teacher) throw new Error("Teacher not found");
+
   const { error } = await supabaseAdmin
     .from("section_subjects")
     .upsert(

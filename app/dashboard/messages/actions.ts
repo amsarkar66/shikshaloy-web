@@ -83,6 +83,7 @@ export async function startConversation(otherProfileId: string, text: string): P
 
 export async function markConversationRead(conversationId: string) {
   const myId = await currentProfileId();
+  await assertConversationParticipant(conversationId, myId);
   await supabaseAdmin
     .from("messages")
     .update({ is_read: true })
