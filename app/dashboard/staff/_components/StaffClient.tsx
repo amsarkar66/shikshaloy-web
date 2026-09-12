@@ -6,8 +6,8 @@ import Link from "next/link";
 import {
   Users, GraduationCap, UserPlus, UserMinus, Upload,
   Search, Plus, Download, ChevronLeft, ChevronRight, ChevronDown,
-  Eye, Pencil, ArrowUpDown, ArrowUp, ArrowDown, X, Briefcase,
-  Shield, CheckCircle2, Loader2, MoreHorizontal, ArrowUpCircle, ShieldOff,
+  Eye, ArrowUpDown, ArrowUp, ArrowDown, X, Briefcase,
+  Shield, CheckCircle2, Loader2, MoreHorizontal,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
@@ -123,19 +123,38 @@ function PermissionBadge({ name }: { name?: string }) {
   );
 }
 
-function EditPermissionModal({ staff, templates, onClose, onSave }: { staff: StaffMember; templates: PermissionTemplate[]; onClose: () => void; onSave: (id: string, tid: string, tname: string) => void }) {
-  const [templateId, setTemplateId] = useState(staff.permissionTemplateId ?? "");
+const ADMIN_VALUE = "admin";
+
+// Unifies what used to be two separate menu items (Edit Permission Template
+// / Promote to Admin / Revoke admin access) into one dropdown — they were
+// always the same underlying field (staff_members.permission_template_id),
+// just three different UIs for setting it. "Admin" is appended to whatever
+// named templates apply, so picking it is just another value in the same
+// list, not a separate flow.
+function AccessPermissionsModal({ staff, templates, onClose, onSave }: { staff: StaffMember; templates: PermissionTemplate[]; onClose: () => void; onSave: (id: string, tid: string, tname: string) => void }) {
+  const [selected, setSelected] = useState(staff.permissionTemplateId ?? "");
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [error, setError] = useState("");
+  const current = staff.permissionTemplateId ?? "";
 
   async function handleSave() {
+    if (selected === current) { onClose(); return; }
     setStatus("saving");
     setError("");
     try {
-      const template = templates.find((t) => t.id === templateId);
-      await assignStaffTemplate(staff.id, templateId, template?.name ?? "");
+      if (selected === ADMIN_VALUE) {
+        await promoteExistingToAdmin(staff.id);
+        onSave(staff.id, ADMIN_VALUE, "Admin");
+      } else {
+        // Coming from admin, the grant has to be cleared before (optionally)
+        // assigning a different named template — the two are separate
+        // actions server-side, each with its own validation and audit trail.
+        if (current === ADMIN_VALUE) await revokeAdminAccess(staff.id);
+        const template = templates.find((t) => t.id === selected);
+        if (selected) await assignStaffTemplate(staff.id, selected, template?.name ?? "");
+        onSave(staff.id, selected, template?.name ?? "");
+      }
       setStatus("saved");
-      onSave(staff.id, templateId, template?.name ?? "");
       setTimeout(onClose, 800);
     } catch (err) {
       setStatus("error");
@@ -149,20 +168,24 @@ function EditPermissionModal({ staff, templates, onClose, onSave }: { staff: Sta
       <div className="relative w-full max-w-sm rounded-2xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-2xl p-6 space-y-5">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Edit Permission Template</p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">Access Permissions</p>
             <p className="mt-0.5 text-xs text-gray-500 dark:text-zinc-400">{staff.name}</p>
           </div>
           <button onClick={onClose} className="rounded-lg p-1 text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"><X className="h-4 w-4" /></button>
         </div>
         <div className="space-y-1.5">
-          <label className="block text-xs font-semibold text-gray-600 dark:text-zinc-400">Permission Template</label>
+          <label className="block text-xs font-semibold text-gray-600 dark:text-zinc-400">Access Level</label>
           <div className="relative">
-            <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className="h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+            <select value={selected} onChange={(e) => setSelected(e.target.value)} className="h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
               <option value="">— None —</option>
               {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              <option value={ADMIN_VALUE}>Admin</option>
             </select>
             <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
           </div>
+          {selected === ADMIN_VALUE && (
+            <p className="text-xs text-gray-500 dark:text-zinc-400">Keeps their existing login and staff record — this only grants full admin access to the school.</p>
+          )}
         </div>
         <div className="flex items-center justify-end gap-2 pt-1">
           <button onClick={onClose} className="rounded-lg border border-gray-200 dark:border-zinc-700 px-4 py-2 text-sm font-medium text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors">Cancel</button>
@@ -322,60 +345,6 @@ function InviteStaffModal({
   );
 }
 
-function AdminAccessModal({
-  staff, mode, onClose, onDone,
-}: { staff: StaffMember; mode: "promote" | "revoke"; onClose: () => void; onDone: () => void }) {
-  const [status, setStatus] = useState<"idle" | "saving" | "error">("idle");
-  const [error, setError] = useState("");
-  const isPromote = mode === "promote";
-
-  async function handleConfirm() {
-    setStatus("saving");
-    setError("");
-    try {
-      if (isPromote) await promoteExistingToAdmin(staff.id);
-      else await revokeAdminAccess(staff.id);
-      onDone();
-    } catch (err) {
-      setStatus("error");
-      setError(err instanceof Error ? err.message : `Failed to ${isPromote ? "promote" : "revoke access from"} ${staff.name}.`);
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={status === "saving" ? undefined : onClose} />
-      <div className="relative w-full max-w-sm rounded-2xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-2xl p-6 space-y-4">
-        <div className="flex items-start gap-3">
-          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${isPromote ? "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500" : "bg-red-50 dark:bg-red-500/10 text-red-500"}`}>
-            {isPromote ? <ArrowUpCircle className="h-5 w-5" /> : <ShieldOff className="h-5 w-5" />}
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">{isPromote ? "Promote to Admin?" : "Revoke admin access?"}</p>
-            <p className="mt-0.5 text-xs text-gray-500 dark:text-zinc-400">
-              <strong className="text-gray-700 dark:text-zinc-300">{staff.name}</strong> keeps their existing login and staff record —{" "}
-              {isPromote ? "this only grants admin access." : "only their admin access is removed."}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center justify-end gap-2">
-          <button onClick={onClose} disabled={status === "saving"} className="rounded-lg border border-gray-200 dark:border-zinc-700 px-4 py-2 text-sm font-medium text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800 disabled:opacity-50 transition-colors">
-            Cancel
-          </button>
-          <button
-            onClick={handleConfirm}
-            disabled={status === "saving"}
-            className={`flex items-center gap-2 rounded-lg disabled:opacity-50 px-4 py-2 text-sm font-medium text-white transition-colors ${isPromote ? "bg-indigo-500 hover:bg-indigo-600" : "bg-red-500 hover:bg-red-600"}`}
-          >
-            {status === "saving" && <Loader2 className="h-3.5 w-3.5 animate-spin" />} {isPromote ? "Promote" : "Revoke Access"}
-          </button>
-        </div>
-        {status === "error" && <p className="text-xs text-red-500 text-center">{error}</p>}
-      </div>
-    </div>
-  );
-}
-
 export default function StaffClient({
   initialStaff, permissionTemplates, schools = [],
 }: {
@@ -393,7 +362,6 @@ export default function StaffClient({
   const [sortDir,      setSortDir]      = useState<SortDir>("asc");
   const [page,         setPage]         = useState(1);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
-  const [adminAction, setAdminAction] = useState<{ staff: StaffMember; mode: "promote" | "revoke" } | null>(null);
   const [showInvite,   setShowInvite]   = useState(false);
   const [importOpen,   setImportOpen]   = useState(false);
   const [importBusy,   setImportBusy]   = useState(false);
@@ -628,20 +596,9 @@ export default function StaffClient({
                         <MoreHorizontal className="h-4 w-4" />
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" sideOffset={8} className="w-52">
-                        {s.type === "non_teaching" && (
-                          <DropdownMenuItem className="cursor-pointer" onClick={() => setEditingStaff(s)}>
-                            <Pencil className="h-3.5 w-3.5" /> Edit permission template
-                          </DropdownMenuItem>
-                        )}
-                        {s.permissionTemplateId === "admin" ? (
-                          <DropdownMenuItem variant="destructive" className="cursor-pointer" onClick={() => setAdminAction({ staff: s, mode: "revoke" })}>
-                            <ShieldOff className="h-3.5 w-3.5" /> Revoke admin access
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem className="cursor-pointer" onClick={() => setAdminAction({ staff: s, mode: "promote" })}>
-                            <ArrowUpCircle className="h-3.5 w-3.5" /> Promote to Admin
-                          </DropdownMenuItem>
-                        )}
+                        <DropdownMenuItem className="cursor-pointer" onClick={() => setEditingStaff(s)}>
+                          <Shield className="h-3.5 w-3.5" /> Access permissions
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -652,19 +609,8 @@ export default function StaffClient({
         </TableBody>
       </Table>
 
-      {editingStaff && <EditPermissionModal staff={editingStaff} templates={permissionTemplates} onClose={() => setEditingStaff(null)} onSave={handlePermissionSaved} />}
+      {editingStaff && <AccessPermissionsModal staff={editingStaff} templates={permissionTemplates} onClose={() => setEditingStaff(null)} onSave={handlePermissionSaved} />}
       {showInvite && <InviteStaffModal templates={permissionTemplates} schools={schools} onClose={() => setShowInvite(false)} onInvited={() => router.refresh()} />}
-      {adminAction && (
-        <AdminAccessModal
-          staff={adminAction.staff}
-          mode={adminAction.mode}
-          onClose={() => setAdminAction(null)}
-          onDone={() => {
-            setAdminAction(null);
-            router.refresh();
-          }}
-        />
-      )}
     </div>
   );
 }
