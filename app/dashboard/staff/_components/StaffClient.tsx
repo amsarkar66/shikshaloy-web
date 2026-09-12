@@ -732,7 +732,7 @@ export default function StaffClient({
           <Th>Contact</Th>
           <Th><button onClick={() => toggleSort("joinedDate")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Joined <SortIcon active={sortField==="joinedDate"} dir={sortDir} /></button></Th>
           <Th><button onClick={() => toggleSort("status")} className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors">Status <SortIcon active={sortField==="status"} dir={sortDir} /></button></Th>
-          <Th>Permission</Th>
+          <Th>Role</Th>
           <Th position="last" align="right">Actions</Th>
         </TableHead>
         <TableBody>
@@ -770,7 +770,13 @@ export default function StaffClient({
                 </Td>
                 <Td className="text-sm text-gray-700 dark:text-zinc-300 whitespace-nowrap">{formatJoinDate(s.joinedDate)}</Td>
                 <Td><span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[s.status]}`}>{STATUS_LABEL[s.status]}</span></Td>
-                <Td>{s.permissionTemplateName ? <PermissionBadge name={s.permissionTemplateName} /> : <span className="text-xs text-gray-300 dark:text-zinc-600">N/A</span>}</Td>
+                <Td>
+                  {s.permissionTemplateName ? (
+                    <PermissionBadge name={s.permissionTemplateName} />
+                  ) : (
+                    <span className="text-xs text-gray-500 dark:text-zinc-400">{s.type === "teaching" ? "Teacher" : "Staff"}</span>
+                  )}
+                </Td>
                 <Td position="last" className="w-px whitespace-nowrap">
                   <StaffRowMenu
                     staff={s}
