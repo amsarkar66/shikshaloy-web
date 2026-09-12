@@ -212,3 +212,9 @@ Built §4's switcher, scoped deliberately to same-school multi-identity only —
 The general pattern worth remembering: `requireRole`'s admin-grant fallback only fires when the literal role check *fails* — any check whose allowed list also contains the caller's actual role (like `"teacher"` here) will never reach it. Anywhere else `role` is compared against an allow-list that also includes a role someone could hold *while* having an admin grant needs the same explicit `hasAdminGrant()`/`isAdmin()` check, not just trust in `requireRole`'s return value.
 
 Verified: `tsc --noEmit` clean, `eslint` 0 errors, `next build` clean.
+
+## 11. `revokeAdminAccess` — shipped (2026-09-12), commit `f71d57d`
+
+`promoteExistingToAdmin` had no counterpart — nothing in the UI could undo a promotion. Added `revokeAdminAccess(staffId, schoolId)`: clears `staff_members.permission_template_id`/`permission_template_name`, which is the entire grant, so the person reverts to exactly their pre-promotion state (`profiles.role` was never touched, so there's nothing else to revert). Deliberately refuses to run on a `profiles.role = 'admin'` account (`invitePrincipal`) — that account has no other role to fall back to, so "revoke" has no defined meaning there; scoping it to only the reversible case avoids having to invent one.
+
+`principals/page.tsx` and `people/page.tsx` tag each admin row with `revokable` (`role !== 'admin' && has the staff_members grant`) so the "Revoke" button only appears where it's meaningful — a direct-invite admin never sees it.
