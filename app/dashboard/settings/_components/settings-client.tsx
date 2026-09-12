@@ -34,7 +34,7 @@ import { SignatureUpload } from "../../schools/_components/signature-upload";
 import {
   updateSchoolProfile, updateAcademicSettings, updateInstitutionProfile,
   saveRoleTemplate, createRoleTemplate, deleteRoleTemplate, restoreRoleTemplateDefaults,
-  updateNotificationPreferences, updateProfileBasic, changePassword,
+  updateNotificationPreferences, updateProfileBasic, changePassword, signOutOtherSessions,
 } from "../actions";
 import { createAcademicYear } from "@/lib/academic-years/actions";
 import { PublishKeyPanel } from "./publish-key-panel";
@@ -1079,6 +1079,9 @@ function AccountTab({ profile, roleLabel }: { profile: SettingsData["profile"]; 
   const [pwBusy,       setPwBusy]       = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [pwError,      setPwError]      = useState<string | null>(null);
+  const [signOutBusy,  setSignOutBusy]  = useState(false);
+  const [signOutDone,  setSignOutDone]  = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
 
   const pwMatch    = newPw.length > 0 && confirmPw.length > 0 && newPw === confirmPw;
   const pwMismatch = newPw.length > 0 && confirmPw.length > 0 && newPw !== confirmPw;
@@ -1113,6 +1116,20 @@ function AccountTab({ profile, roleLabel }: { profile: SettingsData["profile"]; 
       setPwError(err instanceof Error ? err.message : "Failed to update password");
     } finally {
       setPwBusy(false);
+    }
+  }
+
+  async function handleSignOutOthers() {
+    setSignOutBusy(true);
+    setSignOutError(null);
+    try {
+      await signOutOtherSessions();
+      setSignOutDone(true);
+      setTimeout(() => setSignOutDone(false), 2500);
+    } catch (err) {
+      setSignOutError(err instanceof Error ? err.message : "Failed to sign out other sessions");
+    } finally {
+      setSignOutBusy(false);
     }
   }
 
@@ -1238,9 +1255,20 @@ function AccountTab({ profile, roleLabel }: { profile: SettingsData["profile"]; 
           <div>
             <p className="text-sm font-medium text-gray-900 dark:text-zinc-100">Sign out of all devices</p>
             <p className="mt-0.5 text-xs text-gray-500 dark:text-zinc-400">Revokes all active sessions except this one.</p>
+            {signOutError && <p className="mt-1.5 text-xs text-red-500">{signOutError}</p>}
           </div>
-          <button className="shrink-0 rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-900/20 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors">
-            Sign Out All
+          <button
+            onClick={handleSignOutOthers}
+            disabled={signOutBusy}
+            className="shrink-0 flex items-center gap-1.5 rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-900/20 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 disabled:opacity-60 transition-colors"
+          >
+            {signOutBusy ? (
+              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Signing Out…</>
+            ) : signOutDone ? (
+              <><CheckCircle2 className="h-3.5 w-3.5" /> Done</>
+            ) : (
+              "Sign Out All"
+            )}
           </button>
         </div>
       </SectionCard>

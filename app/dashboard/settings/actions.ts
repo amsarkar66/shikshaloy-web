@@ -465,3 +465,29 @@ export async function changePassword(currentPassword: string, newPassword: strin
     });
   }
 }
+
+// Revokes every other active session for the signed-in user while leaving
+// the current one intact — `scope: "others"` needs the caller's own
+// cookie-bound session (not the service-role client) to know which
+// session is "this one".
+export async function signOutOtherSessions(): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("Not authenticated");
+
+  const { error } = await supabase.auth.signOut({ scope: "others" });
+  if (error) throw new Error(`Failed to sign out other sessions: ${error.message}`);
+
+  const schoolId = await getCurrentSchoolId();
+  if (schoolId) {
+    await logAuditEvent({
+      schoolId,
+      action: "update",
+      module: "Settings",
+      description: `Signed out of all other sessions`,
+    });
+  }
+}
