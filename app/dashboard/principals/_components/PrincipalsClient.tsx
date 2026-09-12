@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   UserCog, Search, Plus, ChevronDown, X, CheckCircle2, Loader2, Landmark, ArrowUpCircle, ShieldOff, MoreHorizontal,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { invitePrincipal, searchPromotableStaff, promoteExistingToAdmin, revokeAdminAccess, type PromotableStaff } from "../actions";
 
 const SEARCH_MIN_CHARS = 2;
@@ -264,6 +264,56 @@ function InvitePrincipalModal({
   );
 }
 
+function PrincipalRowMenu({
+  principal, open, onToggle, onClose, onRevoke,
+}: { principal: Principal; open: boolean; onToggle: () => void; onClose: () => void; onRevoke: () => void }) {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+
+  function handleToggle() {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+    }
+    onToggle();
+  }
+
+  return (
+    <div className="flex items-center justify-end">
+      <button
+        ref={buttonRef}
+        onClick={handleToggle}
+        title="More actions"
+        className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"
+      >
+        <MoreHorizontal className="h-3.5 w-3.5" />
+      </button>
+
+      {open && pos && createPortal(
+        <>
+          <div className="fixed inset-0 z-40" onClick={onClose} />
+          <div
+            style={{ top: pos.top, right: pos.right }}
+            className="fixed z-50 w-48 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg shadow-black/10 py-1"
+          >
+            {principal.revokable ? (
+              <button
+                onClick={() => { onClose(); onRevoke(); }}
+                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+              >
+                <ShieldOff className="h-3.5 w-3.5 shrink-0" /> Revoke admin access
+              </button>
+            ) : (
+              <p className="px-3.5 py-2 text-xs font-medium text-gray-400 dark:text-zinc-500">No actions available</p>
+            )}
+          </div>
+        </>,
+        document.body
+      )}
+    </div>
+  );
+}
+
 function RevokeConfirmModal({
   principal, onClose, onRevoked,
 }: { principal: Principal; onClose: () => void; onRevoked: () => void }) {
@@ -318,6 +368,7 @@ export default function PrincipalsClient({ principals, schools }: { principals: 
   const [schoolFilter, setSchoolFilter] = useState("all");
   const [showInvite, setShowInvite] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState<Principal | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
@@ -397,22 +448,13 @@ export default function PrincipalsClient({ principals, schools }: { principals: 
                 <Td className="text-sm text-gray-700 dark:text-zinc-300 whitespace-nowrap">{formatDate(p.joinedDate)}</Td>
                 <Td><span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[p.status]}`}>{STATUS_LABEL[p.status]}</span></Td>
                 <Td position="last" className="w-px whitespace-nowrap">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger className="ml-auto flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" sideOffset={8} className="w-52">
-                      {p.revokable ? (
-                        <DropdownMenuItem variant="destructive" className="cursor-pointer" onClick={() => setRevokeTarget(p)}>
-                          <ShieldOff className="h-3.5 w-3.5" /> Revoke admin access
-                        </DropdownMenuItem>
-                      ) : (
-                        <DropdownMenuItem disabled className="cursor-default">
-                          No actions available
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <PrincipalRowMenu
+                    principal={p}
+                    open={openMenuId === p.id}
+                    onToggle={() => setOpenMenuId(openMenuId === p.id ? null : p.id)}
+                    onClose={() => setOpenMenuId(null)}
+                    onRevoke={() => setRevokeTarget(p)}
+                  />
                 </Td>
               </Tr>
             ))

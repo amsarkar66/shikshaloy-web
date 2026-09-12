@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   Search, ChevronDown, Users, GraduationCap, Briefcase, UserCog, Landmark,
@@ -8,7 +9,6 @@ import {
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { BulkImportModal, type ImportColumn } from "../../_components/bulk-import-modal";
 import { inviteStaffMember, bulkImportStaff, getStaffTemplatesForSchool, type BulkImportOutcome } from "../../staff/actions";
 import { invitePrincipal, searchPromotableStaff, promoteExistingToAdmin, revokeAdminAccess, type PromotableStaff } from "../../principals/actions";
@@ -495,6 +495,56 @@ function InvitePrincipalModal({ schools, onClose, onInvited }: { schools: School
   );
 }
 
+function AdminRowMenu({
+  admin, open, onToggle, onClose, onRevoke,
+}: { admin: AdminRow; open: boolean; onToggle: () => void; onClose: () => void; onRevoke: () => void }) {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+
+  function handleToggle() {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+    }
+    onToggle();
+  }
+
+  return (
+    <div className="flex items-center justify-end">
+      <button
+        ref={buttonRef}
+        onClick={handleToggle}
+        title="More actions"
+        className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"
+      >
+        <MoreHorizontal className="h-3.5 w-3.5" />
+      </button>
+
+      {open && pos && createPortal(
+        <>
+          <div className="fixed inset-0 z-40" onClick={onClose} />
+          <div
+            style={{ top: pos.top, right: pos.right }}
+            className="fixed z-50 w-48 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg shadow-black/10 py-1"
+          >
+            {admin.revokable ? (
+              <button
+                onClick={() => { onClose(); onRevoke(); }}
+                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+              >
+                <ShieldOff className="h-3.5 w-3.5 shrink-0" /> Revoke admin access
+              </button>
+            ) : (
+              <p className="px-3.5 py-2 text-xs font-medium text-gray-400 dark:text-zinc-500">No actions available</p>
+            )}
+          </div>
+        </>,
+        document.body
+      )}
+    </div>
+  );
+}
+
 function RevokeConfirmModal({
   admin, onClose, onRevoked,
 }: { admin: AdminRow; onClose: () => void; onRevoked: () => void }) {
@@ -559,6 +609,7 @@ export default function PeopleClient({
   const [showInviteStaff, setShowInviteStaff] = useState(false);
   const [showInvitePrincipal, setShowInvitePrincipal] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState<AdminRow | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [bulkPickerOpen, setBulkPickerOpen] = useState(false);
   const [bulkSchoolId, setBulkSchoolId] = useState<string | null>(null);
   const [importBusy, setImportBusy] = useState(false);
@@ -826,22 +877,13 @@ export default function PeopleClient({
                   <Td className="text-sm text-gray-700 dark:text-zinc-300 whitespace-nowrap">{formatDate(a.joinedDate)}</Td>
                   <Td><StatusBadge status={a.status} /></Td>
                   <Td position="last" className="w-px whitespace-nowrap">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger className="ml-auto flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" sideOffset={8} className="w-52">
-                        {a.revokable ? (
-                          <DropdownMenuItem variant="destructive" className="cursor-pointer" onClick={() => setRevokeTarget(a)}>
-                            <ShieldOff className="h-3.5 w-3.5" /> Revoke admin access
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem disabled className="cursor-default">
-                            No actions available
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <AdminRowMenu
+                      admin={a}
+                      open={openMenuId === a.id}
+                      onToggle={() => setOpenMenuId(openMenuId === a.id ? null : a.id)}
+                      onClose={() => setOpenMenuId(null)}
+                      onRevoke={() => setRevokeTarget(a)}
+                    />
                   </Td>
                 </Tr>
               ))

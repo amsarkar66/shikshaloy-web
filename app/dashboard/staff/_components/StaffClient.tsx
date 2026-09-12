@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -201,6 +202,93 @@ function AccessPermissionsModal({ staff, templates, onClose, onSave }: { staff: 
         </div>
         {status === "error" && <p className="text-xs text-red-500 text-center -mt-2">{error}</p>}
       </div>
+    </div>
+  );
+}
+
+function StaffRowMenu({
+  staff, open, onToggle, onClose, onEditDetails, onManageAccess, onResend, onDeactivateOrReactivate,
+}: {
+  staff: StaffMember;
+  open: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  onEditDetails: () => void;
+  onManageAccess: () => void;
+  onResend: () => void;
+  onDeactivateOrReactivate: () => void;
+}) {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+
+  function handleToggle() {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+    }
+    onToggle();
+  }
+
+  const menuItemClass = "flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors";
+
+  return (
+    <div className="flex items-center justify-end gap-1">
+      <Link
+        href={`/dashboard/staff/${staff.id}`}
+        title="View staff"
+        prefetch={false}
+        className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"
+      >
+        <Eye className="h-3.5 w-3.5" />
+      </Link>
+      <button
+        ref={buttonRef}
+        onClick={handleToggle}
+        title="More actions"
+        className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"
+      >
+        <MoreHorizontal className="h-3.5 w-3.5" />
+      </button>
+
+      {open && pos && createPortal(
+        <>
+          <div className="fixed inset-0 z-40" onClick={onClose} />
+          <div
+            style={{ top: pos.top, right: pos.right }}
+            className="fixed z-50 w-48 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg shadow-black/10 py-1"
+          >
+            <button onClick={() => { onClose(); onEditDetails(); }} className={`w-full ${menuItemClass}`}>
+              <Pencil className="h-3.5 w-3.5 shrink-0" /> Edit details
+            </button>
+            <button onClick={() => { onClose(); onManageAccess(); }} className={`w-full ${menuItemClass}`}>
+              <Shield className="h-3.5 w-3.5 shrink-0" /> Manage access
+            </button>
+            <Link href={`/dashboard/staff/${staff.id}?tab=attendance`} onClick={onClose} prefetch={false} className={menuItemClass}>
+              <CalendarCheck className="h-3.5 w-3.5 shrink-0" /> View attendance
+            </Link>
+            <button onClick={() => { onClose(); onResend(); }} className={`w-full ${menuItemClass}`}>
+              <Send className="h-3.5 w-3.5 shrink-0" /> Resend invitation
+            </button>
+            <div className="my-1 border-t border-gray-100 dark:border-zinc-700/50" />
+            <button
+              onClick={() => { onClose(); onDeactivateOrReactivate(); }}
+              className={`flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium transition-colors ${
+                staff.status === "inactive"
+                  ? "text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10"
+                  : "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
+              }`}
+            >
+              {staff.status === "inactive" ? (
+                <UserCheck className="h-3.5 w-3.5 shrink-0" />
+              ) : (
+                <UserX className="h-3.5 w-3.5 shrink-0" />
+              )}
+              {staff.status === "inactive" ? "Reactivate" : "Deactivate"}
+            </button>
+          </div>
+        </>,
+        document.body
+      )}
     </div>
   );
 }
@@ -430,6 +518,7 @@ export default function StaffClient({
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [editingDetailsId, setEditingDetailsId] = useState<string | null>(null);
   const [rowAction, setRowAction] = useState<{ staff: StaffMember; kind: "resend" | "deactivate" | "reactivate" } | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [showInvite,   setShowInvite]   = useState(false);
   const [importOpen,   setImportOpen]   = useState(false);
   const [importBusy,   setImportBusy]   = useState(false);
@@ -657,37 +746,16 @@ export default function StaffClient({
                 <Td><span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[s.status]}`}>{STATUS_LABEL[s.status]}</span></Td>
                 <Td>{s.permissionTemplateName ? <PermissionBadge name={s.permissionTemplateName} /> : <span className="text-xs text-gray-300 dark:text-zinc-600">N/A</span>}</Td>
                 <Td position="last" className="w-px whitespace-nowrap">
-                  <div className="flex items-center justify-end gap-1">
-                    <Link href={`/dashboard/staff/${s.id}`} prefetch={false} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Eye className="h-3.5 w-3.5" /></Link>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" sideOffset={8} className="w-56">
-                        <DropdownMenuItem className="cursor-pointer" onClick={() => setEditingDetailsId(s.id)}>
-                          <Pencil className="h-3.5 w-3.5" /> Edit details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="cursor-pointer" onClick={() => setEditingStaff(s)}>
-                          <Shield className="h-3.5 w-3.5" /> Manage access
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="cursor-pointer" render={<Link href={`/dashboard/staff/${s.id}?tab=attendance`} prefetch={false} />}>
-                          <CalendarCheck className="h-3.5 w-3.5" /> View attendance
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="cursor-pointer" onClick={() => setRowAction({ staff: s, kind: "resend" })}>
-                          <Send className="h-3.5 w-3.5" /> Resend invitation
-                        </DropdownMenuItem>
-                        {s.status === "inactive" ? (
-                          <DropdownMenuItem className="cursor-pointer" onClick={() => setRowAction({ staff: s, kind: "reactivate" })}>
-                            <UserCheck className="h-3.5 w-3.5" /> Reactivate
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem variant="destructive" className="cursor-pointer" onClick={() => setRowAction({ staff: s, kind: "deactivate" })}>
-                            <UserX className="h-3.5 w-3.5" /> Deactivate
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+                  <StaffRowMenu
+                    staff={s}
+                    open={openMenuId === s.id}
+                    onToggle={() => setOpenMenuId(openMenuId === s.id ? null : s.id)}
+                    onClose={() => setOpenMenuId(null)}
+                    onEditDetails={() => setEditingDetailsId(s.id)}
+                    onManageAccess={() => setEditingStaff(s)}
+                    onResend={() => setRowAction({ staff: s, kind: "resend" })}
+                    onDeactivateOrReactivate={() => setRowAction({ staff: s, kind: s.status === "inactive" ? "reactivate" : "deactivate" })}
+                  />
                 </Td>
               </Tr>
             ))
