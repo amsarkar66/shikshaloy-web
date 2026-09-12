@@ -76,7 +76,7 @@ function TodaySchedule({ items, todayISO }: { items: ScheduleItem[]; todayISO: s
               }`}>{s.label}</span>
               {s.now && <span className="ml-auto shrink-0 text-[10px] font-semibold text-primary-600 dark:text-primary-400 bg-primary-500/10 px-1.5 py-0.5 rounded-full">Now</span>}
               {s.slotId && (s.now || s.done) && (
-                <Link href={`/dashboard/subjects/attendance/${s.slotId}?date=${todayISO}`} className={`shrink-0 text-[11px] font-medium text-primary-600 dark:text-primary-400 hover:underline ${s.now ? "" : "ml-auto"}`}>
+                <Link href={`/dashboard/subjects/attendance/${s.slotId}?date=${todayISO}`} prefetch={false} className={`shrink-0 text-[11px] font-medium text-primary-600 dark:text-primary-400 hover:underline ${s.now ? "" : "ml-auto"}`}>
                   Take Attendance
                 </Link>
               )}
@@ -167,7 +167,7 @@ function QuickActions() {
       <p className="mb-3 text-sm font-semibold text-gray-900 dark:text-zinc-50">Quick Actions</p>
       <div className="grid grid-cols-2 gap-2">
         {QUICK_ACTIONS.map((a) => (
-          <Link key={a.label} href={a.href} className={`flex flex-col items-center gap-2 rounded-xl border p-3 text-xs font-medium transition-colors ${a.color}`}>
+          <Link key={a.label} href={a.href} prefetch={false} className={`flex flex-col items-center gap-2 rounded-xl border p-3 text-xs font-medium transition-colors ${a.color}`}>
             <a.icon className="h-4 w-4" />
             {a.label}
           </Link>

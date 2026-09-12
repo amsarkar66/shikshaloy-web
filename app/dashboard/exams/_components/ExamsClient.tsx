@@ -137,6 +137,7 @@ function ExamCard({ exam }: { exam: Exam }) {
   return (
     <Link
       href={`/dashboard/exams/${exam.id}`}
+      prefetch={false}
       className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5 flex flex-col gap-4 hover:border-primary-300 dark:hover:border-primary-700 transition-colors"
     >
       <div className="flex items-center justify-between gap-2 flex-wrap">

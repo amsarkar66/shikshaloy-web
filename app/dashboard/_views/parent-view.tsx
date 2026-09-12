@@ -90,6 +90,7 @@ function ChildrenRow({ childList, feeDueByChild }: { childList: ParentChild[]; f
           <Link
             key={c.id}
             href={`/dashboard/children/${c.id}`}
+            prefetch={false}
             className="flex items-center gap-3 rounded-xl border border-gray-100 dark:border-zinc-700/50 p-3 hover:border-primary-300 dark:hover:border-primary-700 hover:bg-primary-500/5 transition-colors"
           >
             {c.photoUrl ? (

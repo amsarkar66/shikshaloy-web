@@ -441,10 +441,10 @@ function InvoiceTable({ invoices }: { invoices: Invoice[] }) {
                     <MoreVertical className="h-4 w-4" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" sideOffset={6} className="w-44">
-                    <DropdownMenuItem render={<Link href={`/dashboard/billing/${inv.id}`} />} className="cursor-pointer">
+                    <DropdownMenuItem render={<Link href={`/dashboard/billing/${inv.id}`} prefetch={false} />} className="cursor-pointer">
                       <Eye /> View details
                     </DropdownMenuItem>
-                    <DropdownMenuItem render={<Link href={`/dashboard/billing/${inv.id}?download=1`} />} className="cursor-pointer">
+                    <DropdownMenuItem render={<Link href={`/dashboard/billing/${inv.id}?download=1`} prefetch={false} />} className="cursor-pointer">
                       <Download /> Download PDF
                     </DropdownMenuItem>
                   </DropdownMenuContent>

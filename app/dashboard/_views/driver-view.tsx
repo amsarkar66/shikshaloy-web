@@ -167,7 +167,7 @@ function QuickActions() {
       <p className="mb-3 text-sm font-semibold text-gray-900 dark:text-zinc-50">Quick Actions</p>
       <div className="grid grid-cols-2 gap-2">
         {QUICK_ACTIONS.map((a) => (
-          <Link key={a.label} href={a.href} className={`flex flex-col items-center gap-2 rounded-xl border p-3 text-xs font-medium transition-colors ${a.color}`}>
+          <Link key={a.label} href={a.href} prefetch={false} className={`flex flex-col items-center gap-2 rounded-xl border p-3 text-xs font-medium transition-colors ${a.color}`}>
             <a.icon className="h-4 w-4" />
             {a.label}
           </Link>

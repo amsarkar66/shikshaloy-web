@@ -59,6 +59,7 @@ export function Header({ schools, settings }: { schools: PublicSchool[]; setting
               <Link
                 key={link.to}
                 href={link.to}
+                prefetch={false}
                 className={`transition-colors hover:text-primary-600 ${isActive ? "text-primary-600" : ""}`}
               >
                 {link.label}
@@ -110,6 +111,7 @@ export function Header({ schools, settings }: { schools: PublicSchool[]; setting
                   key={link.to}
                   href={link.to}
                   onClick={() => setMenuOpen(false)}
+                  prefetch={false}
                   className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                     isActive ? "bg-primary-50 text-primary-600" : "text-gray-600 hover:bg-gray-50"
                   }`}

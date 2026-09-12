@@ -24,6 +24,7 @@ export function DocsSidebar({ role, activeSlug }: { role: DocRole; activeSlug?: 
             <li key={article.slug}>
               <Link
                 href={`/docs/${role.slug}/${article.slug}`}
+                prefetch={false}
                 className={`-ml-px block border-l-2 py-1.5 pl-3.5 text-sm transition-colors ${
                   active
                     ? "border-primary-600 font-semibold text-primary-700"

@@ -200,6 +200,7 @@ function RowActionsMenu({
       <Link
         href={`/dashboard/students/${student.id}`}
         title="View student"
+        prefetch={false}
         className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"
       >
         <Eye className="h-3.5 w-3.5" />
@@ -221,13 +222,13 @@ function RowActionsMenu({
             className="fixed z-50 w-48 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg shadow-black/10 py-1"
           >
             {error && <p className="px-3.5 py-1.5 text-[11px] text-red-500">{error}</p>}
-            <Link href={`/dashboard/students/${student.id}/edit`} onClick={onClose} className={menuItemClass}>
+            <Link href={`/dashboard/students/${student.id}/edit`} onClick={onClose} prefetch={false} className={menuItemClass}>
               <Pencil className="h-3.5 w-3.5 shrink-0" /> Edit Student
             </Link>
             <a href={`tel:${student.phone}`} className={menuItemClass}>
               <Phone className="h-3.5 w-3.5 shrink-0" /> Call Parent
             </a>
-            <Link href={`/dashboard/id-cards?personId=${student.id}`} onClick={onClose} className={menuItemClass}>
+            <Link href={`/dashboard/id-cards?personId=${student.id}`} onClick={onClose} prefetch={false} className={menuItemClass}>
               <CreditCard className="h-3.5 w-3.5 shrink-0" /> Generate ID Card
             </Link>
             <button onClick={() => { onClose(); onViewCredentials(); }} className={`w-full ${menuItemClass}`}>
@@ -288,7 +289,7 @@ function StudentCard({
           />
         </div>
         <div className="min-w-0 flex-1">
-          <Link href={`/dashboard/students/${s.id}`} className="block font-semibold text-gray-900 dark:text-zinc-100 truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+          <Link href={`/dashboard/students/${s.id}`} prefetch={false} className="block font-semibold text-gray-900 dark:text-zinc-100 truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
             {s.name}
           </Link>
           <p className="text-xs text-gray-400 dark:text-zinc-500">{s.rollNo}</p>

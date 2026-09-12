@@ -162,6 +162,7 @@ export function Navbar() {
             <Link
               key={l.href}
               href={l.href}
+              prefetch={false}
               className="text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors"
             >
               {l.label}
@@ -205,6 +206,7 @@ export function Navbar() {
               href={l.href}
               className="block text-zinc-600 hover:text-zinc-900 text-sm py-2"
               onClick={() => setOpen(false)}
+              prefetch={false}
             >
               {l.label}
             </Link>

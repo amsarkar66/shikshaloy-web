@@ -242,6 +242,7 @@ export function FeatureShowcaseSection() {
                 </ul>
                 <Link
                   href="/demo"
+                  prefetch={false}
                   className="mt-7 inline-flex items-center gap-1.5 text-sm font-semibold text-primary-600 hover:text-primary-700 transition-colors"
                 >
                   Try it in the live demo

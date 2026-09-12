@@ -70,6 +70,7 @@ export default function DocsPage() {
               <FadeIn key={role.slug} delay={i * 0.05}>
                 <Link
                   href={`/docs/${role.slug}`}
+                  prefetch={false}
                   className="group flex h-full flex-col rounded-2xl border border-zinc-200 bg-white p-6 transition-all hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-lg hover:shadow-zinc-200/50"
                 >
                   <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${role.colorClass}`}>

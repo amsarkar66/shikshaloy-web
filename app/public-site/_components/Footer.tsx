@@ -57,7 +57,7 @@ export function Footer({ schools, settings }: { schools: PublicSchool[]; setting
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Quick Links</p>
               <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
                 {QUICK_LINKS.map((link) => (
-                  <Link key={link.to} href={link.to} className="text-gray-400 hover:text-white">
+                  <Link key={link.to} href={link.to} prefetch={false} className="text-gray-400 hover:text-white">
                     {link.label}
                   </Link>
                 ))}

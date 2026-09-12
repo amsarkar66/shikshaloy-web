@@ -77,6 +77,7 @@ export default async function DocsRolePage({
               <FadeIn key={article.slug} delay={i * 0.03}>
                 <Link
                   href={`/docs/${role.slug}/${article.slug}`}
+                  prefetch={false}
                   className="group flex h-full flex-col rounded-xl border border-zinc-200 bg-white p-5 transition-all hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-md hover:shadow-zinc-200/50"
                 >
                   <p className="text-sm font-semibold text-zinc-900">{article.title}</p>

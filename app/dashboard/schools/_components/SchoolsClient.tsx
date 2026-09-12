@@ -178,15 +178,15 @@ function SchoolActionsMenu({ schoolId, open, onToggle, onRemove }: { schoolId: s
             className="fixed z-20 w-44 overflow-hidden rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg shadow-black/10 py-1"
             style={{ top: pos.top, right: pos.right }}
           >
-            <Link href={`/dashboard/schools/${schoolId}`} onClick={onToggle} className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors">
+            <Link href={`/dashboard/schools/${schoolId}`} onClick={onToggle} prefetch={false} className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors">
               <Eye className="h-3.5 w-3.5 shrink-0" />
               View details
             </Link>
-            <Link href={`/dashboard/schools/${schoolId}/edit`} onClick={onToggle} className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors">
+            <Link href={`/dashboard/schools/${schoolId}/edit`} onClick={onToggle} prefetch={false} className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors">
               <Edit2 className="h-3.5 w-3.5 shrink-0" />
               Edit school
             </Link>
-            <Link href="/dashboard/principals" onClick={onToggle} className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors">
+            <Link href="/dashboard/principals" onClick={onToggle} prefetch={false} className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors">
               <UserCog className="h-3.5 w-3.5 shrink-0" />
               Manage admins
             </Link>
@@ -218,6 +218,7 @@ function TableRowActions({ schoolId, open, onToggle, onRemove }: { schoolId: str
       <Link
         href={`/dashboard/schools/${schoolId}`}
         title="View school"
+        prefetch={false}
         className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"
       >
         <Eye className="h-3.5 w-3.5" />
@@ -238,11 +239,11 @@ function TableRowActions({ schoolId, open, onToggle, onRemove }: { schoolId: str
             style={{ top: pos.top, right: pos.right }}
             className="fixed z-20 w-44 overflow-hidden rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg shadow-black/10 py-1"
           >
-            <Link href={`/dashboard/schools/${schoolId}/edit`} onClick={onToggle} className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors">
+            <Link href={`/dashboard/schools/${schoolId}/edit`} onClick={onToggle} prefetch={false} className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors">
               <Edit2 className="h-3.5 w-3.5 shrink-0" />
               Edit school
             </Link>
-            <Link href="/dashboard/principals" onClick={onToggle} className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors">
+            <Link href="/dashboard/principals" onClick={onToggle} prefetch={false} className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700/60 transition-colors">
               <UserCog className="h-3.5 w-3.5 shrink-0" />
               Manage admins
             </Link>

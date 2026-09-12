@@ -214,7 +214,7 @@ export default function SubjectsClient({ initialSubjects }: { initialSubjects: S
               <Td><span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${STATUS_BADGE[s.status]}`}>{s.status}</span></Td>
               <Td position="last">
                 <div className="flex items-center justify-end gap-1">
-                  <Link href={`/dashboard/subjects/${s.id}`} title="View subject" className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Eye className="h-3.5 w-3.5"/></Link>
+                  <Link href={`/dashboard/subjects/${s.id}`} title="View subject" prefetch={false} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Eye className="h-3.5 w-3.5"/></Link>
                   <button onClick={()=>setEditingSubject(s)} title="Edit subject" className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Pencil className="h-3.5 w-3.5"/></button>
                 </div>
               </Td>

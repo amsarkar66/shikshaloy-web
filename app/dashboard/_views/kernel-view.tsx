@@ -38,7 +38,7 @@ function PendingCard({ inst }: { inst: PendingInstitution }) {
         <div className="min-w-0 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-base font-semibold text-gray-900 dark:text-zinc-50">
-              <Link href={`/dashboard/institutions/${inst.id}`} className="hover:underline">
+              <Link href={`/dashboard/institutions/${inst.id}`} prefetch={false} className="hover:underline">
                 {inst.name ?? "—"}
               </Link>
             </h3>
@@ -142,7 +142,7 @@ function InstitutionRow({ inst }: { inst: PendingInstitution }) {
     <tr className="border-b border-gray-100 dark:border-zinc-800 transition-colors hover:bg-gray-50 dark:hover:bg-zinc-800/50">
       <td className="py-3 pl-4 pr-3">
         <p className="text-sm font-medium text-gray-900 dark:text-zinc-50">
-          <Link href={`/dashboard/institutions/${inst.id}`} className="hover:underline">
+          <Link href={`/dashboard/institutions/${inst.id}`} prefetch={false} className="hover:underline">
             {inst.name ?? "—"}
           </Link>
         </p>

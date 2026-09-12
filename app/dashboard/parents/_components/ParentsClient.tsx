@@ -236,7 +236,7 @@ export default function ParentsClient({ initialParents, schools = [] }: { initia
                 <Td>
                   <div className="flex flex-wrap gap-1">
                     {p.children.map((c) => (
-                      <Link key={c.id} href={`/dashboard/students/${c.id}`} className="inline-flex items-center gap-1 rounded-lg bg-primary-500/10 hover:bg-primary-500/20 px-2 py-0.5 text-xs font-semibold text-primary-700 dark:text-primary-300 transition-colors">
+                      <Link key={c.id} href={`/dashboard/students/${c.id}`} prefetch={false} className="inline-flex items-center gap-1 rounded-lg bg-primary-500/10 hover:bg-primary-500/20 px-2 py-0.5 text-xs font-semibold text-primary-700 dark:text-primary-300 transition-colors">
                         {c.name.split(" ")[0]} · {c.class}–{c.section}
                       </Link>
                     ))}
@@ -246,7 +246,7 @@ export default function ParentsClient({ initialParents, schools = [] }: { initia
                 <Td><span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${FEE_BADGE[fee]}`}>{fee}</span></Td>
                 <Td position="last">
                   <div className="flex items-center justify-end gap-1">
-                    <Link href={`/dashboard/parents/${p.id}`} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Eye className="h-3.5 w-3.5"/></Link>
+                    <Link href={`/dashboard/parents/${p.id}`} prefetch={false} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Eye className="h-3.5 w-3.5"/></Link>
                     <button onClick={() => setEditId(p.id)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"><Pencil className="h-3.5 w-3.5"/></button>
                     <button onClick={() => setDeleteTarget(p)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-500 transition-colors"><Trash2 className="h-3.5 w-3.5"/></button>
                   </div>

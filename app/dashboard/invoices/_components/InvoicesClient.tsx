@@ -130,7 +130,7 @@ export default function InvoicesClient({ invoices }: { invoices: PlatformInvoice
             filtered.map((inv) => (
               <Tr key={inv.id}>
                 <Td position="first" className="text-sm font-medium text-gray-900 dark:text-zinc-50">
-                  <Link href={`/dashboard/invoices/${inv.id}`} className="hover:underline hover:text-primary-600 dark:hover:text-primary-400">
+                  <Link href={`/dashboard/invoices/${inv.id}`} prefetch={false} className="hover:underline hover:text-primary-600 dark:hover:text-primary-400">
                     {inv.invoiceNo}
                   </Link>
                 </Td>
@@ -147,6 +147,7 @@ export default function InvoicesClient({ invoices }: { invoices: PlatformInvoice
                 <Td position="last" align="right">
                   <Link
                     href={`/dashboard/invoices/${inv.id}`}
+                    prefetch={false}
                     className="inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:bg-primary-50 hover:text-primary-600 dark:hover:bg-primary-500/10 dark:hover:text-primary-400 transition-colors whitespace-nowrap"
                   >
                     <Eye className="h-3 w-3" /> View

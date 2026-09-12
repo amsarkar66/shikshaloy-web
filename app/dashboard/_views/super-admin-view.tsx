@@ -121,6 +121,7 @@ function SchoolCard({ school }: { school: SchoolSummary }) {
   return (
     <Link
       href="/dashboard/schools"
+      prefetch={false}
       className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5 transition-colors hover:bg-gray-50 dark:hover:bg-zinc-800 block"
     >
       <div className="flex items-start justify-between gap-3">
@@ -228,6 +229,7 @@ function QuickActions() {
           <Link
             key={a.label}
             href={a.href}
+            prefetch={false}
             className={`flex flex-col items-center gap-2 rounded-xl border p-3 text-xs font-medium transition-colors ${a.color}`}
           >
             <a.icon className="h-4 w-4" />

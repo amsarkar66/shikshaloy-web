@@ -46,6 +46,7 @@ export function FacultyGrid({
               <motion.div whileHover={{ y: -4 }} transition={{ duration: 0.2 }}>
                 <Link
                   href={`/faculty/${f.id}`}
+                  prefetch={false}
                   className="flex flex-col items-center rounded-xl border border-gray-200 bg-white p-5 text-center shadow-sm transition-shadow hover:shadow-md"
                 >
                   {f.photoUrl ? (

@@ -158,7 +158,7 @@ export default function SubscriptionsClient({ subscriptions }: { subscriptions: 
             filtered.map((s) => (
               <Tr key={s.id}>
                 <Td position="first" className="text-sm font-medium text-gray-900 dark:text-zinc-50">
-                  <Link href={`/dashboard/subscriptions/${s.schoolId}`} className="hover:text-primary-600 dark:hover:text-primary-400 hover:underline">
+                  <Link href={`/dashboard/subscriptions/${s.schoolId}`} prefetch={false} className="hover:text-primary-600 dark:hover:text-primary-400 hover:underline">
                     {s.schoolName}
                   </Link>
                 </Td>

@@ -175,7 +175,7 @@ function PayrollTable({
               </Td>
               <Td className="text-xs text-gray-500 dark:text-zinc-400 whitespace-nowrap">{record.paidOn ? formatDate(record.paidOn) : "—"}</Td>
               <Td position="last" align="right">
-                <Link href={`/dashboard/payroll/${s.id}?month=${monthStr}`} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:bg-primary-50 hover:text-primary-600 dark:hover:bg-primary-500/10 dark:hover:text-primary-400 transition-colors">View</Link>
+                <Link href={`/dashboard/payroll/${s.id}?month=${monthStr}`} prefetch={false} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:bg-primary-50 hover:text-primary-600 dark:hover:bg-primary-500/10 dark:hover:text-primary-400 transition-colors">View</Link>
               </Td>
             </Tr>
           ))}

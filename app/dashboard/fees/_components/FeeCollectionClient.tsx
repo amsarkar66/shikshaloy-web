@@ -395,7 +395,7 @@ export default function FeeCollectionClient({
             {sortedSchools.map((s) => {
               const status = collectionStatus(s.collectionPct, s.hasData);
               return (
-                <Link key={s.id} href={`/dashboard/schools/${s.id}`} className="block p-4 hover:bg-gray-50 dark:hover:bg-zinc-700/30 transition-colors">
+                <Link key={s.id} href={`/dashboard/schools/${s.id}`} prefetch={false} className="block p-4 hover:bg-gray-50 dark:hover:bg-zinc-700/30 transition-colors">
                   <div className="flex items-center justify-between gap-3 mb-2">
                     <div className="flex items-center gap-2 min-w-0">
                       <Landmark className="h-3.5 w-3.5 text-violet-400 shrink-0" />

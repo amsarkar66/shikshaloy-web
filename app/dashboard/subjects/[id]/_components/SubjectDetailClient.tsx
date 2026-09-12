@@ -192,7 +192,7 @@ export default function SubjectDetailClient({
                 {assignments.map((a) => (
                   <tr key={a.id} className="hover:bg-gray-50 dark:hover:bg-zinc-700/30 transition-colors">
                     <td className="py-3 pl-4 pr-3">
-                      <Link href={`/dashboard/classes/${a.sectionId}`} className="font-medium text-gray-900 dark:text-zinc-100 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+                      <Link href={`/dashboard/classes/${a.sectionId}`} prefetch={false} className="font-medium text-gray-900 dark:text-zinc-100 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
                         Class {a.classNum}–{a.sectionName}
                       </Link>
                     </td>

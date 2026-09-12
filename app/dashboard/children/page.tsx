@@ -65,6 +65,7 @@ export default async function ChildrenPage() {
             <Link
               key={c.id}
               href={`/dashboard/children/${c.id}`}
+              prefetch={false}
               className="group rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5 hover:border-primary-300 dark:hover:border-primary-700 hover:shadow-sm transition-all"
             >
               <div className="flex items-center gap-3">

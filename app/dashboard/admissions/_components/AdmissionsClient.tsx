@@ -184,6 +184,7 @@ function RowActionsMenu({
       <Link
         href={`/dashboard/admissions/${app.id}`}
         title="View application"
+        prefetch={false}
         className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
       >
         <Eye className="h-4 w-4" />

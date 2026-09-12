@@ -57,6 +57,7 @@ export function DocsSearch({ index }: { index: DocSearchEntry[] }) {
                 key={`${r.roleSlug}-${r.articleSlug}`}
                 href={`/docs/${r.roleSlug}/${r.articleSlug}`}
                 onClick={() => setOpen(false)}
+                prefetch={false}
                 className="flex items-start gap-3 rounded-xl px-3 py-2.5 hover:bg-zinc-50"
               >
                 <FileText className="mt-0.5 h-4 w-4 shrink-0 text-primary-500" />

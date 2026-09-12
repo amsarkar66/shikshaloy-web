@@ -142,6 +142,7 @@ export default function ExamDetailClient({
               <Link
                 key={s.id}
                 href={`/dashboard/exams/${exam.id}/admit-cards/${s.id}`}
+                prefetch={false}
                 className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-4 hover:border-primary-300 dark:hover:border-primary-700 transition-colors"
               >
                 <div className="flex items-center gap-3">

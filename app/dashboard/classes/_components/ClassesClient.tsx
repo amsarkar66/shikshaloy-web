@@ -80,7 +80,7 @@ function SectionCard({ sec, accent, canManage, solo, onEdit }: { sec: ClassSecti
   const capFull = sec.enrolled >= sec.capacity;
   const capNear = capPct >= 90;
   return (
-    <Link href={`/dashboard/classes/${sec.id}`} className={`relative block rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5 flex flex-col gap-4 transition-colors group ${accent.ring}`}>
+    <Link href={`/dashboard/classes/${sec.id}`} prefetch={false} className={`relative block rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 p-5 flex flex-col gap-4 transition-colors group ${accent.ring}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-3 min-w-0">
           <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${accent.bg}`}>
@@ -147,7 +147,7 @@ function SectionCard({ sec, accent, canManage, solo, onEdit }: { sec: ClassSecti
 function SectionRow({ sec, accent, canManage, solo, onEdit }: { sec: ClassSection; accent: typeof ACCENTS[number]; canManage: boolean; solo: boolean; onEdit: () => void }) {
   const capFull = sec.enrolled >= sec.capacity;
   return (
-    <Link href={`/dashboard/classes/${sec.id}`} className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-zinc-800/70 transition-colors group">
+    <Link href={`/dashboard/classes/${sec.id}`} prefetch={false} className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-zinc-800/70 transition-colors group">
       <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${accent.bg} ${accent.text}`}>
         {sec.classNum}{!solo && <span className="text-[10px]">–{sec.section}</span>}
       </div>

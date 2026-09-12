@@ -79,7 +79,7 @@ function InstitutionsTable({
                       {initial}
                     </div>
                     <div className="min-w-0">
-                      <Link href={`/dashboard/institutions/${inst.id}`} className="block truncate font-medium text-gray-900 dark:text-zinc-50 hover:underline">
+                      <Link href={`/dashboard/institutions/${inst.id}`} prefetch={false} className="block truncate font-medium text-gray-900 dark:text-zinc-50 hover:underline">
                         {inst.name ?? "—"}
                       </Link>
                       <div className="mt-0.5 flex flex-wrap items-center gap-1">
@@ -145,7 +145,7 @@ function InstitutionGridCard({ inst }: { inst: PendingInstitution }) {
       </div>
 
       <div className="min-w-0">
-        <Link href={`/dashboard/institutions/${inst.id}`} className="block truncate text-sm font-semibold text-gray-900 dark:text-zinc-50 hover:underline">
+        <Link href={`/dashboard/institutions/${inst.id}`} prefetch={false} className="block truncate text-sm font-semibold text-gray-900 dark:text-zinc-50 hover:underline">
           {inst.name ?? "—"}
         </Link>
         <div className="mt-1 flex flex-wrap items-center gap-1.5">
