@@ -5,6 +5,7 @@ import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 import { requireRole } from "@/lib/auth/verified-role";
+import { resolveAuthorizedSchoolId } from "@/lib/supabase/authorized-school";
 import type { EventType, AudienceType } from "./_data/events";
 
 export interface CreateEventInput {
@@ -63,11 +64,16 @@ export async function createEvent(input: CreateEventInput): Promise<void> {
 
 export async function toggleEventPublic(id: string, isPublic: boolean): Promise<void> {
   await requireRole(["admin", "super_admin", "kernel"]);
+  // Verifies `id` actually belongs to a school the caller is authorized
+  // for — the update below had no school_id filter at all, so any admin
+  // could flip another school's event public/private by id.
+  const schoolId = await resolveAuthorizedSchoolId("school_events", id);
 
   const { error } = await supabaseAdmin
     .from("school_events")
     .update({ is_public: isPublic })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("school_id", schoolId);
 
   if (error) throw new Error("Failed to update event");
 
