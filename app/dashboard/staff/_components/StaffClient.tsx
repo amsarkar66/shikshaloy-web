@@ -513,6 +513,7 @@ export default function StaffClient({
   const [query,        setQuery]        = useState("");
   const [typeFilter,   setType]         = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [roleFilter,   setRoleFilter]   = useState("all");
   const [schoolFilter, setSchoolFilter] = useState("all");
   const [sortField,    setSortField]    = useState<SortField>("name");
   const [sortDir,      setSortDir]      = useState<SortDir>("asc");
@@ -579,8 +580,9 @@ export default function StaffClient({
       const matchQ  = !q || s.name.toLowerCase().includes(q) || s.employeeId.toLowerCase().includes(q) || s.designation.toLowerCase().includes(q);
       const matchTy = typeFilter   === "all" || s.type   === typeFilter;
       const matchSt = statusFilter === "all" || s.status === statusFilter;
+      const matchRo = roleFilter   === "all" || (roleFilter === "admin" ? s.permissionTemplateId === ADMIN_VALUE : s.permissionTemplateId !== ADMIN_VALUE);
       const matchSc = matchesSchoolFilter(schoolFilter, s.schoolId);
-      return matchQ && matchTy && matchSt && matchSc;
+      return matchQ && matchTy && matchSt && matchRo && matchSc;
     }).sort((a, b) => {
       let cmp = 0;
       if (sortField === "name")       cmp = a.name.localeCompare(b.name);
@@ -589,12 +591,12 @@ export default function StaffClient({
       if (sortField === "status")     cmp = a.status.localeCompare(b.status);
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [query, typeFilter, statusFilter, schoolFilter, sortField, sortDir, staffList]);
+  }, [query, typeFilter, statusFilter, roleFilter, schoolFilter, sortField, sortDir, staffList]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageData   = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  function clearFilters() { setQuery(""); setType("all"); setStatusFilter("all"); setSchoolFilter("all"); setPage(1); }
-  const hasFilter = query || typeFilter !== "all" || statusFilter !== "all" || schoolFilter !== "all";
+  function clearFilters() { setQuery(""); setType("all"); setStatusFilter("all"); setRoleFilter("all"); setSchoolFilter("all"); setPage(1); }
+  const hasFilter = query || typeFilter !== "all" || statusFilter !== "all" || roleFilter !== "all" || schoolFilter !== "all";
 
   return (
     <div className="w-full px-6 py-6 space-y-5">
@@ -651,6 +653,14 @@ export default function StaffClient({
             <option value="active">Active</option>
             <option value="on_leave">On Leave</option>
             <option value="inactive">Inactive</option>
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+        </div>
+        <div className="relative">
+          <select value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }} className="h-9 appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-700 dark:text-zinc-300 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+            <option value="all">All Roles</option>
+            <option value="admin">Admin</option>
+            <option value="staff">Staff</option>
           </select>
           <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
         </div>
@@ -728,7 +738,14 @@ export default function StaffClient({
                   <div className="flex items-center gap-3">
                     <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ${avatarColor(s.id)}`}>{initials(s.name)}</div>
                     <div className="min-w-0">
-                      <p className="font-medium text-gray-900 dark:text-zinc-100 leading-tight truncate">{s.name}</p>
+                      <p className="flex items-center gap-1.5 font-medium text-gray-900 dark:text-zinc-100 leading-tight truncate">
+                        {s.name}
+                        {s.permissionTemplateId === ADMIN_VALUE && (
+                          <span title="Admin access">
+                            <Shield className="h-3 w-3 shrink-0 text-primary-500 dark:text-primary-400" />
+                          </span>
+                        )}
+                      </p>
                       <p className="text-xs text-gray-400 dark:text-zinc-500">{s.employeeId}</p>
                     </div>
                   </div>
