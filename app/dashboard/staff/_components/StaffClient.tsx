@@ -779,10 +779,11 @@ export default function StaffClient({
                 <Td className="text-sm text-gray-700 dark:text-zinc-300 whitespace-nowrap">{formatJoinDate(s.joinedDate)}</Td>
                 <Td><span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[s.status]}`}>{STATUS_LABEL[s.status]}</span></Td>
                 <Td>
-                  <div className="flex flex-wrap items-center gap-1">
+                  {s.permissionTemplateName ? (
+                    <PermissionBadge name={s.permissionTemplateName} />
+                  ) : (
                     <RoleChip label={s.type === "teaching" ? "Teacher" : "Staff"} />
-                    {s.permissionTemplateName && <PermissionBadge name={s.permissionTemplateName} />}
-                  </div>
+                  )}
                 </Td>
                 <Td position="last" className="w-px whitespace-nowrap">
                   <StaffRowMenu
