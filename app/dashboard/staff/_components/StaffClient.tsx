@@ -285,7 +285,7 @@ function StaffRowMenu({
               ) : (
                 <UserX className="h-3.5 w-3.5 shrink-0" />
               )}
-              {staff.status === "inactive" ? "Reactivate" : "Deactivate"}
+              {staff.status === "inactive" ? "Reactivate Staff" : "Deactivate Staff"}
             </button>
           </div>
         </>,
