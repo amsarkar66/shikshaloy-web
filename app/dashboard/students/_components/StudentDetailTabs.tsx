@@ -452,9 +452,14 @@ function DocumentItem({ doc, studentId, onDeleted }: { doc: DocumentRow; student
   const [busy, setBusy] = useState(false);
 
   async function handleDelete() {
+    if (!window.confirm(`Delete "${doc.fileName}"? This can't be undone.`)) return;
     setBusy(true);
-    await deleteStudentDocument(doc.id, studentId);
-    onDeleted();
+    try {
+      await deleteStudentDocument(doc.id, studentId);
+      onDeleted();
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -649,6 +654,7 @@ export function StudentSidebar({
               <Link
                 key={sib.id}
                 href={`/dashboard/students/${sib.id}`}
+                prefetch={false}
                 className="flex items-center gap-2.5 rounded-lg border border-gray-100 dark:border-zinc-700/50 px-3 py-2 hover:bg-gray-50 dark:hover:bg-zinc-700/30 transition-colors"
               >
                 {sib.photoUrl ? (
