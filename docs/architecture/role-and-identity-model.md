@@ -218,3 +218,9 @@ Verified: `tsc --noEmit` clean, `eslint` 0 errors, `next build` clean.
 `promoteExistingToAdmin` had no counterpart — nothing in the UI could undo a promotion. Added `revokeAdminAccess(staffId, schoolId)`: clears `staff_members.permission_template_id`/`permission_template_name`, which is the entire grant, so the person reverts to exactly their pre-promotion state (`profiles.role` was never touched, so there's nothing else to revert). Deliberately refuses to run on a `profiles.role = 'admin'` account (`invitePrincipal`) — that account has no other role to fall back to, so "revoke" has no defined meaning there; scoping it to only the reversible case avoids having to invent one.
 
 `principals/page.tsx` and `people/page.tsx` tag each admin row with `revokable` (`role !== 'admin' && has the staff_members grant`) so the "Revoke" button only appears where it's meaningful — a direct-invite admin never sees it.
+
+## 12. `isAdmin()` performance — fixed (2026-09-12), commit `7b8d755`
+
+Two issues from the earlier review, both in `lib/auth/verified-role.ts`:
+- `isAdmin()` queried `staff_members` for every non-`'admin'` role, including `student`/`parent`/`driver` — roles `promoteExistingToAdmin` can never grant admin access to (it rejects anything but `teacher`/`staff` outright). Now short-circuits to `false` before asking, since the query could only ever come back "no" for them.
+- Neither `hasAdminGrant()` nor `requireRoleOrStaffTemplate`'s inline lookup were deduplicated within a request the way `getVerifiedUser` is — a page with several admin-gated checks could fire several near-identical queries for the same profile. Extracted the query into one `cache()`-wrapped `getPermissionTemplate(profileId)`, shared by `hasAdminGrant`, `requireRoleOrStaffTemplate`, and transitively `isAdmin`/`requireRole`.
