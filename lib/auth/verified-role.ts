@@ -46,6 +46,22 @@ export async function getVerifiedRole(): Promise<string | null> {
   return vu?.role ?? null;
 }
 
+// The one place that actually queries staff_members.permission_template_id.
+// cache()-wrapped so however many of requireRole / requireRoleOrStaffTemplate
+// / hasAdminGrant / isAdmin ask about the same profile within one request,
+// the query runs once — before this, each was a separate round-trip with no
+// deduplication (unlike getVerifiedUser above), including page guards that
+// call isAdmin() for roles (student/parent/driver) that could never hold
+// this grant in the first place.
+const getPermissionTemplate = cache(async (profileId: string): Promise<string | null> => {
+  const { data: staff } = await supabaseAdmin
+    .from("staff_members")
+    .select("permission_template_id")
+    .eq("profile_id", profileId)
+    .maybeSingle();
+  return staff?.permission_template_id ?? null;
+});
+
 // Admin access can come from either signal: profiles.role === 'admin'
 // (every admin created before this check existed, plus anyone invited via
 // invitePrincipal) or staff_members.permission_template_id === 'admin'
@@ -64,12 +80,7 @@ export async function getVerifiedRole(): Promise<string | null> {
 // matches "teacher" directly and never reaches requireRole's own fallback,
 // so a promoted teacher needs this checked separately to get admin scope).
 export async function hasAdminGrant(profileId: string): Promise<boolean> {
-  const { data: staff } = await supabaseAdmin
-    .from("staff_members")
-    .select("permission_template_id")
-    .eq("profile_id", profileId)
-    .maybeSingle();
-  return staff?.permission_template_id === "admin";
+  return (await getPermissionTemplate(profileId)) === "admin";
 }
 
 // For call sites that inline a `role === "admin"` / `role !== "admin"`
@@ -77,9 +88,16 @@ export async function hasAdminGrant(profileId: string): Promise<boolean> {
 // <Unauthorized /> guards, and a few actions.ts files with their own local
 // admin check) — same admin-grant fallback, usable wherever a plain
 // boolean is more natural than a throwing helper.
+//
+// promoteExistingToAdmin only ever grants this to a 'teacher' or 'staff'
+// profile (it rejects every other role outright), so any other role can
+// never hold the grant — short-circuiting here means a student/parent/
+// driver hitting an admin-gated page skips the query entirely instead of
+// asking staff_members a question that can only ever come back "no."
 export async function isAdmin(vu: VerifiedProfile | null): Promise<boolean> {
   if (!vu) return false;
   if (vu.role === "admin") return true;
+  if (vu.role !== "teacher" && vu.role !== "staff") return false;
   return hasAdminGrant(vu.id);
 }
 
@@ -110,16 +128,12 @@ export async function requireRoleOrStaffTemplate(
 
   const needsStaffLookup = (vu.role === "staff" && staffTemplates.length > 0) || roles.includes("admin");
   if (needsStaffLookup) {
-    const { data: staff } = await supabaseAdmin
-      .from("staff_members")
-      .select("permission_template_id")
-      .eq("profile_id", vu.id)
-      .maybeSingle();
+    const template = await getPermissionTemplate(vu.id);
 
-    if (roles.includes("admin") && staff?.permission_template_id === "admin") {
+    if (roles.includes("admin") && template === "admin") {
       return { id: vu.id, role: vu.role };
     }
-    if (vu.role === "staff" && staff?.permission_template_id && staffTemplates.includes(staff.permission_template_id)) {
+    if (vu.role === "staff" && template && staffTemplates.includes(template)) {
       return { id: vu.id, role: vu.role };
     }
   }
