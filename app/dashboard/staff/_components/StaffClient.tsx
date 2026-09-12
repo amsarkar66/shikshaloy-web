@@ -128,6 +128,14 @@ function PermissionBadge({ name }: { name?: string }) {
   );
 }
 
+function RoleChip({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center rounded-full bg-gray-50 dark:bg-zinc-700/40 border border-gray-200 dark:border-zinc-700 px-2 py-0.5 text-[11px] font-medium text-gray-600 dark:text-zinc-300">
+      {label}
+    </span>
+  );
+}
+
 const ADMIN_VALUE = "admin";
 
 // Unifies what used to be two separate menu items (Edit Permission Template
@@ -771,11 +779,10 @@ export default function StaffClient({
                 <Td className="text-sm text-gray-700 dark:text-zinc-300 whitespace-nowrap">{formatJoinDate(s.joinedDate)}</Td>
                 <Td><span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[s.status]}`}>{STATUS_LABEL[s.status]}</span></Td>
                 <Td>
-                  {s.permissionTemplateName ? (
-                    <PermissionBadge name={s.permissionTemplateName} />
-                  ) : (
-                    <span className="text-xs text-gray-500 dark:text-zinc-400">{s.type === "teaching" ? "Teacher" : "Staff"}</span>
-                  )}
+                  <div className="flex flex-wrap items-center gap-1">
+                    <RoleChip label={s.type === "teaching" ? "Teacher" : "Staff"} />
+                    {s.permissionTemplateName && <PermissionBadge name={s.permissionTemplateName} />}
+                  </div>
                 </Td>
                 <Td position="last" className="w-px whitespace-nowrap">
                   <StaffRowMenu
