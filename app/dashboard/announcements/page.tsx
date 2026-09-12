@@ -1,9 +1,10 @@
 import { supabaseAdmin } from "@/lib/supabase/service";
-import { getCurrentSchoolIdOrThrow, getSchoolPickerData } from "@/lib/supabase/school-context";
-import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
+import { getVerifiedUser } from "@/lib/auth/verified-role";
+import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
+import { getCurrentInstitutionIdOrThrow, getInstitutionSchools, type InstitutionSchool } from "@/lib/supabase/institution-context";
+import { getSectionsForSchool } from "./actions";
 import AnnouncementsClient from "./_components/AnnouncementsClient";
 import type { Announcement } from "./_components/AnnouncementsClient";
-import type { SectionOption } from "./_data/announcements";
 
 interface AnnouncementRow {
   id: string;
@@ -18,40 +19,18 @@ interface AnnouncementRow {
   expires_at: string | null;
   created_at: string | null;
   is_public: boolean | null;
+  school_id: string;
   poster: { full_name: string | null } | null;
 }
 
-interface SectionRow {
-  id: string;
-  name: string | null;
-  grades: { level: number | null } | null;
-}
+const ANNOUNCEMENT_SELECT = `
+  id, title, content, priority, audience, audience_label, target_section_id,
+  status, views, expires_at, created_at, is_public, school_id,
+  poster:posted_by ( full_name )
+`;
 
-export default async function AnnouncementsPage() {
-  const schoolId = await getCurrentSchoolIdOrThrow();
-  const academicYearId = await getCurrentAcademicYearId();
-  const { schools, activeSchoolId } = await getSchoolPickerData();
-
-  const [{ data }, { data: sectionRows }] = await Promise.all([
-    supabaseAdmin
-      .from("announcements")
-      .select(`
-        id, title, content, priority, audience, audience_label, target_section_id,
-        status, views, expires_at, created_at, is_public,
-        poster:posted_by ( full_name )
-      `)
-      .eq("school_id", schoolId)
-      .order("created_at", { ascending: false }),
-
-    supabaseAdmin
-      .from("sections")
-      .select("id, name, grades ( level )")
-      .eq("school_id", schoolId)
-      .eq("academic_year_id", academicYearId)
-      .order("name"),
-  ]);
-
-  const announcements: Announcement[] = ((data ?? []) as unknown as AnnouncementRow[]).map((a) => ({
+function toAnnouncement(a: AnnouncementRow, schoolNameById?: Map<string, string>): Announcement {
+  return {
     id: a.id,
     title: a.title,
     content: a.content ?? "",
@@ -65,11 +44,62 @@ export default async function AnnouncementsPage() {
     postedBy: a.poster?.full_name ?? "—",
     expiresAt: a.expires_at ?? undefined,
     isPublic: a.is_public ?? false,
-  }));
+    schoolId: schoolNameById ? a.school_id : undefined,
+    schoolName: schoolNameById ? (schoolNameById.get(a.school_id) ?? "—") : undefined,
+  };
+}
 
-  const sections: SectionOption[] = ((sectionRows ?? []) as unknown as SectionRow[])
-    .map((s) => ({ id: s.id, name: s.name ?? "", gradeLevel: s.grades?.level ?? 0 }))
-    .sort((a, b) => a.gradeLevel - b.gradeLevel || a.name.localeCompare(b.name));
+export default async function AnnouncementsPage() {
+  const vu = await getVerifiedUser();
 
-  return <AnnouncementsClient initialData={announcements} sections={sections} schools={schools} activeSchoolId={activeSchoolId} />;
+  // super_admin sees announcements combined across every school in the
+  // institution instead of being scoped to one "active" school — the
+  // school is picked per-announcement in the compose modal instead.
+  if (vu?.role === "super_admin") {
+    const institutionId = await getCurrentInstitutionIdOrThrow();
+    const schools: InstitutionSchool[] = await getInstitutionSchools(institutionId);
+    const schoolIds = schools.map((s) => s.id);
+    const schoolNameById = new Map(schools.map((s) => [s.id, s.name]));
+
+    if (schoolIds.length === 0) {
+      return <AnnouncementsClient initialData={[]} sections={[]} schools={[]} defaultSchoolId="" />;
+    }
+
+    const defaultSchoolId = await getCurrentSchoolIdOrThrow();
+
+    const [{ data }, sections] = await Promise.all([
+      supabaseAdmin
+        .from("announcements")
+        .select(ANNOUNCEMENT_SELECT)
+        .in("school_id", schoolIds)
+        .order("created_at", { ascending: false }),
+      getSectionsForSchool(defaultSchoolId),
+    ]);
+
+    const announcements = ((data ?? []) as unknown as AnnouncementRow[]).map((a) => toAnnouncement(a, schoolNameById));
+
+    return (
+      <AnnouncementsClient
+        initialData={announcements}
+        sections={sections}
+        schools={schools}
+        defaultSchoolId={defaultSchoolId}
+      />
+    );
+  }
+
+  const schoolId = await getCurrentSchoolIdOrThrow();
+
+  const [{ data }, sections] = await Promise.all([
+    supabaseAdmin
+      .from("announcements")
+      .select(ANNOUNCEMENT_SELECT)
+      .eq("school_id", schoolId)
+      .order("created_at", { ascending: false }),
+    getSectionsForSchool(schoolId),
+  ]);
+
+  const announcements = ((data ?? []) as unknown as AnnouncementRow[]).map((a) => toAnnouncement(a));
+
+  return <AnnouncementsClient initialData={announcements} sections={sections} schools={[]} defaultSchoolId={schoolId} />;
 }

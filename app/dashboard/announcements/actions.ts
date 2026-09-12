@@ -4,9 +4,9 @@ import { revalidatePath } from "next/cache";
 import DOMPurify from "isomorphic-dompurify";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { logAuditEvent } from "@/lib/audit/log";
-import { requireRole } from "@/lib/auth/verified-role";
-import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
-import { stripHtml, type Audience, type Priority, type Status } from "./_data/announcements";
+import { getVerifiedUser, requireRole } from "@/lib/auth/verified-role";
+import { assertAuthorizedSchool, resolveAuthorizedSchoolId } from "@/lib/supabase/authorized-school";
+import { stripHtml, type Audience, type Priority, type Status, type SectionOption } from "./_data/announcements";
 
 const CONTENT_ALLOWED_TAGS = ["p", "br", "strong", "em", "ul", "ol", "li", "blockquote"];
 
@@ -36,6 +36,36 @@ async function resolveAudienceLabel(schoolId: string, audience: Audience, target
   return section ? `Class ${gradeLevel ?? "?"}-${section.name}` : AUDIENCE_LABEL.class;
 }
 
+// Sections are per-school (and per academic year), so the "Specific Class"
+// audience picker in the compose modal needs to reload this whenever the
+// target school changes — used both for the page's initial default school
+// and, client-side, whenever a super_admin picks a different one.
+export async function getSectionsForSchool(schoolId: string): Promise<SectionOption[]> {
+  await requireAdmin();
+  const vu = await getVerifiedUser();
+  if (!vu) throw new Error("Unauthorized");
+  await assertAuthorizedSchool(vu, schoolId);
+
+  const { data: yearRow } = await supabaseAdmin
+    .from("academic_years")
+    .select("id")
+    .eq("school_id", schoolId)
+    .eq("is_current", true)
+    .maybeSingle();
+  if (!yearRow) return [];
+
+  const { data: sectionRows } = await supabaseAdmin
+    .from("sections")
+    .select("id, name, grades ( level )")
+    .eq("school_id", schoolId)
+    .eq("academic_year_id", yearRow.id)
+    .order("name");
+
+  return ((sectionRows ?? []) as unknown as { id: string; name: string | null; grades: { level: number | null } | null }[])
+    .map((s) => ({ id: s.id, name: s.name ?? "", gradeLevel: s.grades?.level ?? 0 }))
+    .sort((a, b) => a.gradeLevel - b.gradeLevel || a.name.localeCompare(b.name));
+}
+
 export interface AnnouncementFormInput {
   title: string;
   content: string;
@@ -47,10 +77,15 @@ export interface AnnouncementFormInput {
 
 export interface CreateAnnouncementInput extends AnnouncementFormInput {
   status: "active" | "draft";
+  schoolId: string;
 }
 
 export async function createAnnouncement(input: CreateAnnouncementInput): Promise<void> {
   const user = await requireAdmin();
+  const vu = await getVerifiedUser();
+  if (!vu) throw new Error("Unauthorized");
+  await assertAuthorizedSchool(vu, input.schoolId);
+
   const sanitizedContent = DOMPurify.sanitize(input.content, { ALLOWED_TAGS: CONTENT_ALLOWED_TAGS });
 
   if (!input.title.trim() || !stripHtml(sanitizedContent)) {
@@ -60,7 +95,7 @@ export async function createAnnouncement(input: CreateAnnouncementInput): Promis
     throw new Error("Please choose a class/section");
   }
 
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = input.schoolId;
   const audienceLabel = await resolveAudienceLabel(schoolId, input.audience, input.targetSectionId);
 
   const { error } = await supabaseAdmin.from("announcements").insert({
@@ -99,7 +134,7 @@ export async function updateAnnouncement(id: string, input: AnnouncementFormInpu
     throw new Error("Please choose a class/section");
   }
 
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("announcements", id);
   const audienceLabel = await resolveAudienceLabel(schoolId, input.audience, input.targetSectionId);
 
   const { data: announcement, error } = await supabaseAdmin
@@ -132,7 +167,7 @@ export async function updateAnnouncement(id: string, input: AnnouncementFormInpu
 
 export async function setAnnouncementStatus(id: string, status: Status): Promise<void> {
   await requireAdmin();
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("announcements", id);
 
   const { data: announcement, error } = await supabaseAdmin
     .from("announcements")
@@ -157,7 +192,7 @@ export async function setAnnouncementStatus(id: string, status: Status): Promise
 
 export async function deleteAnnouncement(id: string): Promise<void> {
   await requireAdmin();
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("announcements", id);
 
   const { data: announcement, error } = await supabaseAdmin
     .from("announcements")
@@ -181,7 +216,7 @@ export async function deleteAnnouncement(id: string): Promise<void> {
 
 export async function toggleAnnouncementPublic(id: string, isPublic: boolean): Promise<void> {
   await requireAdmin();
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  const schoolId = await resolveAuthorizedSchoolId("announcements", id);
 
   const { data: announcement, error } = await supabaseAdmin
     .from("announcements")

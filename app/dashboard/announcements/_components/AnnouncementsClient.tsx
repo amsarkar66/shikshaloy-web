@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
+import { useState, useMemo, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Megaphone, Search, Plus, Download, X, Eye,
@@ -18,9 +18,12 @@ import {
   formatDate, daysUntil, stripHtml,
   type Priority, type Status, type Audience, type SectionOption,
 } from "../_data/announcements";
-import { PageSchoolPicker } from "../../_components/page-school-picker";
+import { SchoolCell } from "../../_components/school-filter";
 import type { InstitutionSchool } from "@/lib/supabase/institution-context";
-import { toggleAnnouncementPublic, createAnnouncement, updateAnnouncement, setAnnouncementStatus, deleteAnnouncement } from "../actions";
+import {
+  toggleAnnouncementPublic, createAnnouncement, updateAnnouncement, setAnnouncementStatus, deleteAnnouncement,
+  getSectionsForSchool,
+} from "../actions";
 
 export interface Announcement {
   id: string;
@@ -36,6 +39,8 @@ export interface Announcement {
   postedBy: string;
   views: number;
   isPublic: boolean;
+  schoolId?: string;
+  schoolName?: string;
 }
 
 // ── Export ────────────────────────────────────────────────────────────────────
@@ -97,9 +102,11 @@ function AudienceIcon({ audience }: { audience: Audience }) {
 // ── Compose / Edit modal ─────────────────────────────────────────────────────
 
 function AnnouncementModal({
-  sections, existing, onClose, onSaved,
+  sections: initialSections, schools, defaultSchoolId, existing, onClose, onSaved,
 }: {
   sections: SectionOption[];
+  schools: InstitutionSchool[];
+  defaultSchoolId: string;
   existing: Announcement | null;
   onClose: () => void;
   onSaved: () => void;
@@ -108,15 +115,32 @@ function AnnouncementModal({
   const [content, setContent] = useState(existing?.content ?? "");
   const [priority, setPriority] = useState<Priority>(existing?.priority ?? "normal");
   const [audience, setAudience] = useState<Audience>(existing?.audience ?? "all");
-  const [targetSectionId, setTargetSectionId] = useState<string>(existing?.targetSectionId ?? sections[0]?.id ?? "");
+  const [schoolId, setSchoolId] = useState(existing?.schoolId ?? defaultSchoolId);
+  const [sections, setSections] = useState<SectionOption[]>(initialSections);
+  const [targetSectionId, setTargetSectionId] = useState<string>(existing?.targetSectionId ?? "");
   const [expiresAt, setExpiresAt] = useState<string | null>(existing?.expiresAt ?? null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Sections are per-school, so switching the target school (only possible
+  // while creating — see the School field below) needs its own class list;
+  // this also covers editing an announcement whose school differs from the
+  // page's default, since `initialSections` only ever matches that default.
+  useEffect(() => {
+    let cancelled = false;
+    getSectionsForSchool(schoolId).then((rows) => {
+      if (cancelled) return;
+      setSections(rows);
+      setTargetSectionId((prev) => (prev && rows.some((r) => r.id === prev) ? prev : rows[0]?.id ?? ""));
+    });
+    return () => { cancelled = true; };
+  }, [schoolId]);
 
   const canSubmit =
     title.trim().length > 0 &&
     stripHtml(content).length > 0 &&
     (audience !== "class" || !!targetSectionId) &&
+    !!schoolId &&
     !busy;
 
   async function submit(status: "active" | "draft") {
@@ -128,7 +152,7 @@ function AnnouncementModal({
       if (existing) {
         await updateAnnouncement(existing.id, base);
       } else {
-        await createAnnouncement({ ...base, status });
+        await createAnnouncement({ ...base, status, schoolId });
       }
       onSaved();
       onClose();
@@ -159,6 +183,20 @@ function AnnouncementModal({
             <label className="text-xs font-medium text-gray-500 dark:text-zinc-400 block mb-1">Content</label>
             <RichTextEditor value={content} onChange={setContent} placeholder="Write the announcement body here…" />
           </div>
+          {!existing && schools.length > 1 && (
+            <div>
+              <label className="text-xs font-medium text-gray-500 dark:text-zinc-400 block mb-1">School</label>
+              <div className="relative">
+                <select value={schoolId} onChange={(e) => setSchoolId(e.target.value)} className="h-9 w-full appearance-none rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-8 text-sm text-gray-900 dark:text-zinc-100 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20">
+                  {schools.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+              </div>
+            </div>
+          )}
+          {existing && existing.schoolName && schools.length > 1 && (
+            <p className="text-xs text-gray-500 dark:text-zinc-400">School: <span className="font-medium text-gray-700 dark:text-zinc-300">{existing.schoolName}</span></p>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-gray-500 dark:text-zinc-400 block mb-1">Priority</label>
@@ -319,6 +357,7 @@ function AnnouncementCard({ ann, onEdit, onDelete }: { ann: Announcement; onEdit
               <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${STATUS_BADGE[ann.status]}`}>{STATUS_LABEL[ann.status]}</span>
               <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${AUDIENCE_BADGE[ann.audience]}`}><AudienceIcon audience={ann.audience} />{ann.audienceLabel}</span>
               {ann.expiresAt&&ann.status==="active"&&<span className={`text-[10px] font-medium ${isExpired?"text-red-500 dark:text-red-400":expires!<=3?"text-amber-600 dark:text-amber-400":"text-gray-400 dark:text-zinc-500"}`}>{isExpired?"Expired":`Expires in ${expires} day${expires===1?"":"s"}`}</span>}
+              {ann.schoolName && <SchoolCell name={ann.schoolName} />}
             </div>
           </div>
           {ann.status!=="draft"&&<div className="shrink-0 flex items-center gap-1 text-xs text-gray-400 dark:text-zinc-500"><Eye className="h-3.5 w-3.5" /><span>{ann.views.toLocaleString()}</span></div>}
@@ -384,12 +423,12 @@ const STATUS_TABS: { value: Status | "all"; label: string }[] = [
 ];
 
 export default function AnnouncementsClient({
-  initialData, sections, schools = [], activeSchoolId = null,
+  initialData, sections, schools = [], defaultSchoolId,
 }: {
   initialData: Announcement[];
   sections: SectionOption[];
   schools?: InstitutionSchool[];
-  activeSchoolId?: string | null;
+  defaultSchoolId: string;
 }) {
   const router = useRouter();
   const [query,          setQuery]    = useState("");
@@ -426,7 +465,6 @@ export default function AnnouncementsClient({
           <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Broadcast updates</p>
         </div>
         <div className="flex gap-2 sm:ml-auto items-center">
-          <PageSchoolPicker schools={schools} activeSchoolId={activeSchoolId} />
           <button onClick={() => exportCsv(filtered)} disabled={filtered.length === 0} className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors disabled:opacity-50"><Download className="h-3.5 w-3.5" /> Export</button>
           <FancyButton onClick={openCreate} size="sm"><Plus className="h-4 w-4" /> New Announcement</FancyButton>
         </div>
@@ -436,6 +474,8 @@ export default function AnnouncementsClient({
       {modalOpen && (
         <AnnouncementModal
           sections={sections}
+          schools={schools}
+          defaultSchoolId={defaultSchoolId}
           existing={editing}
           onClose={closeModal}
           onSaved={() => router.refresh()}
