@@ -6,15 +6,19 @@ import Link from "next/link";
 import {
   Users, GraduationCap, UserPlus, UserMinus, Upload,
   Search, Plus, Download, ChevronLeft, ChevronRight, ChevronDown,
-  Eye, ArrowUpDown, ArrowUp, ArrowDown, X, Briefcase,
-  Shield, CheckCircle2, Loader2, MoreHorizontal,
+  Eye, Pencil, ArrowUpDown, ArrowUp, ArrowDown, X, Briefcase,
+  Shield, CheckCircle2, Loader2, MoreHorizontal, CalendarCheck, Send, UserX, UserCheck,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { deptColor, formatJoinDate } from "../_data/staff";
-import { assignStaffTemplate, inviteStaffMember, bulkImportStaff, getStaffTemplatesForSchool, type BulkImportOutcome } from "../actions";
+import {
+  assignStaffTemplate, inviteStaffMember, bulkImportStaff, getStaffTemplatesForSchool,
+  resendStaffInvite, setStaffStatus, type BulkImportOutcome,
+} from "../actions";
 import { promoteExistingToAdmin, revokeAdminAccess } from "../../principals/actions";
+import { EditStaffModal } from "../[id]/_components/edit-staff-modal";
 import { BulkImportModal, type ImportColumn } from "../../_components/bulk-import-modal";
 import { SchoolFilterSelect, SchoolCell, matchesSchoolFilter } from "../../_components/school-filter";
 import type { InstitutionSchool } from "@/lib/supabase/institution-context";
@@ -201,6 +205,68 @@ function AccessPermissionsModal({ staff, templates, onClose, onSave }: { staff: 
   );
 }
 
+// Small shared confirm modal for the two one-shot row actions below (Resend
+// invitation, Deactivate/Reactivate) — near-identical shape, so one
+// component instead of writing the same dialog twice.
+function ConfirmActionModal({
+  icon: Icon, tone = "indigo", title, description, confirmLabel, onConfirm, onClose,
+}: {
+  icon: React.ElementType;
+  tone?: "indigo" | "red";
+  title: string;
+  description: string;
+  confirmLabel: string;
+  onConfirm: () => Promise<void>;
+  onClose: () => void;
+}) {
+  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [error, setError] = useState("");
+
+  async function handleConfirm() {
+    setStatus("saving");
+    setError("");
+    try {
+      await onConfirm();
+      setStatus("saved");
+      setTimeout(onClose, 800);
+    } catch (err) {
+      setStatus("error");
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    }
+  }
+
+  const iconWrap = tone === "red" ? "bg-red-50 dark:bg-red-500/10 text-red-500" : "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500";
+  const confirmBtn = tone === "red" ? "bg-red-500 hover:bg-red-600" : "bg-indigo-500 hover:bg-indigo-600";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={status === "saving" ? undefined : onClose} />
+      <div className="relative w-full max-w-sm rounded-2xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-2xl p-6 space-y-4">
+        <div className="flex items-start gap-3">
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${iconWrap}`}>
+            <Icon className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-gray-900 dark:text-zinc-50">{title}</p>
+            <p className="mt-0.5 text-xs text-gray-500 dark:text-zinc-400">{description}</p>
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-2">
+          <button onClick={onClose} disabled={status === "saving"} className="rounded-lg border border-gray-200 dark:border-zinc-700 px-4 py-2 text-sm font-medium text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800 disabled:opacity-50 transition-colors">
+            Cancel
+          </button>
+          <button onClick={handleConfirm} disabled={status === "saving" || status === "saved"} className={`flex items-center gap-2 rounded-lg disabled:opacity-60 px-4 py-2 text-sm font-medium text-white transition-colors ${confirmBtn}`}>
+            {status === "saving" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            {status === "saved"  && <CheckCircle2 className="h-3.5 w-3.5" />}
+            {status === "error" ? "Retry" : status === "saved" ? "Done" : confirmLabel}
+          </button>
+        </div>
+        {status === "error" && <p className="text-xs text-red-500 text-center">{error}</p>}
+      </div>
+    </div>
+  );
+}
+
 function InviteStaffModal({
   templates: singleSchoolTemplates, schools = [], onClose, onInvited,
 }: {
@@ -362,6 +428,8 @@ export default function StaffClient({
   const [sortDir,      setSortDir]      = useState<SortDir>("asc");
   const [page,         setPage]         = useState(1);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
+  const [editingDetailsId, setEditingDetailsId] = useState<string | null>(null);
+  const [rowAction, setRowAction] = useState<{ staff: StaffMember; kind: "resend" | "deactivate" | "reactivate" } | null>(null);
   const [showInvite,   setShowInvite]   = useState(false);
   const [importOpen,   setImportOpen]   = useState(false);
   const [importBusy,   setImportBusy]   = useState(false);
@@ -595,10 +663,28 @@ export default function StaffClient({
                       <DropdownMenuTrigger className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors">
                         <MoreHorizontal className="h-4 w-4" />
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" sideOffset={8} className="w-52">
-                        <DropdownMenuItem className="cursor-pointer" onClick={() => setEditingStaff(s)}>
-                          <Shield className="h-3.5 w-3.5" /> Access permissions
+                      <DropdownMenuContent align="end" sideOffset={8} className="w-56">
+                        <DropdownMenuItem className="cursor-pointer" onClick={() => setEditingDetailsId(s.id)}>
+                          <Pencil className="h-3.5 w-3.5" /> Edit details
                         </DropdownMenuItem>
+                        <DropdownMenuItem className="cursor-pointer" onClick={() => setEditingStaff(s)}>
+                          <Shield className="h-3.5 w-3.5" /> Manage access
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="cursor-pointer" render={<Link href={`/dashboard/staff/${s.id}?tab=attendance`} prefetch={false} />}>
+                          <CalendarCheck className="h-3.5 w-3.5" /> View attendance
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="cursor-pointer" onClick={() => setRowAction({ staff: s, kind: "resend" })}>
+                          <Send className="h-3.5 w-3.5" /> Resend invitation
+                        </DropdownMenuItem>
+                        {s.status === "inactive" ? (
+                          <DropdownMenuItem className="cursor-pointer" onClick={() => setRowAction({ staff: s, kind: "reactivate" })}>
+                            <UserCheck className="h-3.5 w-3.5" /> Reactivate
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem variant="destructive" className="cursor-pointer" onClick={() => setRowAction({ staff: s, kind: "deactivate" })}>
+                            <UserX className="h-3.5 w-3.5" /> Deactivate
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -611,6 +697,42 @@ export default function StaffClient({
 
       {editingStaff && <AccessPermissionsModal staff={editingStaff} templates={permissionTemplates} onClose={() => setEditingStaff(null)} onSave={handlePermissionSaved} />}
       {showInvite && <InviteStaffModal templates={permissionTemplates} schools={schools} onClose={() => setShowInvite(false)} onInvited={() => router.refresh()} />}
+      <EditStaffModal
+        staffId={editingDetailsId}
+        onClose={() => setEditingDetailsId(null)}
+        onSaved={() => {
+          setEditingDetailsId(null);
+          router.refresh();
+        }}
+      />
+      {rowAction && (
+        <ConfirmActionModal
+          icon={rowAction.kind === "resend" ? Send : rowAction.kind === "reactivate" ? UserCheck : UserX}
+          tone={rowAction.kind === "deactivate" ? "red" : "indigo"}
+          title={
+            rowAction.kind === "resend" ? "Resend invitation?" :
+            rowAction.kind === "reactivate" ? "Reactivate this staff member?" :
+            "Deactivate this staff member?"
+          }
+          description={
+            rowAction.kind === "resend"
+              ? `Issues a new password and emails fresh login credentials to ${rowAction.staff.name}.`
+              : rowAction.kind === "reactivate"
+              ? `${rowAction.staff.name} will be marked active again.`
+              : `${rowAction.staff.name} will be marked inactive. Their login isn't removed and can be reactivated any time.`
+          }
+          confirmLabel={rowAction.kind === "resend" ? "Resend" : rowAction.kind === "reactivate" ? "Reactivate" : "Deactivate"}
+          onClose={() => setRowAction(null)}
+          onConfirm={async () => {
+            if (rowAction.kind === "resend") {
+              await resendStaffInvite(rowAction.staff.id);
+            } else {
+              await setStaffStatus(rowAction.staff.id, rowAction.kind === "reactivate" ? "active" : "inactive");
+              router.refresh();
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

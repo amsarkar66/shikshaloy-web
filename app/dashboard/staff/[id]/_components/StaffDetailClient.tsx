@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft, Pencil, Phone, Mail, Calendar, Briefcase, Building2,
   IndianRupee, CheckCircle2, AlertCircle, TrendingUp, Shield,
@@ -171,6 +171,11 @@ const BASE_TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
 
 const TRANSPORT_TAB: { id: Tab; label: string; icon: React.ElementType } = { id: "transport", label: "Transport", icon: Bus };
 
+const VALID_TABS: readonly Tab[] = ["overview", "attendance", "leaves", "payroll", "transport"];
+function isValidTab(value: string | null): value is Tab {
+  return !!value && (VALID_TABS as readonly string[]).includes(value);
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function StaffDetailClient({
@@ -183,7 +188,9 @@ export default function StaffDetailClient({
   routes: DriverRoute[];
 }) {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("overview");
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get("tab");
+  const [tab, setTab] = useState<Tab>(isValidTab(initialTab) ? initialTab : "overview");
   const [editOpen, setEditOpen] = useState(false);
   const [monthIdx, setMonthIdx] = useState(0);
 

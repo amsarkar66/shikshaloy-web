@@ -324,3 +324,75 @@ export async function bulkImportStaff(rows: BulkImportStaffRow[], schoolIdInput?
   revalidatePath("/dashboard/staff");
   return outcome;
 }
+
+// ── Resend invite credentials ────────────────────────────────────────────────
+//
+// For someone who never got (or lost) their original invite email — issues
+// a fresh random password rather than resending the old one, since the old
+// one may already have been changed and resending it wouldn't necessarily
+// match what's actually set.
+
+export async function resendStaffInvite(staffId: string): Promise<void> {
+  await requireSchoolAdmin();
+  const schoolId = await resolveAuthorizedSchoolId("staff_members", staffId);
+
+  const { data: staff } = await supabaseAdmin
+    .from("staff_members")
+    .select("id, profile_id, full_name, email")
+    .eq("id", staffId)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+
+  if (!staff || !staff.profile_id) throw new Error("Staff member not found");
+  if (!staff.email) throw new Error("This staff member has no email on file");
+
+  const password = randomPassword();
+  const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(staff.profile_id, { password });
+  if (authError) throw new Error(`Failed to reset credentials: ${authError.message}`);
+
+  await sendStaffInviteEmail({
+    to: staff.email,
+    fullName: staff.full_name ?? "there",
+    loginEmail: staff.email,
+    loginPassword: password,
+  });
+
+  await logAuditEvent({
+    schoolId,
+    action: "update",
+    module: "Staff",
+    description: `Resent invite credentials to ${staff.full_name}`,
+  });
+}
+
+// ── Quick status toggle ───────────────────────────────────────────────────────
+//
+// A minimal, single-column update — deliberately not routed through
+// updateStaff, which requires (and unconditionally overwrites) every editable
+// field; calling it with just a status would null out phone/designation/
+// department/etc. on every row that hasn't set them explicitly.
+
+export async function setStaffStatus(staffId: string, status: "active" | "on_leave" | "inactive"): Promise<void> {
+  await requireSchoolAdmin();
+  const schoolId = await resolveAuthorizedSchoolId("staff_members", staffId);
+
+  const { data: staff, error } = await supabaseAdmin
+    .from("staff_members")
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq("id", staffId)
+    .eq("school_id", schoolId)
+    .select("full_name")
+    .single();
+
+  if (error || !staff) throw new Error(`Failed to update status: ${error?.message ?? "unknown error"}`);
+
+  await logAuditEvent({
+    schoolId,
+    action: "update",
+    module: "Staff",
+    description: `Marked ${staff.full_name} as ${status.replace("_", " ")}`,
+  });
+
+  revalidatePath("/dashboard/staff");
+  revalidatePath(`/dashboard/staff/${staffId}`);
+}

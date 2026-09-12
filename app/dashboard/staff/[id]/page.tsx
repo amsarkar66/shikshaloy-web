@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { ShieldAlert } from "lucide-react";
 import { requireRoleOrStaffTemplate } from "@/lib/auth/verified-role";
@@ -246,12 +247,14 @@ export default async function StaffDetailPage({
   }));
 
   return (
-    <StaffDetailClient
-      staff={staff}
-      attendance={attendance}
-      leaves={leaves}
-      payroll={payroll}
-      routes={driverContext?.routes ?? []}
-    />
+    <Suspense fallback={null}>
+      <StaffDetailClient
+        staff={staff}
+        attendance={attendance}
+        leaves={leaves}
+        payroll={payroll}
+        routes={driverContext?.routes ?? []}
+      />
+    </Suspense>
   );
 }
