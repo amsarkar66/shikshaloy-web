@@ -4,13 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Search, ChevronDown, Users, GraduationCap, Briefcase, UserCog, Landmark,
-  Plus, Upload, X, CheckCircle2, Loader2, ArrowUpCircle,
+  Plus, Upload, X, CheckCircle2, Loader2, ArrowUpCircle, ShieldOff,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
 import { BulkImportModal, type ImportColumn } from "../../_components/bulk-import-modal";
 import { inviteStaffMember, bulkImportStaff, getStaffTemplatesForSchool, type BulkImportOutcome } from "../../staff/actions";
-import { invitePrincipal, searchPromotableStaff, promoteExistingToAdmin, type PromotableStaff } from "../../principals/actions";
+import { invitePrincipal, searchPromotableStaff, promoteExistingToAdmin, revokeAdminAccess, type PromotableStaff } from "../../principals/actions";
 
 const PROMOTE_SEARCH_MIN_CHARS = 2;
 
@@ -63,6 +63,10 @@ export interface AdminRow {
   joinedDate: string;
   schoolId: string;
   schoolName: string;
+  // Only a grant-based admin (promoteExistingToAdmin) can be revoked — see
+  // revokeAdminAccess in ../principals/actions.ts.
+  revokable: boolean;
+  staffId: string | null;
 }
 
 type TabKey = "students" | "staff" | "parents" | "admins";
@@ -505,6 +509,24 @@ export default function PeopleClient({
   const [schoolFilter, setSchoolFilter] = useState("all");
   const [showInviteStaff, setShowInviteStaff] = useState(false);
   const [showInvitePrincipal, setShowInvitePrincipal] = useState(false);
+  const [confirmingAdminId, setConfirmingAdminId] = useState<string | null>(null);
+  const [revokingAdminId, setRevokingAdminId] = useState<string | null>(null);
+  const [revokeError, setRevokeError] = useState<{ id: string; message: string } | null>(null);
+
+  async function handleRevokeAdmin(a: AdminRow) {
+    if (!a.staffId) return;
+    setRevokingAdminId(a.id);
+    setRevokeError(null);
+    try {
+      await revokeAdminAccess(a.staffId, a.schoolId);
+      router.refresh();
+    } catch (err) {
+      setRevokeError({ id: a.id, message: err instanceof Error ? err.message : "Failed to revoke admin access." });
+    } finally {
+      setRevokingAdminId(null);
+      setConfirmingAdminId(null);
+    }
+  }
   const [bulkPickerOpen, setBulkPickerOpen] = useState(false);
   const [bulkSchoolId, setBulkSchoolId] = useState<string | null>(null);
   const [importBusy, setImportBusy] = useState(false);
@@ -754,11 +776,12 @@ export default function PeopleClient({
             <Th>School</Th>
             <Th>Contact</Th>
             <Th>Joined</Th>
-            <Th position="last">Status</Th>
+            <Th>Status</Th>
+            <Th position="last">&nbsp;</Th>
           </TableHead>
           <TableBody>
             {filteredAdmins.length === 0 ? (
-              <TableEmptyRow colSpan={5} icon={UserCog} message="No admins found" />
+              <TableEmptyRow colSpan={6} icon={UserCog} message="No admins found" />
             ) : (
               filteredAdmins.map((a) => (
                 <Tr key={a.id}>
@@ -769,7 +792,39 @@ export default function PeopleClient({
                     <p className="text-xs text-gray-400 dark:text-zinc-500">{a.phone}</p>
                   </Td>
                   <Td className="text-sm text-gray-700 dark:text-zinc-300 whitespace-nowrap">{formatDate(a.joinedDate)}</Td>
-                  <Td position="last"><StatusBadge status={a.status} /></Td>
+                  <Td><StatusBadge status={a.status} /></Td>
+                  <Td position="last">
+                    {a.revokable && (
+                      confirmingAdminId === a.id ? (
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => void handleRevokeAdmin(a)}
+                            disabled={revokingAdminId === a.id}
+                            className="flex items-center gap-1 rounded-lg bg-red-500 hover:bg-red-600 disabled:opacity-50 px-2 py-1 text-xs font-medium text-white transition-colors"
+                          >
+                            {revokingAdminId === a.id && <Loader2 className="h-3 w-3 animate-spin" />} Confirm
+                          </button>
+                          <button
+                            onClick={() => setConfirmingAdminId(null)}
+                            disabled={revokingAdminId === a.id}
+                            className="rounded-lg border border-gray-200 dark:border-zinc-700 px-2 py-1 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-end gap-0.5">
+                          <button
+                            onClick={() => setConfirmingAdminId(a.id)}
+                            className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                          >
+                            <ShieldOff className="h-3.5 w-3.5" /> Revoke
+                          </button>
+                          {revokeError?.id === a.id && <p className="text-[11px] text-red-500 max-w-[160px] text-right">{revokeError.message}</p>}
+                        </div>
+                      )
+                    )}
+                  </Td>
                 </Tr>
               ))
             )}

@@ -74,6 +74,33 @@ export async function sendAdminPromotionEmail(input: {
   }
 }
 
+export async function sendAdminRevokedEmail(input: {
+  to: string;
+  name: string;
+  schoolName: string;
+}) {
+  const resend = getResendClient();
+  if (!resend) {
+    console.warn("RESEND_API_KEY not set — skipping admin revoked email.");
+    return;
+  }
+  const loginUrl = `${siteUrl()}/login`;
+  try {
+    await resend.emails.send({
+      from: FROM,
+      to: input.to,
+      subject: `Your admin access for ${input.schoolName} has been removed`,
+      html: `
+        <p>Hi ${input.name},</p>
+        <p>Your admin access for <strong>${input.schoolName}</strong> on Shikshaloy has been removed. Your login and password haven't changed, and the rest of your account is unaffected.</p>
+        <p><a href="${loginUrl}">Sign in to Shikshaloy</a> to see your dashboard.</p>
+      `,
+    });
+  } catch (err) {
+    console.error("Failed to send admin revoked email:", err);
+  }
+}
+
 export async function sendTeamInviteEmail(input: {
   to: string;
   fullName: string;

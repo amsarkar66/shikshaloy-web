@@ -42,6 +42,7 @@ interface ParentQueryRow {
 
 interface AdminQueryRow {
   id: string;
+  role: string;
   full_name: string | null;
   phone: string | null;
   status: string | null;
@@ -82,29 +83,33 @@ export default async function PeoplePage() {
       .order("full_name"),
     supabaseAdmin
       .from("profiles")
-      .select("id, full_name, phone, status, school_id, created_at")
+      .select("id, role, full_name, phone, status, school_id, created_at")
       .in("school_id", schoolIds)
       .eq("role", "admin"),
     // A promoted teacher/staff keeps their original profiles.role (see
     // docs/architecture/role-and-identity-model.md §7-8) — this second
-    // query is what still surfaces them here as an admin.
+    // query is what still surfaces them here as an admin, and (id, not
+    // just profile_id) is what lets revokeAdminAccess target the right row.
     supabaseAdmin
       .from("staff_members")
-      .select("profile_id")
+      .select("id, profile_id")
       .in("school_id", schoolIds)
       .eq("permission_template_id", "admin")
       .not("profile_id", "is", null),
   ]);
 
+  const staffIdByProfileId = new Map<string, string>();
+  for (const s of grantedStaffRows ?? []) {
+    if (s.profile_id) staffIdByProfileId.set(s.profile_id, s.id);
+  }
+
   let adminRows = roleAdminRows ?? [];
   const existingAdminIds = new Set(adminRows.map((p) => p.id));
-  const missingAdminIds = (grantedStaffRows ?? [])
-    .map((s) => s.profile_id as string)
-    .filter((id) => id && !existingAdminIds.has(id));
+  const missingAdminIds = [...staffIdByProfileId.keys()].filter((id) => !existingAdminIds.has(id));
   if (missingAdminIds.length) {
     const { data: extraAdminProfiles } = await supabaseAdmin
       .from("profiles")
-      .select("id, full_name, phone, status, school_id, created_at")
+      .select("id, role, full_name, phone, status, school_id, created_at")
       .in("id", missingAdminIds);
     adminRows = [...adminRows, ...(extraAdminProfiles ?? [])];
   }
@@ -148,6 +153,7 @@ export default async function PeoplePage() {
   const admins: AdminRow[] = await Promise.all(
     ((adminRows ?? []) as unknown as AdminQueryRow[]).map(async (a) => {
       const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(a.id);
+      const staffId = staffIdByProfileId.get(a.id);
       return {
         id: a.id,
         name: a.full_name ?? "—",
@@ -157,6 +163,8 @@ export default async function PeoplePage() {
         joinedDate: a.created_at,
         schoolId: a.school_id ?? "",
         schoolName: a.school_id ? (schoolNameById.get(a.school_id) ?? "—") : "—",
+        revokable: a.role !== "admin" && !!staffId,
+        staffId: staffId ?? null,
       };
     })
   );

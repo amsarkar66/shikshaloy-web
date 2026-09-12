@@ -6,7 +6,7 @@ import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-conte
 import { getVerifiedUser, type VerifiedProfile } from "@/lib/auth/verified-role";
 import { assertAuthorizedSchool } from "@/lib/supabase/authorized-school";
 import { randomPassword } from "@/lib/auth/random-password";
-import { sendPrincipalCredentialsEmail, sendAdminPromotionEmail } from "@/lib/email/resend";
+import { sendPrincipalCredentialsEmail, sendAdminPromotionEmail, sendAdminRevokedEmail } from "@/lib/email/resend";
 import { logAuditEvent } from "@/lib/audit/log";
 
 async function requireInstitutionOwner(): Promise<VerifiedProfile> {
@@ -224,6 +224,75 @@ export async function promoteExistingToAdmin(input: PromoteToAdminInput): Promis
 
   if (staff.email) {
     await sendAdminPromotionEmail({
+      to: staff.email,
+      name: staff.full_name ?? "there",
+      schoolName: school?.name ?? "your school",
+    });
+  }
+
+  revalidatePath("/dashboard/principals");
+  revalidatePath("/dashboard/schools");
+  revalidatePath("/dashboard/staff");
+}
+
+// ── Revoke a promoted admin's access ────────────────────────────────────────
+//
+// The counterpart to promoteExistingToAdmin — only meaningful for that same
+// case (a teacher/staff account granted admin via staff_members, role left
+// alone). An account whose profiles.role is itself 'admin' (invitePrincipal)
+// has no other role to fall back to, so there's nothing to "revoke" it to;
+// this deliberately refuses that case rather than guessing what to do with
+// it (see docs/architecture/role-and-identity-model.md §7-8, §10).
+
+export async function revokeAdminAccess(staffId: string, schoolId: string): Promise<void> {
+  const vu = await requireInstitutionOwner();
+  await assertAuthorizedSchool(vu, schoolId);
+
+  const { data: staff, error: staffError } = await supabaseAdmin
+    .from("staff_members")
+    .select("id, profile_id, full_name, email, permission_template_id")
+    .eq("id", staffId)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+
+  if (staffError || !staff || !staff.profile_id) {
+    throw new Error("Staff member not found");
+  }
+  if (staff.permission_template_id !== "admin") {
+    throw new Error("This person doesn't currently have admin access");
+  }
+
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("role")
+    .eq("id", staff.profile_id)
+    .maybeSingle();
+
+  if (profile?.role === "admin") {
+    throw new Error("This account's admin access can't be revoked here — it wasn't created by a promotion");
+  }
+
+  const { error: staffUpdateError } = await supabaseAdmin
+    .from("staff_members")
+    .update({ permission_template_id: null, permission_template_name: null })
+    .eq("id", staff.id);
+  if (staffUpdateError) throw new Error(`Failed to revoke admin access: ${staffUpdateError.message}`);
+
+  const { data: school } = await supabaseAdmin
+    .from("schools")
+    .select("name")
+    .eq("id", schoolId)
+    .maybeSingle();
+
+  await logAuditEvent({
+    schoolId,
+    action: "update",
+    module: "Principals",
+    description: `Revoked admin access from ${staff.full_name} (reverted to ${profile?.role ?? "their prior role"})`,
+  });
+
+  if (staff.email) {
+    await sendAdminRevokedEmail({
       to: staff.email,
       name: staff.full_name ?? "there",
       schoolName: school?.name ?? "your school",

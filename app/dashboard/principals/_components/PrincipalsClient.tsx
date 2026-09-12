@@ -3,11 +3,11 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
-  UserCog, Search, Plus, ChevronDown, X, CheckCircle2, Loader2, Landmark, ArrowUpCircle,
+  UserCog, Search, Plus, ChevronDown, X, CheckCircle2, Loader2, Landmark, ArrowUpCircle, ShieldOff,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
 import { Table, TableHead, TableBody, Th, Td, Tr, TableEmptyRow } from "@/components/ui/data-table";
-import { invitePrincipal, searchPromotableStaff, promoteExistingToAdmin, type PromotableStaff } from "../actions";
+import { invitePrincipal, searchPromotableStaff, promoteExistingToAdmin, revokeAdminAccess, type PromotableStaff } from "../actions";
 
 const SEARCH_MIN_CHARS = 2;
 
@@ -22,6 +22,10 @@ export interface Principal {
   schoolName: string;
   status: PrincipalStatus;
   joinedDate: string;
+  // Only a grant-based admin (promoteExistingToAdmin) can be revoked — see
+  // revokeAdminAccess in ../actions.ts.
+  revokable: boolean;
+  staffId: string | null;
 }
 
 export interface SchoolOption {
@@ -264,6 +268,24 @@ export default function PrincipalsClient({ principals, schools }: { principals: 
   const [query, setQuery] = useState("");
   const [schoolFilter, setSchoolFilter] = useState("all");
   const [showInvite, setShowInvite] = useState(false);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [revokeError, setRevokeError] = useState<{ id: string; message: string } | null>(null);
+
+  async function handleRevoke(p: Principal) {
+    if (!p.staffId) return;
+    setRevokingId(p.id);
+    setRevokeError(null);
+    try {
+      await revokeAdminAccess(p.staffId, p.schoolId);
+      router.refresh();
+    } catch (err) {
+      setRevokeError({ id: p.id, message: err instanceof Error ? err.message : "Failed to revoke admin access." });
+    } finally {
+      setRevokingId(null);
+      setConfirmingId(null);
+    }
+  }
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
@@ -318,11 +340,12 @@ export default function PrincipalsClient({ principals, schools }: { principals: 
           <Th>School</Th>
           <Th>Contact</Th>
           <Th>Joined</Th>
-          <Th position="last">Status</Th>
+          <Th>Status</Th>
+          <Th position="last">&nbsp;</Th>
         </TableHead>
         <TableBody>
           {filtered.length === 0 ? (
-            <TableEmptyRow colSpan={5} icon={UserCog} message="No principals found" />
+            <TableEmptyRow colSpan={6} icon={UserCog} message="No principals found" />
           ) : (
             filtered.map((p) => (
               <Tr key={p.id}>
@@ -340,7 +363,39 @@ export default function PrincipalsClient({ principals, schools }: { principals: 
                   <p className="text-xs text-gray-400 dark:text-zinc-500">{p.phone}</p>
                 </Td>
                 <Td className="text-sm text-gray-700 dark:text-zinc-300 whitespace-nowrap">{formatDate(p.joinedDate)}</Td>
-                <Td position="last"><span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[p.status]}`}>{STATUS_LABEL[p.status]}</span></Td>
+                <Td><span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[p.status]}`}>{STATUS_LABEL[p.status]}</span></Td>
+                <Td position="last">
+                  {p.revokable && (
+                    confirmingId === p.id ? (
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => void handleRevoke(p)}
+                          disabled={revokingId === p.id}
+                          className="flex items-center gap-1 rounded-lg bg-red-500 hover:bg-red-600 disabled:opacity-50 px-2 py-1 text-xs font-medium text-white transition-colors"
+                        >
+                          {revokingId === p.id && <Loader2 className="h-3 w-3 animate-spin" />} Confirm
+                        </button>
+                        <button
+                          onClick={() => setConfirmingId(null)}
+                          disabled={revokingId === p.id}
+                          className="rounded-lg border border-gray-200 dark:border-zinc-700 px-2 py-1 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-end gap-0.5">
+                        <button
+                          onClick={() => setConfirmingId(p.id)}
+                          className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                        >
+                          <ShieldOff className="h-3.5 w-3.5" /> Revoke
+                        </button>
+                        {revokeError?.id === p.id && <p className="text-[11px] text-red-500 max-w-[160px] text-right">{revokeError.message}</p>}
+                      </div>
+                    )
+                  )}
+                </Td>
               </Tr>
             ))
           )}
