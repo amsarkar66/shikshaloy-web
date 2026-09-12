@@ -70,6 +70,34 @@ export async function updateSchoolProfile(input: UpdateSchoolProfileInput): Prom
   revalidatePath("/dashboard/settings");
 }
 
+// ── Institution profile (super_admin) ───────────────────────────────────────────
+
+export interface UpdateInstitutionProfileInput {
+  name: string;
+  email: string | null;
+  phone: string | null;
+  website: string | null;
+}
+
+export async function updateInstitutionProfile(input: UpdateInstitutionProfileInput): Promise<void> {
+  const user = await requireRole(["super_admin"]);
+
+  const { error } = await supabaseAdmin
+    .from("institutions")
+    .update({
+      name: input.name,
+      email: input.email || null,
+      phone: input.phone || null,
+      website: input.website || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("owner_id", user.id);
+
+  if (error) throw new Error(`Failed to update institution profile: ${error.message}`);
+
+  revalidatePath("/dashboard/settings");
+}
+
 // ── Academic settings ─────────────────────────────────────────────────────────
 
 export interface UpdateAcademicSettingsInput {

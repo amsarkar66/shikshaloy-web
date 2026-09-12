@@ -32,7 +32,7 @@ import {
 import { LogoUpload } from "../../schools/_components/logo-upload";
 import { SignatureUpload } from "../../schools/_components/signature-upload";
 import {
-  updateSchoolProfile, updateAcademicSettings,
+  updateSchoolProfile, updateAcademicSettings, updateInstitutionProfile,
   saveRoleTemplate, createRoleTemplate, deleteRoleTemplate, restoreRoleTemplateDefaults,
   updateNotificationPreferences, updateProfileBasic, changePassword,
 } from "../actions";
@@ -73,6 +73,7 @@ export interface SettingsData {
   publishKeys: PublishKeyRow[];
   domains: DomainRow[];
   domainCnameTarget: string;
+  institution: { name: string; email: string; phone: string; website: string } | null;
 }
 
 // ── Tab config by role ────────────────────────────────────────────────────────
@@ -274,17 +275,31 @@ function SaveBar({ onSave, saved, busy }: { onSave: () => void; saved: boolean; 
 }
 
 // ── Tab: Institution (super_admin) ────────────────────────────────────────────
-// NOTE: institution-level (multi-school) profile has no backing table yet —
-// kept as a local-only placeholder until multi-tenant institution settings ship.
 
-function InstitutionTab({ publishKeys }: { publishKeys: PublishKeyRow[] }) {
-  const [name,    setName]    = useState("Sunrise Education Group");
-  const [email,   setEmail]   = useState("admin@sunrise.edu");
-  const [phone,   setPhone]   = useState("+91 98765 00000");
-  const [website, setWebsite] = useState("www.sunrise.edu");
+function InstitutionTab({
+  institution, publishKeys,
+}: { institution: SettingsData["institution"]; publishKeys: PublishKeyRow[] }) {
+  const [name,    setName]    = useState(institution?.name ?? "");
+  const [email,   setEmail]   = useState(institution?.email ?? "");
+  const [phone,   setPhone]   = useState(institution?.phone ?? "");
+  const [website, setWebsite] = useState(institution?.website ?? "");
   const [saved,   setSaved]   = useState(false);
+  const [busy,    setBusy]    = useState(false);
+  const [error,   setError]   = useState<string | null>(null);
 
-  function handleSave() { setSaved(true); setTimeout(() => setSaved(false), 2500); }
+  async function handleSave() {
+    setBusy(true);
+    setError(null);
+    try {
+      await updateInstitutionProfile({ name, email: email || null, phone: phone || null, website: website || null });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save institution profile");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -307,7 +322,8 @@ function InstitutionTab({ publishKeys }: { publishKeys: PublishKeyRow[] }) {
             <Input value={website} onChange={setWebsite} placeholder="www.example.com" />
           </div>
         </div>
-        <SaveBar onSave={handleSave} saved={saved} />
+        {error && <p className="text-xs text-red-500">{error}</p>}
+        <SaveBar onSave={handleSave} saved={saved} busy={busy} />
       </SectionCard>
       <PublishKeyPanel initialKeys={publishKeys} />
     </div>
@@ -1289,7 +1305,7 @@ export function SettingsPageClient({
         </div>
       )}
       {activeTab === "institution" && role !== "kernel" && (
-        <InstitutionTab publishKeys={data.publishKeys} />
+        <InstitutionTab institution={data.institution} publishKeys={data.publishKeys} />
       )}
       {activeTab === "domain"        && role === "super_admin" && (
         <DomainTab domains={data.domains} cnameTarget={data.domainCnameTarget} />

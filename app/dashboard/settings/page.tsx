@@ -35,12 +35,13 @@ export default async function SettingsPage() {
   const needsTemplates = userIsAdmin || role === "super_admin";
   const needsPublishKeys = role === "super_admin" || role === "kernel";
   const needsDomains = role === "super_admin";
+  const needsInstitution = role === "super_admin";
 
   // kernel operates platform-wide and has no associated school, so only
   // resolve (and require) a school id for roles whose data actually needs one.
   const schoolId = needsSchoolData || needsTemplates ? await getCurrentSchoolIdOrThrow() : "";
 
-  const [schoolResult, academicYearsResult, academicSettingsResult, templates, publishKeys, domains] = await Promise.all([
+  const [schoolResult, academicYearsResult, academicSettingsResult, templates, publishKeys, domains, institutionResult] = await Promise.all([
     needsSchoolData
       ? supabaseAdmin
           .from("schools")
@@ -65,6 +66,13 @@ export default async function SettingsPage() {
     needsTemplates ? getOrSeedRoleTemplates(schoolId) : Promise.resolve([]),
     needsPublishKeys ? listPublishKeys() : Promise.resolve([]),
     needsDomains ? listDomains() : Promise.resolve([]),
+    needsInstitution
+      ? supabaseAdmin
+          .from("institutions")
+          .select("name, email, phone, website")
+          .eq("owner_id", user.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   const { schools, activeSchoolId } = await getSchoolPickerData();
@@ -112,6 +120,14 @@ export default async function SettingsPage() {
     publishKeys,
     domains,
     domainCnameTarget: process.env.CLOUDFLARE_FALLBACK_ORIGIN ?? "sites.shikshaloy.com",
+    institution: institutionResult.data
+      ? {
+          name: institutionResult.data.name ?? "",
+          email: institutionResult.data.email ?? "",
+          phone: institutionResult.data.phone ?? "",
+          website: institutionResult.data.website ?? "",
+        }
+      : null,
   };
 
   return <SettingsPageClient role={role} data={data} schools={schools} activeSchoolId={activeSchoolId} />;
