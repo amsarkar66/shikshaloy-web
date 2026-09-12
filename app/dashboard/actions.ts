@@ -2,11 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { updateInstitutionStatus } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { sendInstitutionDecisionEmail } from "@/lib/email/resend";
 import { requireRole } from "@/lib/auth/verified-role";
+import { ACTIVE_SCHOOL_COOKIE } from "@/lib/supabase/school-context";
+import { ACTIVE_IDENTITY_COOKIE } from "@/lib/identity/context";
 import { PLANS } from "./billing/_data/billing";
 
 // audit_log.school_id is a not-null FK to `schools`, so an institution-level
@@ -90,14 +93,26 @@ export async function rejectInstitution(formData: FormData) {
   revalidatePath("/dashboard/audit-log");
 }
 
+// Neither of these was cleared on sign-out, so on a shared device the next
+// login could inherit the previous account's active school/identity — not
+// a data leak (both are re-validated against the new account on read), but
+// a stale default that shouldn't outlive the session that set it.
+async function clearSessionCookies() {
+  const cookieStore = await cookies();
+  cookieStore.delete(ACTIVE_SCHOOL_COOKIE);
+  cookieStore.delete(ACTIVE_IDENTITY_COOKIE);
+}
+
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
+  await clearSessionCookies();
   redirect("/login");
 }
 
 export async function signOutToDemo() {
   const supabase = await createClient();
   await supabase.auth.signOut();
+  await clearSessionCookies();
   redirect("/demo");
 }
