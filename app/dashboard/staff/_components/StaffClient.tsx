@@ -710,12 +710,6 @@ export default function StaffClient({
         </div>
       )}
 
-      {hasFilter && (
-        <div className="flex items-center justify-end">
-          <span className="text-xs text-primary-600 dark:text-primary-400 font-medium">Filters active</span>
-        </div>
-      )}
-
       <Table
         footer={totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-gray-200 dark:border-zinc-700 px-4 py-3">
