@@ -5,7 +5,7 @@ import {
   GraduationCap, BookOpen, ShieldAlert,
 } from "lucide-react";
 import { FancyButton } from "@/components/ui/fancy-button";
-import { getVerifiedRole } from "@/lib/auth/verified-role";
+import { getVerifiedUser, isAdmin } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { resolveAuthorizedSchoolId } from "@/lib/supabase/authorized-school";
 import { DAYS, type Period, type RowItem, type ClassTimetable, type Day, type Slot } from "../../timetable/_data/timetable";
@@ -251,8 +251,9 @@ export default async function StudentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const role = await getVerifiedRole();
-  if (role !== "admin" && role !== "super_admin") return <Unauthorized />;
+  const vu = await getVerifiedUser();
+  const role = vu?.role;
+  if (role !== "admin" && role !== "super_admin" && !(await isAdmin(vu))) return <Unauthorized />;
 
   let schoolId: string;
   try {

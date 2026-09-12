@@ -46,10 +46,46 @@ export async function getVerifiedRole(): Promise<string | null> {
   return vu?.role ?? null;
 }
 
+// Admin access can come from either signal: profiles.role === 'admin'
+// (every admin created before this check existed, plus anyone invited via
+// invitePrincipal) or staff_members.permission_template_id === 'admin'
+// (promoteExistingToAdmin, which deliberately does NOT overwrite the
+// person's original role — see docs/architecture/role-and-identity-model.md
+// §7-8). This is what lets a teacher/staff account be granted admin access
+// without losing their original role. Both requireRole and
+// requireRoleOrStaffTemplate fall back to this only when the caller's
+// literal role didn't already satisfy the check, so it changes nothing for
+// any call site that doesn't ask for "admin" in the first place.
+async function hasAdminGrant(profileId: string): Promise<boolean> {
+  const { data: staff } = await supabaseAdmin
+    .from("staff_members")
+    .select("permission_template_id")
+    .eq("profile_id", profileId)
+    .maybeSingle();
+  return staff?.permission_template_id === "admin";
+}
+
+// For call sites that inline a `role === "admin"` / `role !== "admin"`
+// comparison instead of going through requireRole (page-level
+// <Unauthorized /> guards, and a few actions.ts files with their own local
+// admin check) — same admin-grant fallback, usable wherever a plain
+// boolean is more natural than a throwing helper.
+export async function isAdmin(vu: VerifiedProfile | null): Promise<boolean> {
+  if (!vu) return false;
+  if (vu.role === "admin") return true;
+  return hasAdminGrant(vu.id);
+}
+
 export async function requireRole<T extends string>(allowed: readonly T[]): Promise<{ id: string; role: T }> {
   const vu = await getVerifiedUser();
-  if (!vu || !allowed.includes(vu.role as T)) throw new Error("Unauthorized");
-  return { id: vu.id, role: vu.role as T };
+  if (!vu) throw new Error("Unauthorized");
+  if (allowed.includes(vu.role as T)) return { id: vu.id, role: vu.role as T };
+
+  if ((allowed as readonly string[]).includes("admin") && (await hasAdminGrant(vu.id))) {
+    return { id: vu.id, role: "admin" as T };
+  }
+
+  throw new Error("Unauthorized");
 }
 
 // Same as requireRole, but also admits a "staff" account whose
@@ -65,13 +101,18 @@ export async function requireRoleOrStaffTemplate(
 
   if (roles.includes(vu.role)) return { id: vu.id, role: vu.role };
 
-  if (vu.role === "staff" && staffTemplates.length > 0) {
+  const needsStaffLookup = (vu.role === "staff" && staffTemplates.length > 0) || roles.includes("admin");
+  if (needsStaffLookup) {
     const { data: staff } = await supabaseAdmin
       .from("staff_members")
       .select("permission_template_id")
       .eq("profile_id", vu.id)
       .maybeSingle();
-    if (staff?.permission_template_id && staffTemplates.includes(staff.permission_template_id)) {
+
+    if (roles.includes("admin") && staff?.permission_template_id === "admin") {
+      return { id: vu.id, role: vu.role };
+    }
+    if (vu.role === "staff" && staff?.permission_template_id && staffTemplates.includes(staff.permission_template_id)) {
       return { id: vu.id, role: vu.role };
     }
   }

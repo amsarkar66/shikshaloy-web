@@ -5,7 +5,9 @@ import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 import { getTeacherContext } from "@/lib/teachers/context";
-import { getVerifiedUser } from "@/lib/auth/verified-role";
+import { getDriverContext } from "@/lib/drivers/context";
+import { getVerifiedUser, isAdmin } from "@/lib/auth/verified-role";
+import { resolveAuthorizedSchoolId } from "@/lib/supabase/authorized-school";
 import { logAuditEvent } from "@/lib/audit/log";
 import { markAttendanceEvent, resolveCredential } from "@/lib/attendance/resolve";
 
@@ -33,6 +35,8 @@ async function requireAttendanceMarker(): Promise<MarkerContext> {
     return { role, teacherSectionIds: teacher.sectionIds };
   }
 
+  if (await isAdmin(vu)) return { role: "admin", teacherSectionIds: null };
+
   throw new Error("Unauthorized");
 }
 
@@ -50,7 +54,12 @@ export async function markStudentAttendance(studentId: string, sectionId: string
   const marker = await requireAttendanceMarker();
   assertCanMarkSection(marker, sectionId);
 
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  // Resolved (and authorization-checked) from the student's own record, not
+  // the caller's "active school" cookie — otherwise a caller could pass an
+  // arbitrary studentId from another school and overwrite its attendance,
+  // since the table's unique constraint is (student_id, date) with no
+  // school_id component to stop a cross-tenant upsert.
+  const schoolId = await resolveAuthorizedSchoolId("students", studentId);
   const { error } = await supabaseAdmin
     .from("student_attendance")
     .upsert(
@@ -74,7 +83,9 @@ export async function markStaffAttendance(staffId: string, date: string, status:
   const marker = await requireAttendanceMarker();
   assertCanMarkStaff(marker);
 
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  // Same reasoning as markStudentAttendance: resolve schoolId from the
+  // staff record itself so a caller can't overwrite another school's row.
+  const schoolId = await resolveAuthorizedSchoolId("staff_members", staffId);
   const { error } = await supabaseAdmin
     .from("staff_attendance")
     .upsert(
@@ -154,7 +165,29 @@ export async function markTransportAttendance(
   trip: "morning" | "evening",
   status: "present" | "absent",
 ) {
-  const schoolId = await getCurrentSchoolIdOrThrow();
+  // Unlike every other mutating export in this file, this one had no
+  // authorization check at all — any authenticated user could mark any
+  // student's transport attendance on any route. Drivers may only mark
+  // their own assigned route's roster; admins/super_admins may mark any
+  // route in their school, verified against the route's actual school_id.
+  const vu = await getVerifiedUser();
+  if (!vu) throw new Error("Unauthorized");
+
+  let schoolId: string;
+  if (vu.role === "admin" || vu.role === "super_admin" || (await isAdmin(vu))) {
+    schoolId = await resolveAuthorizedSchoolId("transport_routes", routeId);
+    const { data: student } = await supabaseAdmin.from("students").select("school_id").eq("id", studentId).maybeSingle();
+    if (student?.school_id !== schoolId) throw new Error("Student not found in this route's school");
+  } else if (vu.role === "driver") {
+    const driver = await getDriverContext(vu.id);
+    const route = driver?.routes.find((r) => r.id === routeId);
+    if (!route) throw new Error("You are not assigned to this route");
+    if (!route.roster.some((s) => s.id === studentId)) throw new Error("Student is not on this route");
+    schoolId = driver!.schoolId;
+  } else {
+    throw new Error("Unauthorized");
+  }
+
   const { error } = await supabaseAdmin
     .from("transport_attendance")
     .upsert(

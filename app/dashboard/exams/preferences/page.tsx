@@ -1,5 +1,5 @@
 import { ShieldAlert } from "lucide-react";
-import { getVerifiedRole } from "@/lib/auth/verified-role";
+import { getVerifiedUser, isAdmin } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow, getSchoolPickerData } from "@/lib/supabase/school-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
@@ -18,8 +18,9 @@ function Unauthorized() {
 }
 
 export default async function ExamPreferencePage() {
-  const role = await getVerifiedRole();
-  if (role !== "admin" && role !== "super_admin") return <Unauthorized />;
+  const vu = await getVerifiedUser();
+  const role = vu?.role;
+  if (role !== "admin" && role !== "super_admin" && !(await isAdmin(vu))) return <Unauthorized />;
 
   const schoolId = await getCurrentSchoolIdOrThrow();
   const academicYearId = await getCurrentAcademicYearId();

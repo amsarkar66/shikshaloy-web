@@ -1,5 +1,5 @@
 import { ShieldAlert } from "lucide-react";
-import { getVerifiedUser } from "@/lib/auth/verified-role";
+import { getVerifiedUser, isAdmin } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import DriversClient from "./_components/DriversClient";
@@ -36,7 +36,7 @@ interface StaffRow {
 
 export default async function DriversPage() {
   const verifiedUser = await getVerifiedUser();
-  if (!verifiedUser || verifiedUser.role !== "admin") return <Unauthorized />;
+  if (!verifiedUser || (verifiedUser.role !== "admin" && !(await isAdmin(verifiedUser)))) return <Unauthorized />;
 
   const schoolId = await getCurrentSchoolIdOrThrow();
 

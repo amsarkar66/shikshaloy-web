@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { ShieldAlert } from "lucide-react";
-import { getVerifiedUser } from "@/lib/auth/verified-role";
+import { getVerifiedUser, isAdmin } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import SubjectAttendanceClient from "../_components/SubjectAttendanceClient";
@@ -53,7 +53,7 @@ export default async function SubjectAttendancePage({
 
   const vu = await getVerifiedUser();
   const role = vu?.role;
-  if (!vu || (role !== "admin" && role !== "super_admin" && role !== "teacher")) return <Unauthorized />;
+  if (!vu || (role !== "admin" && role !== "super_admin" && role !== "teacher" && !(await isAdmin(vu)))) return <Unauthorized />;
 
   const schoolId = await getCurrentSchoolIdOrThrow();
   const today = new Date().toISOString().split("T")[0];

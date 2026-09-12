@@ -1,5 +1,5 @@
 import { ShieldAlert } from "lucide-react";
-import { getVerifiedUser } from "@/lib/auth/verified-role";
+import { getVerifiedUser, isAdmin } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow, getSchoolPickerData } from "@/lib/supabase/school-context";
 import AcademicCalendarClient from "./_components/AcademicCalendarClient";
@@ -20,7 +20,7 @@ function Unauthorized() {
 export default async function AcademicCalendarPage() {
   const vu = await getVerifiedUser();
   const role = vu?.role;
-  if (!vu || (role !== "admin" && role !== "super_admin")) return <Unauthorized />;
+  if (!vu || (role !== "admin" && role !== "super_admin" && !(await isAdmin(vu)))) return <Unauthorized />;
 
   const schoolId = await getCurrentSchoolIdOrThrow();
   const { schools, activeSchoolId } = await getSchoolPickerData();

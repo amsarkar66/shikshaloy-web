@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ShieldAlert, ArrowLeft, Clock, Users, CalendarOff, CheckCircle2 } from "lucide-react";
-import { getVerifiedUser } from "@/lib/auth/verified-role";
+import { getVerifiedUser, isAdmin } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
@@ -66,7 +66,7 @@ export default async function SubjectAttendancePickerPage({
 }) {
   const vu = await getVerifiedUser();
   const role = vu?.role;
-  if (!vu || (role !== "admin" && role !== "super_admin")) return <Unauthorized />;
+  if (!vu || (role !== "admin" && role !== "super_admin" && !(await isAdmin(vu)))) return <Unauthorized />;
 
   const { date, section, subject: subjectId } = await searchParams;
   if (!subjectId) return <EmptyState title="Open this from a subject's detail page to mark its attendance." />;
@@ -195,7 +195,7 @@ export default async function SubjectAttendancePickerPage({
                   ) : (
                     <span className="hidden sm:flex items-center gap-1 text-xs font-medium text-gray-400 dark:text-zinc-500"><Users className="h-3.5 w-3.5"/> Not started</span>
                   )}
-                  <Link href={`/dashboard/subjects/attendance/${slot.id}?date=${dateStr}`} className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:bg-primary-50 hover:text-primary-600 dark:hover:bg-primary-500/10 dark:hover:text-primary-400 transition-colors">
+                  <Link href={`/dashboard/subjects/attendance/${slot.id}?date=${dateStr}`} prefetch={false} className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-zinc-400 hover:bg-primary-50 hover:text-primary-600 dark:hover:bg-primary-500/10 dark:hover:text-primary-400 transition-colors">
                     Mark Attendance
                   </Link>
                 </div>

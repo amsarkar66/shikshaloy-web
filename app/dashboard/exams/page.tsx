@@ -1,5 +1,5 @@
 import { ShieldAlert } from "lucide-react";
-import { getVerifiedUser } from "@/lib/auth/verified-role";
+import { getVerifiedUser, isAdmin } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getCurrentInstitutionIdOrThrow, getInstitutionSchools } from "@/lib/supabase/institution-context";
@@ -59,7 +59,7 @@ function buildExams(examRows: ExamRow[], scheduleRows: ScheduleRow[], schoolName
 export default async function ExamsPage() {
   const verifiedUser = await getVerifiedUser();
   const role = verifiedUser?.role;
-  if (role !== "admin" && role !== "super_admin") return <Unauthorized />;
+  if (role !== "admin" && role !== "super_admin" && !(await isAdmin(verifiedUser))) return <Unauthorized />;
 
   if (role === "super_admin") {
     const institutionId = await getCurrentInstitutionIdOrThrow();

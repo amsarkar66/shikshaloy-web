@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { ShieldAlert } from "lucide-react";
-import { getVerifiedRole } from "@/lib/auth/verified-role";
+import { getVerifiedUser, isAdmin } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { resolveAuthorizedSchoolId } from "@/lib/supabase/authorized-school";
 import { getSchoolGradeBands, getSchoolPassMarks } from "@/lib/exams/grading-data";
@@ -51,8 +51,9 @@ function Unauthorized() {
 
 export default async function ExamDetailPage({ params }: { params: Promise<{ examId: string }> }) {
   const { examId } = await params;
-  const role = await getVerifiedRole();
-  if (role !== "admin" && role !== "super_admin") return <Unauthorized />;
+  const vu = await getVerifiedUser();
+  const role = vu?.role;
+  if (role !== "admin" && role !== "super_admin" && !(await isAdmin(vu))) return <Unauthorized />;
 
   // Resolved from the exam record itself (then authorized), rather than the
   // "active school" cookie — a super_admin viewing the combined exams list

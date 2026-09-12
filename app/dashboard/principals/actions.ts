@@ -157,13 +157,17 @@ export async function promoteExistingToAdmin(input: PromoteToAdminInput): Promis
 
   const { data: staff, error: staffError } = await supabaseAdmin
     .from("staff_members")
-    .select("id, profile_id, full_name, email")
+    .select("id, profile_id, full_name, email, permission_template_id")
     .eq("id", input.staffId)
     .eq("school_id", input.schoolId)
     .maybeSingle();
 
   if (staffError || !staff || !staff.profile_id) {
     throw new Error("Staff member not found");
+  }
+
+  if (staff.permission_template_id === "admin") {
+    throw new Error("This person already has admin access");
   }
 
   const { data: profile } = await supabaseAdmin
@@ -180,32 +184,25 @@ export async function promoteExistingToAdmin(input: PromoteToAdminInput): Promis
     throw new Error("Only teachers and staff can be promoted to admin");
   }
 
-  // user_metadata isn't trusted for authorization (profiles.role is —
-  // see lib/auth/verified-role.ts), but it's still read for display in a
-  // couple of places (e.g. the marketing navbar), so keep it in sync.
-  // updateUserById needs the full object passed back, not just the changed
-  // keys, hence the read-merge-write instead of a bare partial update.
-  const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(staff.profile_id);
-  const { error: metaError } = await supabaseAdmin.auth.admin.updateUserById(staff.profile_id, {
-    user_metadata: { ...authUser?.user?.user_metadata, role: "admin", school_id: input.schoolId },
-  });
-  if (metaError) throw new Error(metaError.message);
-
-  const { error: profileError } = await supabaseAdmin
-    .from("profiles")
-    .update({ role: "admin", school_id: input.schoolId, status: "active" })
-    .eq("id", staff.profile_id);
-  if (profileError) throw new Error(`Failed to update role: ${profileError.message}`);
-
-  // Not deactivated: this row is what payroll_records.staff_id points at,
-  // so leaving it active is what keeps salary processing working for them
-  // as admin. permission_template_id is set for forward compatibility with
-  // the access-role model (lib/settings/role-template-constants.ts) — it
-  // isn't read anywhere yet, so this is inert today.
-  await supabaseAdmin
+  // Deliberately does NOT touch profiles.role/school_id — that's the
+  // whole point of this model (docs/architecture/role-and-identity-model.md
+  // §7-8): a promoted teacher stays a teacher (still shows up in "assign
+  // teacher" pickers, keeps their teacher-only screens) and gains admin
+  // access on top, via this permission_template_id grant alone. Every
+  // admin-gated check (requireRole/requireRoleOrStaffTemplate/isAdmin in
+  // lib/auth/verified-role.ts) reads this as an alternative to
+  // profiles.role === 'admin', not a replacement for it — invitePrincipal
+  // still writes profiles.role = 'admin' for brand-new admin accounts, and
+  // that path is untouched.
+  //
+  // Not deactivated: this staff_members row is what payroll_records.staff_id
+  // points at, so leaving it active/unchanged is what keeps salary
+  // processing working for them as admin.
+  const { error: staffUpdateError } = await supabaseAdmin
     .from("staff_members")
     .update({ permission_template_id: "admin", permission_template_name: "Admin" })
     .eq("id", staff.id);
+  if (staffUpdateError) throw new Error(`Failed to grant admin access: ${staffUpdateError.message}`);
 
   const { data: school } = await supabaseAdmin
     .from("schools")

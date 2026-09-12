@@ -1,5 +1,5 @@
 import { ShieldAlert } from "lucide-react";
-import { getVerifiedUser } from "@/lib/auth/verified-role";
+import { getVerifiedUser, isAdmin } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getCurrentInstitutionIdOrThrow, getInstitutionSchools } from "@/lib/supabase/institution-context";
@@ -76,7 +76,7 @@ const PARENT_SELECT = `
 
 export default async function ParentsPage() {
   const verifiedUser = await getVerifiedUser();
-  if (!verifiedUser || (verifiedUser.role !== "admin" && verifiedUser.role !== "super_admin")) return <Unauthorized />;
+  if (!verifiedUser || (verifiedUser.role !== "admin" && verifiedUser.role !== "super_admin" && !(await isAdmin(verifiedUser)))) return <Unauthorized />;
 
   if (verifiedUser.role === "super_admin") {
     const institutionId = await getCurrentInstitutionIdOrThrow();

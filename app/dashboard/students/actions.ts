@@ -12,7 +12,7 @@ import { logAuditEvent } from "@/lib/audit/log";
 import { enrollStudent, createLoginForExistingStudent, type EnrollStudentResult } from "@/lib/students/enroll";
 import { addressForStorage, formatAddress, type StructuredAddress } from "@/lib/students/address";
 import { randomPassword } from "@/lib/auth/random-password";
-import { getVerifiedUser, requireRoleOrStaffTemplate, type VerifiedProfile } from "@/lib/auth/verified-role";
+import { getVerifiedUser, requireRoleOrStaffTemplate, isAdmin, type VerifiedProfile } from "@/lib/auth/verified-role";
 import type { LeaveType } from "../leaves/_data/leaves";
 
 // Student records hold sensitive PII (contacts, medical info, login
@@ -20,7 +20,7 @@ import type { LeaveType } from "../leaves/_data/leaves";
 // read or mutate another student's record — only admins manage students.
 async function requireStudentAdmin(): Promise<VerifiedProfile> {
   const vu = await getVerifiedUser();
-  if (!vu || (vu.role !== "admin" && vu.role !== "super_admin")) throw new Error("Unauthorized");
+  if (!vu || (vu.role !== "super_admin" && !(await isAdmin(vu)))) throw new Error("Unauthorized");
   return vu;
 }
 

@@ -1,5 +1,5 @@
 import { ShieldAlert } from "lucide-react";
-import { getVerifiedUser } from "@/lib/auth/verified-role";
+import { getVerifiedUser, isAdmin } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getCurrentInstitutionIdOrThrow, getInstitutionSchools } from "@/lib/supabase/institution-context";
@@ -53,7 +53,7 @@ const GRIEVANCE_SELECT = "id, name, email, phone, category, subject, message, st
 
 export default async function GrievancesPage() {
   const vu = await getVerifiedUser();
-  if (!vu || (vu.role !== "admin" && vu.role !== "super_admin" && vu.role !== "kernel")) return <Unauthorized />;
+  if (!vu || (vu.role !== "admin" && vu.role !== "super_admin" && vu.role !== "kernel" && !(await isAdmin(vu)))) return <Unauthorized />;
 
   if (vu.role === "super_admin") {
     const institutionId = await getCurrentInstitutionIdOrThrow();

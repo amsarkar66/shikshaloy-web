@@ -1,5 +1,5 @@
 import { ShieldAlert } from "lucide-react";
-import { getVerifiedUser } from "@/lib/auth/verified-role";
+import { getVerifiedUser, isAdmin } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
@@ -66,7 +66,7 @@ interface PtmBookingRow {
 
 export default async function EventsPage() {
   const vu = await getVerifiedUser();
-  if (!vu || vu.role !== "admin") return <Unauthorized />;
+  if (!vu || (vu.role !== "admin" && !(await isAdmin(vu)))) return <Unauthorized />;
 
   const schoolId = await getCurrentSchoolIdOrThrow();
   const academicYearId = await getCurrentAcademicYearId();

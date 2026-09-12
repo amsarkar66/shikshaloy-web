@@ -1,4 +1,4 @@
-import { getVerifiedUser } from "@/lib/auth/verified-role";
+import { getVerifiedUser, isAdmin } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
@@ -248,7 +248,7 @@ export default async function AttendancePage() {
     return <DriverAttendance userId={vu.id} />;
   }
 
-  if (!vu || role !== "admin") {
+  if (!vu || (role !== "admin" && !(await isAdmin(vu)))) {
     return (
       <div className="w-full px-6 py-8">
         <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 py-24 text-center">

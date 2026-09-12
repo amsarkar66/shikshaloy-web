@@ -64,7 +64,7 @@ export default async function PeoplePage() {
     return <PeopleClient schools={schools} students={[]} staff={[]} parents={[]} admins={[]} />;
   }
 
-  const [{ data: studentRows }, { data: staffRows }, { data: parentRows }, { data: adminRows }] = await Promise.all([
+  const [{ data: studentRows }, { data: staffRows }, { data: parentRows }, { data: roleAdminRows }, { data: grantedStaffRows }] = await Promise.all([
     supabaseAdmin
       .from("students")
       .select("id, full_name, roll_no, gender, phone, status, school_id, sections ( name, grades ( level ) )")
@@ -84,9 +84,31 @@ export default async function PeoplePage() {
       .from("profiles")
       .select("id, full_name, phone, status, school_id, created_at")
       .in("school_id", schoolIds)
-      .eq("role", "admin")
-      .order("created_at", { ascending: false }),
+      .eq("role", "admin"),
+    // A promoted teacher/staff keeps their original profiles.role (see
+    // docs/architecture/role-and-identity-model.md §7-8) — this second
+    // query is what still surfaces them here as an admin.
+    supabaseAdmin
+      .from("staff_members")
+      .select("profile_id")
+      .in("school_id", schoolIds)
+      .eq("permission_template_id", "admin")
+      .not("profile_id", "is", null),
   ]);
+
+  let adminRows = roleAdminRows ?? [];
+  const existingAdminIds = new Set(adminRows.map((p) => p.id));
+  const missingAdminIds = (grantedStaffRows ?? [])
+    .map((s) => s.profile_id as string)
+    .filter((id) => id && !existingAdminIds.has(id));
+  if (missingAdminIds.length) {
+    const { data: extraAdminProfiles } = await supabaseAdmin
+      .from("profiles")
+      .select("id, full_name, phone, status, school_id, created_at")
+      .in("id", missingAdminIds);
+    adminRows = [...adminRows, ...(extraAdminProfiles ?? [])];
+  }
+  adminRows = [...adminRows].sort((a, b) => b.created_at.localeCompare(a.created_at));
 
   const students: StudentRow[] = ((studentRows ?? []) as unknown as StudentQueryRow[]).map((s) => ({
     id: s.id,

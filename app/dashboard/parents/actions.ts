@@ -6,7 +6,7 @@ import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { resolveAuthorizedSchoolId, assertAuthorizedSchool } from "@/lib/supabase/authorized-school";
 import { logAuditEvent } from "@/lib/audit/log";
 import { randomPassword } from "@/lib/auth/random-password";
-import { getVerifiedUser, requireRole, type VerifiedProfile } from "@/lib/auth/verified-role";
+import { getVerifiedUser, requireRole, isAdmin, type VerifiedProfile } from "@/lib/auth/verified-role";
 
 export type ParentRelationship = "father" | "mother" | "guardian";
 
@@ -39,7 +39,7 @@ async function resolveTargetSchoolId(vu: VerifiedProfile, explicitSchoolId?: str
 
 async function requireParentAdmin(): Promise<VerifiedProfile> {
   const vu = await getVerifiedUser();
-  if (!vu || (vu.role !== "admin" && vu.role !== "super_admin")) throw new Error("Unauthorized");
+  if (!vu || (vu.role !== "super_admin" && !(await isAdmin(vu)))) throw new Error("Unauthorized");
   return vu;
 }
 

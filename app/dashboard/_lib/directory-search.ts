@@ -1,6 +1,6 @@
 "use server";
 
-import { getVerifiedUser } from "@/lib/auth/verified-role";
+import { getVerifiedUser, isAdmin } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolId } from "@/lib/supabase/school-context";
 
@@ -47,10 +47,11 @@ export async function searchDirectory(query: string): Promise<DirectorySearchRes
   const role = vu.role;
   const staffTemplateId = role === "staff" ? await getVerifiedStaffTemplateId() : undefined;
 
-  const canSearchStudents = role === "admin";
-  const canSearchParents = role === "admin";
+  const userIsAdmin = role === "admin" || (await isAdmin(vu));
+  const canSearchStudents = userIsAdmin;
+  const canSearchParents = userIsAdmin;
   const canSearchStaff =
-    role === "admin" || role === "super_admin" || (role === "staff" && staffTemplateId === "hr_manager");
+    userIsAdmin || role === "super_admin" || (role === "staff" && staffTemplateId === "hr_manager");
 
   if (!canSearchStudents && !canSearchParents && !canSearchStaff) return [];
 

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
-import { getVerifiedUser } from "@/lib/auth/verified-role";
+import { getVerifiedUser, isAdmin } from "@/lib/auth/verified-role";
 import { getTeacherContext } from "@/lib/teachers/context";
 import { MAX_MARKS } from "../exams/_data/exams";
 import { resolveGrade } from "@/lib/exams/grading";
@@ -22,6 +22,7 @@ async function assertCanEditMarks(examId: string, sectionId: string, subjectId: 
 
   const role = vu.role ?? "";
   if (MARKS_ENTRY_ROLES.has(role)) return;
+  if (await isAdmin(vu)) return;
 
   if (role === "teacher") {
     const teacher = await getTeacherContext(vu.id);

@@ -5,7 +5,7 @@ import {
   GraduationCap, Eye, UserCheck, UserX, Clock, HelpCircle,
 } from "lucide-react";
 import { ShieldAlert } from "lucide-react";
-import { getVerifiedUser } from "@/lib/auth/verified-role";
+import { getVerifiedUser, isAdmin } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { attendanceColor, attendanceBar } from "../_data/classes";
@@ -98,7 +98,7 @@ export default async function ClassRosterPage({
   const { id } = await params;
   const vu = await getVerifiedUser();
   const role = vu?.role;
-  if (!vu || (role !== "admin" && role !== "teacher")) return <Unauthorized />;
+  if (!vu || (role !== "admin" && role !== "teacher" && !(await isAdmin(vu)))) return <Unauthorized />;
 
   const schoolId = await getCurrentSchoolIdOrThrow();
 
@@ -346,6 +346,7 @@ export default async function ClassRosterPage({
                       <td className="py-3 pl-3 pr-4 text-right">
                         <Link
                           href={`/dashboard/students/${s.id}`}
+                          prefetch={false}
                           className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"
                           title="View student"
                         >

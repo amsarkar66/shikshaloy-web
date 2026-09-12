@@ -4,7 +4,7 @@ import {
   ArrowLeft, BookOpen, GraduationCap, CalendarDays, Clock,
   ClipboardList, CheckCircle2, AlertTriangle,
 } from "lucide-react";
-import { getVerifiedUser } from "@/lib/auth/verified-role";
+import { getVerifiedUser, isAdmin } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getTeacherContext } from "@/lib/teachers/context";
@@ -49,7 +49,8 @@ export default async function HomeworkDetailPage({
 
   const role = user.role;
   if (role === "student") redirect("/dashboard/homework");
-  if (role !== "admin" && role !== "super_admin" && role !== "teacher") redirect("/dashboard");
+  const userIsAdmin = await isAdmin(user);
+  if (role !== "admin" && role !== "super_admin" && role !== "teacher" && !userIsAdmin) redirect("/dashboard");
 
   const schoolId = await getCurrentSchoolIdOrThrow();
 
@@ -68,7 +69,7 @@ export default async function HomeworkDetailPage({
   if (!hwRow) notFound();
   const hw = hwRow as unknown as HomeworkRow;
 
-  let canEdit = role === "admin" || role === "super_admin";
+  let canEdit = role === "admin" || role === "super_admin" || userIsAdmin;
   if (role === "teacher") {
     const teacher = await getTeacherContext(user.id);
     if (!teacher || teacher.staffId !== hw.teacher_id) notFound();

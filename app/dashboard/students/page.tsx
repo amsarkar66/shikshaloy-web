@@ -1,5 +1,5 @@
 import { ShieldAlert } from "lucide-react";
-import { getVerifiedRole } from "@/lib/auth/verified-role";
+import { getVerifiedUser, isAdmin } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
@@ -66,8 +66,9 @@ function toStudent(s: StudentListRow, schoolNameById?: Map<string, string>): Stu
 }
 
 export default async function StudentsPage() {
-  const role = await getVerifiedRole();
-  if (role !== "admin" && role !== "super_admin") return <Unauthorized />;
+  const vu = await getVerifiedUser();
+  const role = vu?.role;
+  if (role !== "admin" && role !== "super_admin" && !(await isAdmin(vu))) return <Unauthorized />;
 
   const institutionId = await getCurrentInstitutionIdOrThrow();
   const [{ maxStudents, atCapacity: atStudentCapacity }, { data: institution }] = await Promise.all([

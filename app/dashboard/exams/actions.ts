@@ -4,12 +4,12 @@ import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
-import { getVerifiedUser, type VerifiedProfile } from "@/lib/auth/verified-role";
+import { getVerifiedUser, isAdmin, type VerifiedProfile } from "@/lib/auth/verified-role";
 import { assertAuthorizedSchool, resolveAuthorizedSchoolId } from "@/lib/supabase/authorized-school";
 
 async function requireSchoolAdmin(): Promise<VerifiedProfile> {
   const vu = await getVerifiedUser();
-  if (!vu || (vu.role !== "admin" && vu.role !== "super_admin")) throw new Error("Unauthorized");
+  if (!vu || (vu.role !== "super_admin" && !(await isAdmin(vu)))) throw new Error("Unauthorized");
   return vu;
 }
 

@@ -1,5 +1,5 @@
 import { ShieldAlert } from "lucide-react";
-import { getVerifiedUser } from "@/lib/auth/verified-role";
+import { getVerifiedUser, isAdmin } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow, getSchoolPickerData } from "@/lib/supabase/school-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
@@ -36,7 +36,7 @@ interface ExamResultRow {
 export default async function AnalyticsPage() {
   const vu = await getVerifiedUser();
   const role = vu?.role;
-  if (!vu || (role !== "admin" && role !== "super_admin")) return <Unauthorized />;
+  if (!vu || (role !== "admin" && role !== "super_admin" && !(await isAdmin(vu)))) return <Unauthorized />;
 
   const schoolId = await getCurrentSchoolIdOrThrow();
   const academicYearId = await getCurrentAcademicYearId();

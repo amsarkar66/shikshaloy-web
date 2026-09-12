@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import QRCode from "qrcode";
 import { ShieldAlert } from "lucide-react";
-import { getVerifiedRole } from "@/lib/auth/verified-role";
+import { getVerifiedUser, isAdmin } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import QrSheetClient, { type QrSheetStudent } from "../../_components/QrSheetClient";
@@ -24,8 +24,9 @@ function Unauthorized() {
 
 export default async function QrSheetPage({ params }: { params: Promise<{ sectionId: string }> }) {
   const { sectionId } = await params;
-  const role = await getVerifiedRole();
-  if (role !== "admin") return <Unauthorized />;
+  const vu = await getVerifiedUser();
+  const role = vu?.role;
+  if (role !== "admin" && !(await isAdmin(vu))) return <Unauthorized />;
 
   const schoolId = await getCurrentSchoolIdOrThrow();
 

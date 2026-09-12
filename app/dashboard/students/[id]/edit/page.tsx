@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { ShieldAlert } from "lucide-react";
-import { getVerifiedRole } from "@/lib/auth/verified-role";
+import { getVerifiedUser, isAdmin } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
@@ -62,8 +62,9 @@ export default async function EditStudentPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const role = await getVerifiedRole();
-  if (role !== "admin") return <Unauthorized />;
+  const vu = await getVerifiedUser();
+  const role = vu?.role;
+  if (role !== "admin" && !(await isAdmin(vu))) return <Unauthorized />;
 
   const schoolId = await getCurrentSchoolIdOrThrow();
   const academicYearId = await getCurrentAcademicYearId();

@@ -2,27 +2,30 @@
 
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/service";
-import { createClient } from "@/lib/supabase/server";
 import { getCurrentSchoolIdOrThrow } from "@/lib/supabase/school-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
 import { getStudentContext } from "@/lib/students/context";
 import { getTeacherContext } from "@/lib/teachers/context";
+import { getVerifiedUser, isAdmin } from "@/lib/auth/verified-role";
+import { assertAuthorizedSchool } from "@/lib/supabase/authorized-school";
 
-// admin/super_admin may act on any homework in their school; a teacher may
-// only act on homework they themselves assigned — mirrors the `canEdit`
-// check already enforced client-side in homework/[id]/page.tsx.
-async function assertHomeworkOwnerOrAdmin(teacherId: string) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
+// admin/super_admin may act on any homework in their own school (verified
+// via assertAuthorizedSchool, not just "some admin somewhere" — this used
+// to return for ANY admin/super_admin regardless of which school the
+// homework belonged to); a teacher may only act on homework they
+// themselves assigned — mirrors the `canEdit` check already enforced
+// client-side in homework/[id]/page.tsx.
+async function assertHomeworkOwnerOrAdmin(teacherId: string, schoolId: string) {
+  const vu = await getVerifiedUser();
+  if (!vu) throw new Error("Unauthorized");
 
-  const { data: profile } = await supabaseAdmin.from("profiles").select("role").eq("id", user.id).maybeSingle();
-  if (profile?.role === "admin" || profile?.role === "super_admin") return;
+  if (vu.role === "admin" || vu.role === "super_admin" || (await isAdmin(vu))) {
+    await assertAuthorizedSchool(vu, schoolId);
+    return;
+  }
 
-  if (profile?.role === "teacher") {
-    const teacher = await getTeacherContext(user.id);
+  if (vu.role === "teacher") {
+    const teacher = await getTeacherContext(vu.id);
     if (teacher && teacher.staffId === teacherId) return;
   }
 
@@ -37,7 +40,28 @@ export async function assignHomework(input: {
   dueDate: string;
   description: string;
 }) {
+  const vu = await getVerifiedUser();
+  if (!vu || (!["admin", "super_admin", "teacher"].includes(vu.role) && !(await isAdmin(vu)))) throw new Error("Unauthorized");
+
   const schoolId = await getCurrentSchoolIdOrThrow();
+
+  // Same class of bug as assignSubjectToSection: verify subjectId/sectionId/
+  // teacherId actually belong to this school before tagging the insert with
+  // it, and that a teacher can only assign homework as themselves.
+  const [{ data: section }, { data: subject }, { data: teacher }] = await Promise.all([
+    supabaseAdmin.from("sections").select("id").eq("id", input.sectionId).eq("school_id", schoolId).maybeSingle(),
+    supabaseAdmin.from("subjects").select("id").eq("id", input.subjectId).eq("school_id", schoolId).maybeSingle(),
+    supabaseAdmin.from("staff_members").select("id").eq("id", input.teacherId).eq("school_id", schoolId).maybeSingle(),
+  ]);
+  if (!section) throw new Error("Section not found");
+  if (!subject) throw new Error("Subject not found");
+  if (!teacher) throw new Error("Teacher not found");
+
+  if (vu.role === "teacher") {
+    const ctx = await getTeacherContext(vu.id);
+    if (!ctx || ctx.staffId !== input.teacherId) throw new Error("You can only assign homework as yourself");
+  }
+
   const { error } = await supabaseAdmin.from("homework").insert({
     school_id: schoolId,
     academic_year_id: await getCurrentAcademicYearId(),
@@ -57,22 +81,19 @@ export async function assignHomework(input: {
 async function assertOwnStudentOrStaff(homeworkId: string, studentId: string) {
   const { data: hw } = await supabaseAdmin
     .from("homework")
-    .select("status, teacher_id")
+    .select("status, teacher_id, school_id")
     .eq("id", homeworkId)
     .maybeSingle();
   if (!hw) throw new Error("Homework not found");
   if (hw.status === "closed") throw new Error("This homework is closed and no longer accepting submissions.");
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
+  const vu = await getVerifiedUser();
+  if (!vu) throw new Error("Unauthorized");
 
-  const student = await getStudentContext(user.id);
-  if (student && student.id === studentId) return;
+  const student = await getStudentContext(vu.id);
+  if (student && student.id === studentId && student.schoolId === hw.school_id) return;
 
-  await assertHomeworkOwnerOrAdmin(hw.teacher_id);
+  await assertHomeworkOwnerOrAdmin(hw.teacher_id, hw.school_id);
 }
 
 export async function submitHomework(homeworkId: string, studentId: string) {
@@ -110,7 +131,7 @@ export async function setHomeworkStatus(homeworkId: string, status: "active" | "
     .eq("school_id", schoolId)
     .maybeSingle();
   if (!hw) throw new Error("Homework not found");
-  await assertHomeworkOwnerOrAdmin(hw.teacher_id);
+  await assertHomeworkOwnerOrAdmin(hw.teacher_id, schoolId);
 
   const { error } = await supabaseAdmin
     .from("homework")

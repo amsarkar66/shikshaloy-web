@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getUser } from "@/lib/supabase/server";
-import { getVerifiedUser } from "@/lib/auth/verified-role";
+import { getVerifiedUser, isAdmin } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow, getSchoolPickerData } from "@/lib/supabase/school-context";
 import { getOrSeedRoleTemplates } from "@/lib/settings/role-templates";
@@ -30,8 +30,9 @@ export default async function SettingsPage() {
     .eq("profile_id", user.id)
     .maybeSingle();
 
-  const needsSchoolData = role === "admin";
-  const needsTemplates = role === "admin" || role === "super_admin";
+  const userIsAdmin = role === "admin" || (await isAdmin(verifiedUser));
+  const needsSchoolData = userIsAdmin;
+  const needsTemplates = userIsAdmin || role === "super_admin";
   const needsPublishKeys = role === "super_admin" || role === "kernel";
   const needsDomains = role === "super_admin";
 

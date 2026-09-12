@@ -6,7 +6,7 @@ import {
   GraduationCap, BookOpen, CheckCircle2, AlertCircle,
   IndianRupee, Users2, TrendingUp, ShieldAlert,
 } from "lucide-react";
-import { getVerifiedUser } from "@/lib/auth/verified-role";
+import { getVerifiedUser, isAdmin } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { resolveAuthorizedSchoolId } from "@/lib/supabase/authorized-school";
 import { ParentDetailActions } from "../_components/parent-detail-actions";
@@ -100,7 +100,7 @@ export default async function ParentDetailPage({
 }) {
   const { id } = await params;
   const verifiedUser = await getVerifiedUser();
-  if (!verifiedUser || (verifiedUser.role !== "admin" && verifiedUser.role !== "super_admin")) return <Unauthorized />;
+  if (!verifiedUser || (verifiedUser.role !== "admin" && verifiedUser.role !== "super_admin" && !(await isAdmin(verifiedUser)))) return <Unauthorized />;
 
   let schoolId: string;
   try {

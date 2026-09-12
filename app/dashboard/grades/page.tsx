@@ -1,4 +1,4 @@
-import { getVerifiedUser } from "@/lib/auth/verified-role";
+import { getVerifiedUser, isAdmin } from "@/lib/auth/verified-role";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentSchoolIdOrThrow, getSchoolPickerData } from "@/lib/supabase/school-context";
 import { getCurrentAcademicYearId } from "@/lib/supabase/academic-year";
@@ -187,8 +187,8 @@ export default async function GradesPage() {
     );
   }
 
-  if (role === "admin" || role === "super_admin" || role === "teacher") {
-    return <Gradebook role={role} userId={vu.id} />;
+  if (role === "admin" || role === "super_admin" || role === "teacher" || (await isAdmin(vu))) {
+    return <Gradebook role={role === "teacher" ? role : "admin"} userId={vu.id} />;
   }
 
   if (role !== "student") {

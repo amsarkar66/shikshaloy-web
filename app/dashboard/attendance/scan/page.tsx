@@ -1,11 +1,12 @@
 import { ShieldAlert } from "lucide-react";
-import { getVerifiedRole } from "@/lib/auth/verified-role";
+import { getVerifiedUser, isAdmin } from "@/lib/auth/verified-role";
 import ScanClient from "../_components/ScanClient";
 
 export default async function AttendanceScanPage() {
-  const role = await getVerifiedRole();
+  const vu = await getVerifiedUser();
+  const role = vu?.role;
 
-  if (role !== "admin" && role !== "super_admin" && role !== "teacher") {
+  if (role !== "admin" && role !== "super_admin" && role !== "teacher" && !(await isAdmin(vu))) {
     return (
       <div className="w-full px-6 py-8">
         <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 py-24 text-center">
