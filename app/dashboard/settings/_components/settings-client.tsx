@@ -697,7 +697,9 @@ function AcademicTab({ settings }: { settings: SettingsData["academicSettings"] 
 
 // ── Tab: Permissions ──────────────────────────────────────────────────────────
 
-function PermissionsTab({ initialTemplates }: { initialTemplates: Template[] }) {
+function PermissionsTab({
+  initialTemplates, schools, activeSchoolId,
+}: { initialTemplates: Template[]; schools: InstitutionSchool[]; activeSchoolId: string | null }) {
   const [templates,   setTemplates]   = useState<Template[]>(initialTemplates);
   const [selectedId,  setSelectedId]  = useState<string>(initialTemplates[0]?.id ?? "");
   const [saved,       setSaved]       = useState(false);
@@ -789,6 +791,11 @@ function PermissionsTab({ initialTemplates }: { initialTemplates: Template[] }) 
 
   return (
     <div className="space-y-4">
+      {schools.length > 1 && (
+        <div className="flex justify-end">
+          <PageSchoolPicker schools={schools} activeSchoolId={activeSchoolId} />
+        </div>
+      )}
       <ErrorNote msg={error} />
       <div className="flex gap-5 min-h-0">
         {/* Template sidebar */}
@@ -1298,11 +1305,6 @@ export function SettingsPageClient({
           <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-50">Settings</h1>
           <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Account and preferences</p>
         </div>
-        {role === "super_admin" && (
-          <div className="sm:ml-auto">
-            <PageSchoolPicker schools={schools} activeSchoolId={activeSchoolId} />
-          </div>
-        )}
       </div>
 
       <div className="flex gap-1 border-b border-gray-200 dark:border-zinc-800">
@@ -1339,7 +1341,9 @@ export function SettingsPageClient({
         <DomainTab domains={data.domains} cnameTarget={data.domainCnameTarget} />
       )}
       {activeTab === "academic"      && <AcademicTab settings={data.academicSettings} />}
-      {activeTab === "permissions"   && <PermissionsTab initialTemplates={data.roleTemplates} />}
+      {activeTab === "permissions"   && (
+        <PermissionsTab initialTemplates={data.roleTemplates} schools={schools} activeSchoolId={activeSchoolId} />
+      )}
       {activeTab === "notifications" && <NotificationsTab prefs={data.notifPrefs} profileId={data.profile.id} />}
       {activeTab === "account"       && <AccountTab profile={data.profile} roleLabel={roleLabel} />}
     </div>
