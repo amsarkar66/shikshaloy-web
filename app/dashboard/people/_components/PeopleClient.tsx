@@ -331,7 +331,7 @@ function PromoteExistingTab({
     setStatus("saving");
     setError("");
     try {
-      await promoteExistingToAdmin({ staffId: selected.staffId, schoolId });
+      await promoteExistingToAdmin(selected.staffId);
       onDone(selected.fullName);
     } catch (err) {
       setStatus("error");
@@ -506,7 +506,7 @@ function RevokeConfirmModal({
     setStatus("saving");
     setError("");
     try {
-      await revokeAdminAccess(admin.staffId, admin.schoolId);
+      await revokeAdminAccess(admin.staffId);
       onRevoked();
     } catch (err) {
       setStatus("error");

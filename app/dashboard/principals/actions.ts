@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/service";
 import { getCurrentInstitutionIdOrThrow } from "@/lib/supabase/institution-context";
 import { getVerifiedUser, type VerifiedProfile } from "@/lib/auth/verified-role";
-import { assertAuthorizedSchool } from "@/lib/supabase/authorized-school";
+import { assertAuthorizedSchool, resolveAuthorizedSchoolId } from "@/lib/supabase/authorized-school";
 import { randomPassword } from "@/lib/auth/random-password";
 import { sendPrincipalCredentialsEmail, sendAdminPromotionEmail, sendAdminRevokedEmail } from "@/lib/email/resend";
 import { logAuditEvent } from "@/lib/audit/log";
@@ -146,20 +146,20 @@ export async function searchPromotableStaff(schoolId: string, query: string): Pr
     }));
 }
 
-export interface PromoteToAdminInput {
-  staffId: string;
-  schoolId: string;
-}
-
-export async function promoteExistingToAdmin(input: PromoteToAdminInput): Promise<void> {
-  const vu = await requireInstitutionOwner();
-  await assertAuthorizedSchool(vu, input.schoolId);
+// staffId alone determines the school (via resolveAuthorizedSchoolId, which
+// also verifies the caller is authorized for it) — callers that already
+// have a schoolId in hand (the school-scoped search flow below) don't need
+// to pass it separately, and callers that don't (e.g. a plain staff-list
+// row with no school context attached) don't need to go find one.
+export async function promoteExistingToAdmin(staffId: string): Promise<void> {
+  await requireInstitutionOwner();
+  const schoolId = await resolveAuthorizedSchoolId("staff_members", staffId);
 
   const { data: staff, error: staffError } = await supabaseAdmin
     .from("staff_members")
     .select("id, profile_id, full_name, email, permission_template_id")
-    .eq("id", input.staffId)
-    .eq("school_id", input.schoolId)
+    .eq("id", staffId)
+    .eq("school_id", schoolId)
     .maybeSingle();
 
   if (staffError || !staff || !staff.profile_id) {
@@ -207,16 +207,16 @@ export async function promoteExistingToAdmin(input: PromoteToAdminInput): Promis
   const { data: school } = await supabaseAdmin
     .from("schools")
     .select("name")
-    .eq("id", input.schoolId)
+    .eq("id", schoolId)
     .maybeSingle();
 
   await supabaseAdmin
     .from("schools")
     .update({ principal_name: staff.full_name, principal_email: staff.email })
-    .eq("id", input.schoolId);
+    .eq("id", schoolId);
 
   await logAuditEvent({
-    schoolId: input.schoolId,
+    schoolId,
     action: "update",
     module: "Principals",
     description: `Promoted ${staff.full_name} (was ${profile.role}) to Admin`,
@@ -244,9 +244,9 @@ export async function promoteExistingToAdmin(input: PromoteToAdminInput): Promis
 // this deliberately refuses that case rather than guessing what to do with
 // it (see docs/architecture/role-and-identity-model.md §7-8, §10).
 
-export async function revokeAdminAccess(staffId: string, schoolId: string): Promise<void> {
-  const vu = await requireInstitutionOwner();
-  await assertAuthorizedSchool(vu, schoolId);
+export async function revokeAdminAccess(staffId: string): Promise<void> {
+  await requireInstitutionOwner();
+  const schoolId = await resolveAuthorizedSchoolId("staff_members", staffId);
 
   const { data: staff, error: staffError } = await supabaseAdmin
     .from("staff_members")
