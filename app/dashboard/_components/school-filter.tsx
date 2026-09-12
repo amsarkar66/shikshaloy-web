@@ -1,4 +1,4 @@
-import { ChevronDown, Landmark } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import type { InstitutionSchool } from "@/lib/supabase/institution-context";
 
 // Shared "All Schools ▾" filter + school column cell for super_admin pages
@@ -30,11 +30,7 @@ export function SchoolFilterSelect({
 }
 
 export function SchoolCell({ name }: { name: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 text-sm text-gray-700 dark:text-zinc-300">
-      <Landmark className="h-3.5 w-3.5 shrink-0 text-violet-400" />{name}
-    </span>
-  );
+  return <span className="text-sm text-gray-700 dark:text-zinc-300">{name}</span>;
 }
 
 export function matchesSchoolFilter(schoolFilter: string, schoolId: string | null | undefined): boolean {
